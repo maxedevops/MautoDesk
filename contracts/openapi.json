@@ -1335,22 +1335,26 @@
           },
           "challengeToken": {
             "type": "string",
-            "nullable": true
+            "nullable": true,
+            "x-sensitive": true
           },
           "enrolmentSecret": {
             "type": "string",
-            "nullable": true
+            "nullable": true,
+            "x-sensitive": true
           },
           "enrolmentUri": {
             "type": "string",
-            "nullable": true
+            "nullable": true,
+            "x-sensitive": true
           },
           "recoveryCodes": {
             "type": "array",
             "items": {
               "type": "string"
             },
-            "nullable": true
+            "nullable": true,
+            "x-sensitive": true
           }
         }
       },
@@ -1511,7 +1515,8 @@
           },
           "password": {
             "type": "string",
-            "nullable": true
+            "nullable": true,
+            "x-sensitive": true
           }
         }
       },
@@ -1630,7 +1635,8 @@
             "type": "array",
             "items": {
               "type": "string"
-            }
+            },
+            "x-sensitive": true
           },
           "issuedAt": {
             "type": "string",
@@ -1664,11 +1670,13 @@
         "properties": {
           "challengeToken": {
             "type": "string",
-            "nullable": true
+            "nullable": true,
+            "x-sensitive": true
           },
           "code": {
             "type": "string",
-            "nullable": true
+            "nullable": true,
+            "x-sensitive": true
           }
         }
       },
@@ -1680,7 +1688,8 @@
         "properties": {
           "refreshToken": {
             "type": "string",
-            "nullable": true
+            "nullable": true,
+            "x-sensitive": true
           }
         }
       },
@@ -1741,10 +1750,12 @@
         "type": "object",
         "properties": {
           "accessToken": {
-            "type": "string"
+            "type": "string",
+            "x-sensitive": true
           },
           "refreshToken": {
-            "type": "string"
+            "type": "string",
+            "x-sensitive": true
           },
           "tokenType": {
             "type": "string"
@@ -1766,10 +1777,12 @@
         "type": "object",
         "properties": {
           "accessToken": {
-            "type": "string"
+            "type": "string",
+            "x-sensitive": true
           },
           "refreshToken": {
-            "type": "string"
+            "type": "string",
+            "x-sensitive": true
           },
           "tokenType": {
             "type": "string"
@@ -2090,11 +2103,13 @@
         "properties": {
           "challengeToken": {
             "type": "string",
-            "nullable": true
+            "nullable": true,
+            "x-sensitive": true
           },
           "code": {
             "type": "string",
-            "nullable": true
+            "nullable": true,
+            "x-sensitive": true
           }
         }
       },

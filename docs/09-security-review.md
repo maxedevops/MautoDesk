@@ -280,10 +280,10 @@ institutions. They will send us a vendor questionnaire.
 ## 5. What I would fix next, in order
 
 1. ~~**F-9 — MFA recovery codes.**~~ Done — see F-9 above.
-2. **Audit events for business actions.** The ledger is built, chained, and
-   empty. An auditor asking "who changed this price?" currently has no answer.
-3. **PII log redaction.** Before the CRM module writes a customer object anywhere
-   near a logger.
+2. ~~**Audit events for business actions.**~~ Done — inventory and photo writes
+   record entries in the same transaction as the change (`docs/06-backend.md` §10).
+3. ~~**PII log redaction.**~~ Done — attribute-driven redaction plus pattern
+   scrubbing, wired into the logging pipeline rather than left to call sites.
 4. **Idempotency keys.** Specified, and money-adjacent endpoints are coming.
 5. **F-8 — distributed rate limiting**, when the topology needs it and not before.
 

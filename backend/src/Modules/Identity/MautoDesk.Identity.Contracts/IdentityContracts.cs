@@ -1,3 +1,5 @@
+using MautoDesk.SharedKernel;
+
 namespace MautoDesk.Identity.Contracts;
 
 /// <summary>
@@ -31,17 +33,19 @@ public enum AuthOutcome
 public sealed record AuthResult(
     AuthOutcome Outcome,
     TokenPair? Tokens,
-    string? ChallengeToken,
-    string? EnrolmentSecret,
-    string? EnrolmentUri,
+    [property: Sensitive] string? ChallengeToken,
+    [property: Sensitive] string? EnrolmentSecret,
+    [property: Sensitive] string? EnrolmentUri,
 
     // Plaintext recovery codes, populated only on the response that issues them
     // — the enrolment that created them, or an explicit regeneration. They are
     // stored hashed, so this is the only time they can ever be shown.
-    IReadOnlyList<string>? RecoveryCodes = null);
+    [property: Sensitive] IReadOnlyList<string>? RecoveryCodes = null);
 
 /// <summary>A newly issued set of recovery codes, shown once.</summary>
-public sealed record RecoveryCodeSetDto(IReadOnlyList<string> Codes, DateTimeOffset IssuedAt);
+public sealed record RecoveryCodeSetDto(
+    [property: Sensitive] IReadOnlyList<string> Codes,
+    DateTimeOffset IssuedAt);
 
 /// <summary>How many recovery codes are left, for the "you are running low" nudge.</summary>
 public sealed record RecoveryCodeStatusDto(int Remaining, int SetSize);
@@ -52,8 +56,8 @@ public sealed record RecoveryCodeStatusDto(int Remaining, int SetSize);
 /// so it can never be recovered from the database.
 /// </remarks>
 public sealed record TokenPair(
-    string AccessToken,
-    string RefreshToken,
+    [property: Sensitive] string AccessToken,
+    [property: Sensitive] string RefreshToken,
     string TokenType,
     int ExpiresIn);
 

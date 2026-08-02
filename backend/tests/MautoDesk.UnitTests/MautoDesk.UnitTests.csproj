@@ -9,6 +9,9 @@
     <ProjectReference Include="..\..\src\Modules\Inventory\MautoDesk.Inventory.Application\MautoDesk.Inventory.Application.csproj" />
     <ProjectReference Include="..\..\src\Modules\Identity\MautoDesk.Identity.Infrastructure\MautoDesk.Identity.Infrastructure.csproj" />
     <ProjectReference Include="..\..\src\Modules\Inventory\MautoDesk.Inventory.Infrastructure\MautoDesk.Inventory.Infrastructure.csproj" />
+    <!-- The log-redaction policy lives in the host, because it is wired into
+         the host's logging pipeline. -->
+    <ProjectReference Include="..\..\src\MautoDesk.Api\MautoDesk.Api.csproj" />
   </ItemGroup>
 
   <ItemGroup>

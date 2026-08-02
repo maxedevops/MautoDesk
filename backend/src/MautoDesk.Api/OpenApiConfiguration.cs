@@ -147,3 +147,34 @@ internal sealed class MautoDeskOperationTransformer : IOpenApiOperationTransform
         };
     }
 }
+
+/// <summary>
+/// Marks sensitive schema properties with <c>x-sensitive</c>.
+/// </summary>
+/// <remarks>
+/// Emitted from the same <see cref="MautoDesk.SharedKernel.SensitiveAttribute"/>
+/// the log-redaction policy reads, so the contract cannot promise a field is
+/// handled carefully while the logger writes it out. A client author reading the
+/// document sees the same obligation the server enforces on itself.
+/// </remarks>
+internal sealed class SensitiveSchemaTransformer : IOpenApiSchemaTransformer
+{
+    public Task TransformAsync(
+        OpenApiSchema schema,
+        OpenApiSchemaTransformerContext context,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(schema);
+        ArgumentNullException.ThrowIfNull(context);
+
+        var property = context.JsonPropertyInfo?.AttributeProvider
+            ?.GetCustomAttributes(typeof(MautoDesk.SharedKernel.SensitiveAttribute), inherit: true);
+
+        if (property is { Length: > 0 })
+        {
+            schema.Extensions["x-sensitive"] = new OpenApiBoolean(true);
+        }
+
+        return Task.CompletedTask;
+    }
+}

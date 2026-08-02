@@ -90,6 +90,44 @@ public sealed class MautoDeskDbContext : DbContext
             entity.Property(e => e.LastError).HasColumnName("last_error");
         });
 
+        modelBuilder.Entity<AuditEvent>(entity =>
+        {
+            entity.ToTable("event", "audit");
+            entity.HasKey(e => e.Id);
+
+            // `generated always as identity`: the database owns this value and
+            // rejects an insert that supplies one.
+            entity.Property(e => e.Id).HasColumnName("id").ValueGeneratedOnAdd().UseIdentityAlwaysColumn();
+            entity.Property(e => e.EventId).HasColumnName("event_id");
+            entity.Property(e => e.TenantId).HasColumnName("tenant_id");
+            entity.Property(e => e.OccurredAt).HasColumnName("occurred_at");
+            entity.Property(e => e.ActorType).HasColumnName("actor_type");
+            entity.Property(e => e.ActorId).HasColumnName("actor_id");
+            entity.Property(e => e.ActorDisplay).HasColumnName("actor_display");
+            entity.Property(e => e.AccessReason).HasColumnName("access_reason");
+            entity.Property(e => e.Action).HasColumnName("action");
+            entity.Property(e => e.EntitySchema).HasColumnName("entity_schema");
+            entity.Property(e => e.EntityType).HasColumnName("entity_type");
+            entity.Property(e => e.EntityId).HasColumnName("entity_id");
+            entity.Property(e => e.BeforeState).HasColumnName("before_state").HasColumnType("jsonb");
+            entity.Property(e => e.AfterState).HasColumnName("after_state").HasColumnType("jsonb");
+            entity.Property(e => e.Metadata).HasColumnName("metadata").HasColumnType("jsonb");
+            // Npgsql maps `inet` to IPAddress, not string. The address is only
+            // ever recorded and displayed, never queried by subnet, so the
+            // domain side stays text.
+            entity.Property(e => e.IpAddress)
+                .HasColumnName("ip_address")
+                .HasConversion(
+                    value => value == null ? null : System.Net.IPAddress.Parse(value),
+                    value => value == null ? null : value.ToString());
+            entity.Property(e => e.UserAgent).HasColumnName("user_agent");
+            entity.Property(e => e.CorrelationId).HasColumnName("correlation_id");
+
+            // Written as an empty array and overwritten by the chain trigger.
+            // The column is not null, so something has to go in it.
+            entity.Property(e => e.Hash).HasColumnName("hash");
+        });
+
         foreach (var module in _modules)
         {
             modelBuilder.ApplyConfigurationsFromAssembly(module.ConfigurationAssembly);

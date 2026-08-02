@@ -84,6 +84,7 @@ public sealed class PhotoCommandHandler
     private readonly IObjectStore _storage;
     private readonly IMalwareScanner _scanner;
     private readonly IImageProcessor _images;
+    private readonly IAuditLog _audit;
     private readonly ITenantContext _tenant;
     private readonly IClock _clock;
 
@@ -94,6 +95,7 @@ public sealed class PhotoCommandHandler
         IObjectStore storage,
         IMalwareScanner scanner,
         IImageProcessor images,
+        IAuditLog audit,
         ITenantContext tenant,
         IClock clock)
     {
@@ -103,6 +105,7 @@ public sealed class PhotoCommandHandler
         _storage = storage;
         _scanner = scanner;
         _images = images;
+        _audit = audit;
         _tenant = tenant;
         _clock = clock;
     }
@@ -201,6 +204,25 @@ public sealed class PhotoCommandHandler
         }
 
         var outcome = await ProcessAsync(photo, cancellationToken).ConfigureAwait(false);
+
+        // Both outcomes are recorded. A rejection is the more interesting one:
+        // it is the trace of someone uploading something that did not survive
+        // verification, which is exactly what an incident review looks for.
+        _audit.Record(new AuditEntry
+        {
+            Action = outcome.IsSuccess ? "inventory.photo.added" : "inventory.photo.rejected",
+            EntitySchema = "inventory",
+            EntityType = "vehicle_photo",
+            EntityId = photo.Id,
+            After = new
+            {
+                VehicleId = photo.VehicleId,
+                Status = photo.ProcessingStatus.ToString(),
+                photo.ByteSize,
+                photo.RejectionReason,
+            },
+        });
+
         await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
         if (outcome.IsFailure)
@@ -228,6 +250,16 @@ public sealed class PhotoCommandHandler
         }
 
         photo.Delete(_clock.UtcNow);
+
+        _audit.Record(new AuditEntry
+        {
+            Action = "inventory.photo.deleted",
+            EntitySchema = "inventory",
+            EntityType = "vehicle_photo",
+            EntityId = photo.Id,
+            Before = new { VehicleId = photo.VehicleId, photo.ObjectKey },
+        });
+
         await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
         // The row is soft-deleted for the audit trail; the object is not kept.

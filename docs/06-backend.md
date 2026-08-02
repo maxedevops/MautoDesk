@@ -234,3 +234,46 @@ Nothing that was not pixels survives it.
 Only a `ready` photo counts toward publish readiness, and only a `ready` photo is given a URL.
 `PhotoUploadTests` covers the happy path, a digest mismatch, a text file declared as a JPEG, a
 confirm with nothing uploaded, cross-tenant access, and the single-primary rule.
+
+---
+
+## 10. The audit ledger and log redaction
+
+### What gets written
+
+`IAuditLog.Record` adds an entry to the caller's **unit of work**. It is not a
+separate write: the entry lands in the same transaction as the change it
+describes, so a refused operation cannot leave a record claiming it happened,
+and a committed one cannot be missing its record. `AuditLedgerTests` asserts
+both directions.
+
+Recorded today: vehicle created, status changed, price changed, published, and
+deleted; photo added, rejected, and deleted. A price change stores both numbers
+**as strings** — a JSON number would round a price through a double on its way
+into the record that exists to be trusted.
+
+`prev_hash` and `hash` are deliberately absent from the entity. A BEFORE INSERT
+trigger computes them from the row and its predecessor, so the chain attests to
+what was stored rather than to what the application claimed; a compromised
+application cannot write a consistent chain of lies. `update` and `delete` are
+revoked from `mautodesk_app` and blocked by a trigger — asserted from the
+application role's own connection.
+
+### What gets redacted
+
+Two mechanisms, because they fail differently:
+
+- **`[Sensitive]`** marks a property at its definition. Serilog's destructuring
+  policy replaces it with `[redacted]` before the value is ever written, and the
+  OpenAPI document emits `x-sensitive: true` for the same property from the same
+  attribute — so the contract cannot promise care that the logger does not take.
+  A name list (`password`, `ssn`, `accountNumber`, …) backstops objects nobody
+  could attribute: anonymous types, third-party models.
+- **Pattern scrubbing** handles free text — an exception quoting a row, a
+  Postgres error echoing a parameter, a URL carrying a token. Social security
+  numbers, card numbers, bearer tokens, and JWTs are masked; email addresses
+  keep their domain and lose the local part, so "which dealership was this?"
+  stays answerable while the individual does not appear.
+
+It is a net, not a proof. It does not make logging a customer object acceptable,
+and the CRM module should not treat it as permission to try.

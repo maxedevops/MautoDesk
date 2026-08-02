@@ -329,22 +329,26 @@ public static class AuthEndpoints
     private static string? UserAgent(HttpContext context) =>
         context.Request.Headers.UserAgent.FirstOrDefault();
 
-    public sealed record LoginRequest(string? Email, string? Password);
+    public sealed record LoginRequest(string? Email, [property: Sensitive] string? Password);
 
-    public sealed record VerifyMfaRequest(string? ChallengeToken, string? Code);
+    public sealed record VerifyMfaRequest(
+        [property: Sensitive] string? ChallengeToken,
+        [property: Sensitive] string? Code);
 
-    public sealed record RefreshRequest(string? RefreshToken);
+    public sealed record RefreshRequest([property: Sensitive] string? RefreshToken);
 
-    public sealed record RedeemRecoveryCodeRequest(string? ChallengeToken, string? Code);
+    public sealed record RedeemRecoveryCodeRequest(
+        [property: Sensitive] string? ChallengeToken,
+        [property: Sensitive] string? Code);
 
     /// <summary>The result of an authentication step.</summary>
     public sealed record AuthResponse(
         string Outcome,
         TokenPair? Tokens,
-        string? ChallengeToken,
-        string? EnrolmentSecret,
-        string? EnrolmentUri,
-        IReadOnlyList<string>? RecoveryCodes);
+        [property: Sensitive] string? ChallengeToken,
+        [property: Sensitive] string? EnrolmentSecret,
+        [property: Sensitive] string? EnrolmentUri,
+        [property: Sensitive] IReadOnlyList<string>? RecoveryCodes);
 }
 
 /// <summary>

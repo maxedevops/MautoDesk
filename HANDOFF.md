@@ -1,9 +1,10 @@
 # MautoDesk — Handoff
 
 **State:** Phases 1–10 of 13 complete, plus MFA recovery codes, wired-up
-inventory writes, and photo uploads · backend green (79 unit, 83 integration,
-8 architecture) and frontend unit green (21); the e2e suite needs a running
-stack · zero known dependency vulnerabilities
+inventory writes, photo uploads, audit-ledger writes, and PII log redaction ·
+backend green (89 unit, 89 integration, 8 architecture) and frontend unit green
+(21); the e2e suite needs a running stack · zero known dependency
+vulnerabilities
 
 > **Checkpointed.** Phases 1–10 are in a single initial commit on `main`, pushed
 > to <https://github.com/maxedevops/MautoDesk>. Work from a branch off `main`
@@ -117,10 +118,6 @@ state.
 
 ### Important, not urgent
 
-- **The audit ledger is built, chained, and empty.** No handler writes to it. An
-  auditor asking "who changed this price?" has no answer today.
-- **No PII log redaction.** Needs to land before the CRM module writes a customer
-  object anywhere near a logger.
 - **No idempotency keys.** Specified in the contract; money-adjacent endpoints are
   coming.
 - **No outbox dispatcher.** Messages are written correctly and transactionally;
@@ -176,9 +173,10 @@ measured**, so it would largely be speculation. Two sensible orders:
   table.
 
 If the goal is a usable product rather than the next phase number, the highest
-value work is neither: it is the **audit ledger** and **PII log redaction**,
-both listed above. MFA recovery codes, the inert UI, and photos — which used to
-head this list — are done.
+value work is neither: it is **idempotency keys** before money-adjacent
+endpoints arrive, then the **outbox dispatcher** so the events already being
+written are consumed by something. MFA recovery codes, the inert UI, photos,
+audit writes, and log redaction — which used to head this list — are done.
 
 ---
 

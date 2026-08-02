@@ -1,3 +1,4 @@
+using System.Globalization;
 using MautoDesk.Inventory.Contracts;
 using MautoDesk.Inventory.Domain;
 using MautoDesk.SharedKernel;
@@ -57,6 +58,7 @@ public sealed class VehicleCommandHandler
     private readonly IUnitOfWork _unitOfWork;
     private readonly IVinDecoder _vinDecoder;
     private readonly IStockNumberGenerator _stockNumbers;
+    private readonly IAuditLog _audit;
     private readonly ITenantContext _tenant;
     private readonly IClock _clock;
 
@@ -66,6 +68,7 @@ public sealed class VehicleCommandHandler
         IUnitOfWork unitOfWork,
         IVinDecoder vinDecoder,
         IStockNumberGenerator stockNumbers,
+        IAuditLog audit,
         ITenantContext tenant,
         IClock clock)
     {
@@ -74,6 +77,7 @@ public sealed class VehicleCommandHandler
         _unitOfWork = unitOfWork;
         _vinDecoder = vinDecoder;
         _stockNumbers = stockNumbers;
+        _audit = audit;
         _tenant = tenant;
         _clock = clock;
     }
@@ -198,6 +202,19 @@ public sealed class VehicleCommandHandler
         }
 
         _repository.Add(vehicle);
+
+        // Recorded before the save, so the ledger entry is part of the same
+        // transaction as the vehicle. There is no window where one exists
+        // without the other.
+        _audit.Record(new AuditEntry
+        {
+            Action = "inventory.vehicle.created",
+            EntitySchema = "inventory",
+            EntityType = "vehicle",
+            EntityId = vehicle.Id,
+            After = new { vehicle.StockNumber, Vin = vehicle.Vin, Status = vehicle.Status.ToString() },
+        });
+
         await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
         var created = await _readStore.GetAsync(vehicle.Id, cancellationToken).ConfigureAwait(false);
@@ -236,11 +253,22 @@ public sealed class VehicleCommandHandler
             return Error.Validation("vehicle.status.unknown", $"'{command.Status}' is not a vehicle status.", "status");
         }
 
+        var previous = vehicle.Status;
         var changed = vehicle.ChangeStatus(target, _clock.Today);
         if (changed.IsFailure)
         {
             return changed.Error!;
         }
+
+        _audit.Record(new AuditEntry
+        {
+            Action = "inventory.vehicle.status_changed",
+            EntitySchema = "inventory",
+            EntityType = "vehicle",
+            EntityId = vehicle.Id,
+            Before = new { Status = previous.ToString() },
+            After = new { Status = vehicle.Status.ToString() },
+        });
 
         await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         return await ReadBackAsync(vehicle.Id, cancellationToken).ConfigureAwait(false);
@@ -270,11 +298,28 @@ public sealed class VehicleCommandHandler
             return price.Error!;
         }
 
+        var previousPrice = vehicle.ListPrice;
         var applied = vehicle.SetListPrice(price.Value);
         if (applied.IsFailure)
         {
             return applied.Error!;
         }
+
+        // "Who changed this price?" is the question this ledger was built to
+        // answer, so the two numbers are recorded as strings — a JSON number
+        // would round a price through a double on its way into the record.
+        _audit.Record(new AuditEntry
+        {
+            Action = "inventory.vehicle.price_changed",
+            EntitySchema = "inventory",
+            EntityType = "vehicle",
+            EntityId = vehicle.Id,
+            Before = new { ListPrice = previousPrice?.ToString(CultureInfo.InvariantCulture) },
+            After = new { ListPrice = vehicle.ListPrice?.ToString(CultureInfo.InvariantCulture) },
+            Metadata = command.Reason is null
+                ? null
+                : new Dictionary<string, object?> { ["reason"] = command.Reason },
+        });
 
         await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         return await ReadBackAsync(vehicle.Id, cancellationToken).ConfigureAwait(false);
@@ -305,6 +350,15 @@ public sealed class VehicleCommandHandler
             return published.Error!;
         }
 
+        _audit.Record(new AuditEntry
+        {
+            Action = "inventory.vehicle.published",
+            EntitySchema = "inventory",
+            EntityType = "vehicle",
+            EntityId = vehicle.Id,
+            After = new { vehicle.IsPublished, ListPrice = vehicle.ListPrice?.ToString(CultureInfo.InvariantCulture), PhotoCount = photoCount },
+        });
+
         await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         return await ReadBackAsync(vehicle.Id, cancellationToken).ConfigureAwait(false);
     }
@@ -327,6 +381,17 @@ public sealed class VehicleCommandHandler
         {
             return deleted.Error!;
         }
+
+        // A soft delete is still the removal of a record from everyone's view,
+        // and it is the sort of thing someone asks about six months later.
+        _audit.Record(new AuditEntry
+        {
+            Action = "inventory.vehicle.deleted",
+            EntitySchema = "inventory",
+            EntityType = "vehicle",
+            EntityId = vehicle.Id,
+            Before = new { vehicle.StockNumber, Status = vehicle.Status.ToString() },
+        });
 
         await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         return Result.Success();

@@ -12,8 +12,14 @@ using MautoDesk.SharedKernel;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Logging first, so anything the rest of startup writes is already redacted.
+builder.Host.UseSerilog((context, logger) => logger
+    .ReadFrom.Configuration(context.Configuration)
+    .ForMautoDesk());
 
 // ---------------------------------------------------------------------------
 // Configuration
@@ -64,6 +70,12 @@ builder.Services.AddDbContext<MautoDeskDbContext>((sp, options) =>
     options.UseNpgsql(connectionString);
     options.AddInterceptors(sp.GetRequiredService<TenantConnectionInterceptor>());
 });
+
+// The audit ledger. Scoped, because an entry joins the request's unit of work
+// and commits with the change it describes.
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<IRequestContext, HttpRequestContext>();
+builder.Services.AddScoped<IAuditLog, AuditLog>();
 
 // Inventory
 builder.Services.AddScoped<MautoDesk.Inventory.Application.IUnitOfWork, UnitOfWork>();
@@ -154,6 +166,7 @@ builder.Services.AddOpenApi(options =>
 {
     options.AddDocumentTransformer<MautoDeskDocumentTransformer>();
     options.AddOperationTransformer<MautoDeskOperationTransformer>();
+    options.AddSchemaTransformer<SensitiveSchemaTransformer>();
 });
 
 var app = builder.Build();
@@ -162,6 +175,11 @@ var app = builder.Build();
 // Pipeline
 // ---------------------------------------------------------------------------
 app.UseExceptionHandler();
+
+// One line per request, with the query string scrubbed. Placed before
+// authentication so a request refused at the edge is still accounted for.
+app.UseSerilogRequestLogging(options =>
+    options.EnrichDiagnosticContext = LoggingConfiguration.EnrichRequest);
 
 app.Use(async (context, next) =>
 {
