@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\MautoDesk.Inventory.Domain\MautoDesk.Inventory.Domain.csproj" />
+    <ProjectReference Include="..\MautoDesk.Inventory.Contracts\MautoDesk.Inventory.Contracts.csproj" />
+  </ItemGroup>
+</Project>

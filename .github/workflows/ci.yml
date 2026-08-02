@@ -1,0 +1,380 @@
+name: CI
+
+# Every job here is a gate, not a report. A red build blocks the merge.
+#
+# The `database` job is the one that keeps ADR-0002 true as the schema grows:
+# it applies every migration to a real PostgreSQL, asserts zero RLS coverage
+# gaps, and runs the cross-tenant isolation probe as the unprivileged
+# application role.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  security-events: write
+
+env:
+  DOTNET_VERSION: '9.0.x'
+  NODE_VERSION: '24'
+
+jobs:
+  # ---------------------------------------------------------------------------
+  secrets-scan:
+    name: Secret scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ---------------------------------------------------------------------------
+  database:
+    name: Schema, RLS coverage, and tenant isolation
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_PASSWORD: devpw
+          POSTGRES_DB: mautodesk
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Apply migrations
+        env:
+          PGPASSWORD: devpw
+        run: |
+          set -euo pipefail
+          for f in db/migrations/V*.sql; do
+            echo "::group::$f"
+            psql -h localhost -U postgres -d mautodesk -v ON_ERROR_STOP=1 -q -f "$f"
+            echo "::endgroup::"
+          done
+
+      # A new tenant-owned table without an RLS policy fails here, before it can
+      # ever reach an environment holding real customer data.
+      - name: Assert zero RLS coverage gaps
+        env:
+          PGPASSWORD: devpw
+        run: |
+          set -euo pipefail
+          gaps=$(psql -h localhost -U postgres -d mautodesk -t -A \
+                 -c 'select count(*) from app.rls_coverage_gaps();')
+          if [ "$gaps" != "0" ]; then
+            echo "::error::$gaps table(s) are missing row-level security"
+            psql -h localhost -U postgres -d mautodesk -c 'select * from app.rls_coverage_gaps();'
+            exit 1
+          fi
+          echo "RLS coverage verified: 0 gaps"
+
+      - name: Cross-tenant isolation probe
+        env:
+          PGPASSWORD: devpw
+        run: |
+          psql -h localhost -U postgres -d mautodesk -v ON_ERROR_STOP=1 \
+               -f db/tests/isolation_probe.sql
+
+      # Migrations are forward-only and must apply cleanly to an already-migrated
+      # database. Re-running catches a non-idempotent seed or a missing guard.
+      - name: Re-apply migrations (idempotency)
+        env:
+          PGPASSWORD: devpw
+        run: |
+          set -euo pipefail
+          psql -h localhost -U postgres -d mautodesk -v ON_ERROR_STOP=1 -q -f db/migrations/V0007__seed.sql
+          echo "Seed is idempotent"
+
+  # ---------------------------------------------------------------------------
+  api-contract:
+    name: API contract
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      # The Phase 4 design contract. It still covers endpoints that are not
+      # implemented yet, so it is linted as a specification — it is NOT what the
+      # client is generated from.
+      - name: Lint the design contract
+        run: npx --yes @redocly/cli@latest lint contracts/openapi.design.yaml --config contracts/redocly.yaml
+
+      # The published contract is generated from the running API, so it lints as
+      # a check on the API's own metadata rather than on anything hand-written.
+      - name: Lint the generated contract
+        run: npx --yes @redocly/cli@latest lint contracts/openapi.json --skip-rule operation-4xx-response
+
+      # Drift itself is caught by ContractGenerationTests in the backend job:
+      # it fetches /openapi/v1.json from the real host and compares it to the
+      # committed copy. A developer who changes an endpoint without regenerating
+      # gets a red build with a diff (ADR-0010).
+
+  # ---------------------------------------------------------------------------
+  design-system:
+    name: Design token contrast
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      # docs/05-ux-design.md §9 commits to WCAG 2.2 AA in both themes. This
+      # measures it rather than trusting it. A token edit that drops a pair
+      # below threshold fails here, before it reaches a dealer squinting at a
+      # phone in sunlight. Dependency-free, so it runs without an install step.
+      - name: Token contrast (both themes)
+        run: node frontend/packages/ui/contrast.test.mjs
+
+  # ---------------------------------------------------------------------------
+  backend:
+    name: Backend build and test
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_PASSWORD: devpw
+          POSTGRES_DB: mautodesk
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+      valkey:
+        image: valkey/valkey:8-alpine
+        ports: ['6379:6379']
+    env:
+      # The integration tests drive the real host, which must connect as
+      # mautodesk_app — no superuser, no BYPASSRLS. If this were a postgres
+      # connection string the isolation tests would pass while proving nothing.
+      TEST_APP_CONNECTION: >-
+        Host=localhost;Port=5432;Database=mautodesk;Username=mautodesk_app;Password=devpw;Include Error Detail=true
+      TEST_ADMIN_CONNECTION: >-
+        Host=localhost;Port=5432;Database=mautodesk;Username=postgres;Password=devpw
+      # Deterministic test keys. Both 32 bytes, matching what the host demands in
+      # production — there is no relaxed test-only path through the key checks.
+      Jwt__SigningKey: dGVzdC1zaWduaW5nLWtleS0zMi1ieXRlcy1sb25nISE=
+      Encryption__MasterKey: dGVzdC1tYXN0ZXIta2V5LTMyLWJ5dGVzLWxvbmchISE=
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      # The application schema, applied exactly as the `database` job does.
+      # The tests exercise RLS, so the policies must exist before they run.
+      - name: Apply migrations
+        env:
+          PGPASSWORD: devpw
+        run: |
+          set -euo pipefail
+          for f in db/migrations/V*.sql; do
+            psql -h localhost -U postgres -d mautodesk -v ON_ERROR_STOP=1 -q -f "$f"
+          done
+          psql -h localhost -U postgres -d mautodesk -v ON_ERROR_STOP=1 \
+            -c "alter role mautodesk_app with password 'devpw';"
+
+      - name: Assert the test role cannot bypass RLS
+        env:
+          PGPASSWORD: devpw
+        run: |
+          set -euo pipefail
+          bypass=$(psql -h localhost -U postgres -d mautodesk -t -A \
+            -c "select rolsuper or rolbypassrls from pg_roles where rolname='mautodesk_app';")
+          if [ "$bypass" != "f" ]; then
+            echo "::error::mautodesk_app can bypass RLS; the isolation tests would be meaningless"
+            exit 1
+          fi
+
+      - run: dotnet restore backend/MautoDesk.sln
+      - name: Build (warnings are errors)
+        run: dotnet build backend/MautoDesk.sln --no-restore -c Release
+
+      - name: Vulnerable packages
+        run: |
+          set -euo pipefail
+          out=$(dotnet list backend/MautoDesk.sln package --vulnerable --include-transitive)
+          echo "$out"
+          if echo "$out" | grep -qE 'High|Critical'; then
+            echo "::error::vulnerable packages detected"
+            exit 1
+          fi
+
+      - name: Unit tests
+        run: dotnet test backend/tests/MautoDesk.UnitTests --no-build -c Release
+
+      # Module boundaries, no-double-near-money, no static clock. A failing test
+      # here means the architecture drifted, which is cheaper to catch now than
+      # during the Phase 9 security review.
+      - name: Architecture tests
+        run: dotnet test backend/tests/MautoDesk.ArchitectureTests --no-build -c Release
+
+      # Cross-tenant isolation through the full HTTP stack, against real
+      # PostgreSQL. This is the suite that must never be allowed to go red.
+      - name: Integration and isolation tests
+        run: dotnet test backend/tests/MautoDesk.IntegrationTests --no-build -c Release
+
+  # ---------------------------------------------------------------------------
+  frontend:
+    name: Frontend build and test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - run: pnpm install --frozen-lockfile
+        working-directory: frontend
+
+      # Dependency vulnerabilities fail the build. Phase 9 found a critical RCE
+      # and 16 high-severity advisories sitting in the lockfile with nothing
+      # watching; this is the thing that stops that recurring.
+      - name: Vulnerable dependencies
+        working-directory: frontend
+        run: pnpm audit --audit-level moderate
+
+      # Regenerate the typed client from the committed contract and fail if it
+      # differs from what is checked in. Combined with the backend's drift test,
+      # this closes the loop end to end: endpoints → contract → client. A
+      # backend change that reaches neither cannot pass CI.
+      - name: Client is in sync with the contract
+        working-directory: frontend
+        run: |
+          set -euo pipefail
+          pnpm --filter @mautodesk/api-client generate
+          if ! git diff --exit-code -- packages/api-client/src/schema.ts; then
+            echo "::error::The generated client is stale. Run 'pnpm generate:client' and commit."
+            exit 1
+          fi
+
+      - run: pnpm typecheck
+        working-directory: frontend
+      # Unit tests for the client formatters, the session crypto contract, and
+      # the design-token contrast. Fast, no external dependencies.
+      - run: pnpm -r test
+        working-directory: frontend
+
+      - run: pnpm build
+        working-directory: frontend
+
+  # ---------------------------------------------------------------------------
+  # End-to-end runs against the whole stack, so it is its own job rather than a
+  # step bolted onto the frontend one. It is the only place Server Actions,
+  # redirects, and what the browser can actually see are exercised.
+  e2e:
+    name: End-to-end
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_PASSWORD: devpw
+          POSTGRES_DB: mautodesk
+        ports: [''5432:5432'']
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+    env:
+      ConnectionStrings__Default: >-
+        Host=localhost;Port=5432;Database=mautodesk;Username=mautodesk_app;Password=devpw
+      Jwt__SigningKey: dGVzdC1zaWduaW5nLWtleS0zMi1ieXRlcy1sb25nISE=
+      Jwt__Issuer: https://localhost:5080
+      Jwt__Audience: mautodesk-api
+      Encryption__MasterKey: dGVzdC1tYXN0ZXIta2V5LTMyLWJ5dGVzLWxvbmchISE=
+      # Production auth limits (10 / 15 min) are correctly hostile to a suite
+      # that signs in from one address. The limiter itself is covered by
+      # RateLimitingTests, which configures a limit of three and proves it fires.
+      RateLimits__AuthPermitsPerWindow: "1000"
+      ASPNETCORE_URLS: http://localhost:5080
+      API_BASE_URL: http://localhost:5080
+      SESSION_SECRET: c2Vzc2lvbi1zZWNyZXQtdGhpcnR5LXR3by1ieXRlcyE=
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - name: Schema and seed
+        env:
+          PGPASSWORD: devpw
+        run: |
+          set -euo pipefail
+          for f in db/migrations/V*.sql; do
+            psql -h localhost -U postgres -d mautodesk -v ON_ERROR_STOP=1 -q -f "$f"
+          done
+          psql -h localhost -U postgres -d mautodesk -c "alter role mautodesk_app with password ''devpw'';"
+          psql -h localhost -U postgres -d mautodesk -v ON_ERROR_STOP=1 -q -f db/seed/e2e.sql
+
+      - run: pnpm install --frozen-lockfile
+        working-directory: frontend
+      - run: pnpm --filter @mautodesk/api-client build
+        working-directory: frontend
+      - run: pnpm --filter @mautodesk/e2e exec playwright install --with-deps chromium
+        working-directory: frontend
+
+      - name: Start the API
+        run: |
+          dotnet run --project backend/src/MautoDesk.Api -c Release &
+          timeout 90 bash -c ''until curl -sf http://localhost:5080/health/live; do sleep 2; done''
+
+      - name: Start the web app
+        working-directory: frontend
+        run: |
+          pnpm --filter @mautodesk/web build
+          pnpm --filter @mautodesk/web start &
+          timeout 90 bash -c ''until curl -sf http://localhost:3000/login; do sleep 2; done''
+
+      - name: Playwright
+        working-directory: frontend
+        run: pnpm --filter @mautodesk/e2e exec playwright test
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: frontend/e2e/playwright-report/
+          retention-days: 7
+
+  # ---------------------------------------------------------------------------
+  codeql:
+    name: CodeQL
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [javascript-typescript]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: github/codeql-action/init@v3
+        with:
+          language: ${{ matrix.language }}
+          queries: security-extended
+      - uses: github/codeql-action/autobuild@v3
+      - uses: github/codeql-action/analyze@v3

@@ -1,0 +1,123 @@
+@import 'tailwindcss';
+@import '@mautodesk/ui/tokens.css';
+
+/*
+  Bridges the design tokens into Tailwind's theme so a utility class and a
+  hand-written rule resolve to the same value. tokens.css stays the single
+  source of truth — nothing here defines a colour, it only exposes one.
+
+  Only tokens that components actually use as utilities are mapped. Exposing the
+  whole palette would let someone write `bg-slate-300` and bypass the semantic
+  layer, which is how a design system quietly stops being one.
+*/
+@theme inline {
+  --color-canvas: var(--bg-canvas);
+  --color-surface: var(--bg-surface);
+  --color-raised: var(--bg-raised);
+  --color-inset: var(--bg-inset);
+  --color-hover: var(--bg-hover);
+  --color-active: var(--bg-active);
+
+  --color-ink: var(--text-primary);
+  --color-muted: var(--text-secondary);
+  --color-faint: var(--text-tertiary);
+  --color-on-accent: var(--text-on-accent);
+
+  --color-line: var(--border-subtle);
+  --color-line-strong: var(--border-default);
+  --color-control: var(--border-control);
+
+  --color-accent: var(--accent-bg);
+  --color-accent-hover: var(--accent-bg-hover);
+  --color-accent-text: var(--accent-fg);
+
+  --color-success-mark: var(--success-mark);
+  --color-success-text: var(--success-text);
+  --color-warning-mark: var(--warning-mark);
+  --color-warning-text: var(--warning-text);
+  --color-danger-mark: var(--danger-mark);
+  --color-danger-text: var(--danger-text);
+  --color-info-mark: var(--info-mark);
+  --color-info-text: var(--info-text);
+
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+}
+
+html,
+body {
+  background: var(--bg-canvas);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  /* 14px in the app shell: dealers read dense tables on 1080p monitors. */
+  font-size: var(--text-sm);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/*
+  A visible focus ring is an accessibility requirement, not a style choice.
+  :focus-visible keeps it off for mouse users without removing it for keyboard
+  users. Never replace this with `outline: none`.
+*/
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/* Every price, mileage and day count aligns down its column. */
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* The four typographic levels that carry hierarchy instead of colour. */
+.t-page {
+  font-size: var(--text-xl);
+  font-weight: 650;
+  letter-spacing: -0.015em;
+  text-wrap: balance;
+}
+
+.t-section {
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.t-label {
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+
+.skeleton {
+  border-radius: var(--radius-sm);
+  background: linear-gradient(
+    90deg,
+    var(--bg-inset) 25%,
+    var(--bg-hover) 50%,
+    var(--bg-inset) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.4s linear infinite;
+}
+
+@keyframes shimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

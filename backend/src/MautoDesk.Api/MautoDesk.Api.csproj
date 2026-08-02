@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <ItemGroup>
+    <ProjectReference Include="..\MautoDesk.Infrastructure\MautoDesk.Infrastructure.csproj" />
+    <ProjectReference Include="..\Modules\Inventory\MautoDesk.Inventory.Infrastructure\MautoDesk.Inventory.Infrastructure.csproj" />
+    <ProjectReference Include="..\Modules\Identity\MautoDesk.Identity.Infrastructure\MautoDesk.Identity.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" />
+    <PackageReference Include="Microsoft.Extensions.Http.Resilience" />
+    <PackageReference Include="Serilog.AspNetCore" />
+    <PackageReference Include="Serilog.Sinks.Console" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The integration tests drive the real host through WebApplicationFactory,
+         which needs to see the entry point. -->
+    <InternalsVisibleTo Include="MautoDesk.IntegrationTests" />
+  </ItemGroup>
+
+</Project>

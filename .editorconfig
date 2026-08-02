@@ -1,0 +1,78 @@
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 2
+max_line_length = 100
+
+[*.{cs,csx}]
+indent_size = 4
+
+# --- C# analyzers -------------------------------------------------------------
+# These are errors, not suggestions. Each one guards an invariant from the ADRs.
+[*.cs]
+csharp_style_namespace_declarations = file_scoped:error
+csharp_style_var_when_type_is_apparent = true:suggestion
+dotnet_style_require_accessibility_modifiers = always:error
+dotnet_style_readonly_field = true:warning
+
+# Nullability is not optional. A NullReferenceException in a deal calculation is
+# a wrong number on a contract.
+dotnet_diagnostic.CS8600.severity = error
+dotnet_diagnostic.CS8602.severity = error
+dotnet_diagnostic.CS8603.severity = error
+dotnet_diagnostic.CS8604.severity = error
+dotnet_diagnostic.CS8618.severity = error
+
+# CA2100: SQL injection review. Never downgrade this.
+dotnet_diagnostic.CA2100.severity = error
+# CA5350/CA5351: weak crypto.
+dotnet_diagnostic.CA5350.severity = error
+dotnet_diagnostic.CA5351.severity = error
+# CA1305/CA1310: culture-sensitive string and number handling — a formatting
+# difference between a developer's machine and production is a real defect class
+# in a system that prints contracts.
+dotnet_diagnostic.CA1305.severity = error
+dotnet_diagnostic.CA1310.severity = error
+
+# --- Deliberately disabled, with reasons ------------------------------------
+# CA1716: type names must not collide with keywords reserved in OTHER CLR
+# languages (VB's `Error`). This is a C#-only service with no cross-language
+# consumers; renaming Result's `Error` to `ResultError` would make every call
+# site worse to serve a constraint we do not have.
+dotnet_diagnostic.CA1716.severity = none
+
+# CA1000: no static members on generic types. Written for discoverability in
+# 2005; `Result<T>.Success(value)` is the idiomatic modern spelling and the
+# alternative (a non-generic factory) reads worse at every call site.
+dotnet_diagnostic.CA1000.severity = none
+
+# --- Test projects ------------------------------------------------------------
+# Test method names are documentation. `Publishing_requires_a_photo` reads in a
+# failure report; `PublishingRequiresAPhoto` does not. CA1707 is right for
+# production APIs and wrong here, so it is scoped off rather than disabled
+# globally — production code still has to obey it.
+[**/tests/**/*.cs]
+dotnet_diagnostic.CA1707.severity = none
+# xUnit theory data and fixtures legitimately expose types the rule dislikes.
+dotnet_diagnostic.CA1861.severity = none
+
+[*.{yml,yaml}]
+indent_size = 2
+
+[*.sql]
+indent_size = 2
+max_line_length = 100
+
+[*.{ts,tsx,js,jsx,json,css}]
+indent_size = 2
+
+[*.md]
+trim_trailing_whitespace = false
+
+[*.{ps1,psm1}]
+end_of_line = crlf

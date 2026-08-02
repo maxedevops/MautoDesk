@@ -1,0 +1,1565 @@
+{
+  "openapi": "3.0.1",
+  "info": {
+    "title": "MautoDesk API",
+    "description": "Multi-tenant dealership management platform.\n\n**Authentication.** Bearer access tokens. Tenant scope is carried in the token's `tenant` claim; supplying a tenant identifier in a header, query string, or body has no effect and is never honoured.\n\n**Errors.** All non-2xx responses are RFC 9457 `application/problem+json`. A resource belonging to another tenant is reported as `404 Not Found` — the API does not confirm the existence of records outside the caller's tenant.\n\n**Money** is transported as a decimal string (`\"28995.00\"`), never a JSON number, so no client can round it through a floating-point value.",
+    "license": {
+      "name": "Proprietary",
+      "url": "https://mautodesk.com/legal/api-terms"
+    },
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "https://api.mautodesk.com",
+      "description": "Production"
+    },
+    {
+      "url": "https://staging-api.mautodesk.com",
+      "description": "Staging"
+    },
+    {
+      "url": "http://localhost:5080",
+      "description": "Local development"
+    }
+  ],
+  "paths": {
+    "/api/v1/vin/{vin}/decode": {
+      "get": {
+        "tags": [
+          "Inventory"
+        ],
+        "summary": "Decode a VIN",
+        "operationId": "decodeVin",
+        "parameters": [
+          {
+            "name": "vin",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "refresh",
+            "in": "query",
+            "schema": {
+              "type": "boolean",
+              "default": false
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VinDecodeDto"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired, or invalid credentials.",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "403": {
+            "description": "The principal lacks the required permission.",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "404": {
+            "description": "Not found, or the resource belongs to another tenant. These cases are deliberately indistinguishable: a 403 would confirm the record exists.",
+            "content": {
+              "application/problem+json": { }
+            }
+          }
+        },
+        "x-permission": "inventory.vehicle.read"
+      }
+    },
+    "/api/v1/auth/login": {
+      "post": {
+        "tags": [
+          "Authentication"
+        ],
+        "summary": "Authenticate with email and password",
+        "description": "Returns tokens only when no second factor is outstanding. Because MFA is mandatory, the normal responses are mfaRequired or mfaEnrolmentRequired. The response for an unknown address is identical to the response for a wrong password, and the timing is equalised, so this endpoint cannot be used to discover which addresses have accounts.",
+        "operationId": "login",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired, or invalid credentials.",
+            "content": {
+              "application/problem+json": { }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/mfa/verify": {
+      "post": {
+        "tags": [
+          "Authentication"
+        ],
+        "summary": "Complete authentication with a TOTP code",
+        "operationId": "verifyMfa",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerifyMfaRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired, or invalid credentials.",
+            "content": {
+              "application/problem+json": { }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/mfa/enrol": {
+      "post": {
+        "tags": [
+          "Authentication"
+        ],
+        "summary": "Confirm a new authenticator and finish signing in",
+        "operationId": "confirmMfaEnrolment",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerifyMfaRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired, or invalid credentials.",
+            "content": {
+              "application/problem+json": { }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/refresh": {
+      "post": {
+        "tags": [
+          "Authentication"
+        ],
+        "summary": "Exchange a refresh token for a new pair",
+        "description": "Refresh tokens rotate on every use. Presenting a token that has already been rotated is treated as evidence of theft: the entire token family is revoked and a fresh sign-in is required.",
+        "operationId": "refreshToken",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefreshRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenPair2"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired, or invalid credentials.",
+            "content": {
+              "application/problem+json": { }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/logout": {
+      "post": {
+        "tags": [
+          "Authentication"
+        ],
+        "summary": "Revoke the current session",
+        "operationId": "logout",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefreshRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "401": {
+            "description": "Missing, expired, or invalid credentials.",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "403": {
+            "description": "The principal lacks the required permission.",
+            "content": {
+              "application/problem+json": { }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/me": {
+      "get": {
+        "tags": [
+          "Authentication"
+        ],
+        "summary": "The authenticated principal, tenant, and effective permissions",
+        "operationId": "getCurrentUser",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CurrentUserDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired, or invalid credentials.",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "403": {
+            "description": "The principal lacks the required permission.",
+            "content": {
+              "application/problem+json": { }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/vehicles": {
+      "get": {
+        "tags": [
+          "Inventory"
+        ],
+        "summary": "List vehicles",
+        "operationId": "listVehicles",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 1
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 25
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "default": null
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "default": null
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "default": null
+            }
+          },
+          {
+            "name": "make",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "default": null
+            }
+          },
+          {
+            "name": "model",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "default": null
+            }
+          },
+          {
+            "name": "isPublished",
+            "in": "query",
+            "schema": {
+              "type": "boolean",
+              "default": null
+            }
+          },
+          {
+            "name": "ageDaysMin",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": null
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PagedResultOfVehicleSummaryDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired, or invalid credentials.",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "403": {
+            "description": "The principal lacks the required permission.",
+            "content": {
+              "application/problem+json": { }
+            }
+          }
+        },
+        "x-permission": "inventory.vehicle.read"
+      },
+      "post": {
+        "tags": [
+          "Inventory"
+        ],
+        "summary": "Create a vehicle",
+        "operationId": "createVehicle",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateVehicleCommand"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VehicleDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired, or invalid credentials.",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "403": {
+            "description": "The principal lacks the required permission.",
+            "content": {
+              "application/problem+json": { }
+            }
+          }
+        },
+        "x-permission": "inventory.vehicle.write"
+      }
+    },
+    "/api/v1/vehicles/{vehicleId}": {
+      "get": {
+        "tags": [
+          "Inventory"
+        ],
+        "summary": "Get a vehicle",
+        "operationId": "getVehicle",
+        "parameters": [
+          {
+            "name": "vehicleId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VehicleDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired, or invalid credentials.",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "403": {
+            "description": "The principal lacks the required permission.",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "404": {
+            "description": "Not found, or the resource belongs to another tenant. These cases are deliberately indistinguishable: a 403 would confirm the record exists.",
+            "content": {
+              "application/problem+json": { }
+            }
+          }
+        },
+        "x-permission": "inventory.vehicle.read"
+      },
+      "delete": {
+        "tags": [
+          "Inventory"
+        ],
+        "summary": "Soft-delete a vehicle",
+        "operationId": "deleteVehicle",
+        "parameters": [
+          {
+            "name": "vehicleId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired, or invalid credentials.",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "403": {
+            "description": "The principal lacks the required permission.",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "404": {
+            "description": "Not found, or the resource belongs to another tenant. These cases are deliberately indistinguishable: a 403 would confirm the record exists.",
+            "content": {
+              "application/problem+json": { }
+            }
+          }
+        },
+        "x-permission": "inventory.vehicle.delete"
+      }
+    },
+    "/api/v1/vehicles/{vehicleId}/status": {
+      "post": {
+        "tags": [
+          "Inventory"
+        ],
+        "summary": "Change vehicle status",
+        "operationId": "changeVehicleStatus",
+        "parameters": [
+          {
+            "name": "vehicleId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangeStatusRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VehicleDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired, or invalid credentials.",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "403": {
+            "description": "The principal lacks the required permission.",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "404": {
+            "description": "Not found, or the resource belongs to another tenant. These cases are deliberately indistinguishable: a 403 would confirm the record exists.",
+            "content": {
+              "application/problem+json": { }
+            }
+          }
+        },
+        "x-permission": "inventory.vehicle.write"
+      }
+    },
+    "/api/v1/vehicles/{vehicleId}/price": {
+      "post": {
+        "tags": [
+          "Inventory"
+        ],
+        "summary": "Change an asking price",
+        "operationId": "changeVehiclePrice",
+        "parameters": [
+          {
+            "name": "vehicleId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangePriceRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VehicleDto"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired, or invalid credentials.",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "403": {
+            "description": "The principal lacks the required permission.",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "404": {
+            "description": "Not found, or the resource belongs to another tenant. These cases are deliberately indistinguishable: a 403 would confirm the record exists.",
+            "content": {
+              "application/problem+json": { }
+            }
+          }
+        },
+        "x-permission": "inventory.price.write"
+      }
+    },
+    "/api/v1/vehicles/{vehicleId}/publish": {
+      "post": {
+        "tags": [
+          "Inventory"
+        ],
+        "summary": "Publish to the website and syndication channels",
+        "operationId": "publishVehicle",
+        "parameters": [
+          {
+            "name": "vehicleId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VehicleDto"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired, or invalid credentials.",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "403": {
+            "description": "The principal lacks the required permission.",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "404": {
+            "description": "Not found, or the resource belongs to another tenant. These cases are deliberately indistinguishable: a 403 would confirm the record exists.",
+            "content": {
+              "application/problem+json": { }
+            }
+          }
+        },
+        "x-permission": "inventory.publish"
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AuthResponse": {
+        "required": [
+          "outcome",
+          "tokens",
+          "challengeToken",
+          "enrolmentSecret",
+          "enrolmentUri"
+        ],
+        "type": "object",
+        "properties": {
+          "outcome": {
+            "type": "string"
+          },
+          "tokens": {
+            "$ref": "#/components/schemas/TokenPair"
+          },
+          "challengeToken": {
+            "type": "string",
+            "nullable": true
+          },
+          "enrolmentSecret": {
+            "type": "string",
+            "nullable": true
+          },
+          "enrolmentUri": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "ChangePriceRequest": {
+        "required": [
+          "priceType",
+          "newPrice",
+          "reason"
+        ],
+        "type": "object",
+        "properties": {
+          "priceType": {
+            "type": "string"
+          },
+          "newPrice": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "ChangeStatusRequest": {
+        "required": [
+          "status",
+          "reason"
+        ],
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "CreateVehicleCommand": {
+        "type": "object",
+        "properties": {
+          "stockNumber": {
+            "type": "string",
+            "nullable": true
+          },
+          "vin": {
+            "type": "string",
+            "nullable": true
+          },
+          "decodeVin": {
+            "type": "boolean"
+          },
+          "modelYear": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "make": {
+            "type": "string",
+            "nullable": true
+          },
+          "model": {
+            "type": "string",
+            "nullable": true
+          },
+          "trim": {
+            "type": "string",
+            "nullable": true
+          },
+          "mileage": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "exteriorColor": {
+            "type": "string",
+            "nullable": true
+          },
+          "interiorColor": {
+            "type": "string",
+            "nullable": true
+          },
+          "listPrice": {
+            "type": "string",
+            "nullable": true
+          },
+          "location": {
+            "type": "string",
+            "nullable": true
+          },
+          "notes": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "CurrentUserDto": {
+        "required": [
+          "id",
+          "email",
+          "firstName",
+          "lastName",
+          "displayName",
+          "tenant",
+          "roles",
+          "permissions",
+          "mfaEnrolled"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "email": {
+            "type": "string"
+          },
+          "firstName": {
+            "type": "string"
+          },
+          "lastName": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "tenant": {
+            "$ref": "#/components/schemas/TenantDto"
+          },
+          "roles": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "permissions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "mfaEnrolled": {
+            "type": "boolean"
+          }
+        }
+      },
+      "LoginRequest": {
+        "required": [
+          "email",
+          "password"
+        ],
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "nullable": true
+          },
+          "password": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "PagedResultOfVehicleSummaryDto": {
+        "required": [
+          "items",
+          "page",
+          "pageSize",
+          "totalCount"
+        ],
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/VehicleSummaryDto"
+            }
+          },
+          "page": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "pageSize": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "totalCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "totalPages": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "ProblemDetails": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "nullable": true
+          },
+          "title": {
+            "type": "string",
+            "nullable": true
+          },
+          "status": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "detail": {
+            "type": "string",
+            "nullable": true
+          },
+          "instance": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "PublishReadinessDto": {
+        "required": [
+          "satisfied",
+          "total",
+          "missing"
+        ],
+        "type": "object",
+        "properties": {
+          "satisfied": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "total": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "missing": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "RefreshRequest": {
+        "required": [
+          "refreshToken"
+        ],
+        "type": "object",
+        "properties": {
+          "refreshToken": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "TenantDto": {
+        "required": [
+          "id",
+          "slug",
+          "legalName",
+          "stateCode"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "legalName": {
+            "type": "string"
+          },
+          "stateCode": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "TokenPair": {
+        "required": [
+          "accessToken",
+          "refreshToken",
+          "tokenType",
+          "expiresIn"
+        ],
+        "type": "object",
+        "properties": {
+          "accessToken": {
+            "type": "string"
+          },
+          "refreshToken": {
+            "type": "string"
+          },
+          "tokenType": {
+            "type": "string"
+          },
+          "expiresIn": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "nullable": true
+      },
+      "TokenPair2": {
+        "required": [
+          "accessToken",
+          "refreshToken",
+          "tokenType",
+          "expiresIn"
+        ],
+        "type": "object",
+        "properties": {
+          "accessToken": {
+            "type": "string"
+          },
+          "refreshToken": {
+            "type": "string"
+          },
+          "tokenType": {
+            "type": "string"
+          },
+          "expiresIn": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "VehicleDto": {
+        "required": [
+          "id",
+          "stockNumber",
+          "vin",
+          "modelYear",
+          "make",
+          "model",
+          "trim",
+          "bodyStyle",
+          "driveType",
+          "engine",
+          "fuelType",
+          "transmission",
+          "exteriorColor",
+          "interiorColor",
+          "mileage",
+          "status",
+          "listPrice",
+          "description",
+          "aiDescriptionDraft",
+          "acquiredAt",
+          "availableAt",
+          "soldAt",
+          "isPublished",
+          "location",
+          "notes",
+          "daysInInventory",
+          "readiness",
+          "createdAt",
+          "updatedAt"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "stockNumber": {
+            "type": "string"
+          },
+          "vin": {
+            "type": "string",
+            "nullable": true
+          },
+          "modelYear": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "make": {
+            "type": "string",
+            "nullable": true
+          },
+          "model": {
+            "type": "string",
+            "nullable": true
+          },
+          "trim": {
+            "type": "string",
+            "nullable": true
+          },
+          "bodyStyle": {
+            "type": "string",
+            "nullable": true
+          },
+          "driveType": {
+            "type": "string",
+            "nullable": true
+          },
+          "engine": {
+            "type": "string",
+            "nullable": true
+          },
+          "fuelType": {
+            "type": "string",
+            "nullable": true
+          },
+          "transmission": {
+            "type": "string",
+            "nullable": true
+          },
+          "exteriorColor": {
+            "type": "string",
+            "nullable": true
+          },
+          "interiorColor": {
+            "type": "string",
+            "nullable": true
+          },
+          "mileage": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "status": {
+            "type": "string"
+          },
+          "listPrice": {
+            "type": "string",
+            "nullable": true
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          },
+          "aiDescriptionDraft": {
+            "type": "string",
+            "nullable": true
+          },
+          "acquiredAt": {
+            "type": "string",
+            "format": "date",
+            "nullable": true
+          },
+          "availableAt": {
+            "type": "string",
+            "format": "date",
+            "nullable": true
+          },
+          "soldAt": {
+            "type": "string",
+            "format": "date",
+            "nullable": true
+          },
+          "isPublished": {
+            "type": "boolean"
+          },
+          "location": {
+            "type": "string",
+            "nullable": true
+          },
+          "notes": {
+            "type": "string",
+            "nullable": true
+          },
+          "daysInInventory": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "readiness": {
+            "$ref": "#/components/schemas/PublishReadinessDto"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "VehicleSummaryDto": {
+        "required": [
+          "id",
+          "stockNumber",
+          "vin",
+          "modelYear",
+          "make",
+          "model",
+          "trim",
+          "mileage",
+          "exteriorColor",
+          "status",
+          "listPrice",
+          "daysInInventory",
+          "daysToSale",
+          "isPublished",
+          "photoCount"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "stockNumber": {
+            "type": "string"
+          },
+          "vin": {
+            "type": "string",
+            "nullable": true
+          },
+          "modelYear": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "make": {
+            "type": "string",
+            "nullable": true
+          },
+          "model": {
+            "type": "string",
+            "nullable": true
+          },
+          "trim": {
+            "type": "string",
+            "nullable": true
+          },
+          "mileage": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "exteriorColor": {
+            "type": "string",
+            "nullable": true
+          },
+          "status": {
+            "type": "string"
+          },
+          "listPrice": {
+            "type": "string",
+            "nullable": true
+          },
+          "daysInInventory": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "daysToSale": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "isPublished": {
+            "type": "boolean"
+          },
+          "photoCount": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "VerifyMfaRequest": {
+        "required": [
+          "challengeToken",
+          "code"
+        ],
+        "type": "object",
+        "properties": {
+          "challengeToken": {
+            "type": "string",
+            "nullable": true
+          },
+          "code": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "VinDecodeDto": {
+        "required": [
+          "vin",
+          "provider",
+          "fromCache",
+          "checkDigitValid",
+          "modelYear",
+          "make",
+          "model",
+          "trim",
+          "bodyStyle",
+          "driveType",
+          "engine",
+          "fuelType",
+          "transmission",
+          "manufacturer",
+          "errorText"
+        ],
+        "type": "object",
+        "properties": {
+          "vin": {
+            "type": "string"
+          },
+          "provider": {
+            "type": "string"
+          },
+          "fromCache": {
+            "type": "boolean"
+          },
+          "checkDigitValid": {
+            "type": "boolean"
+          },
+          "modelYear": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "make": {
+            "type": "string",
+            "nullable": true
+          },
+          "model": {
+            "type": "string",
+            "nullable": true
+          },
+          "trim": {
+            "type": "string",
+            "nullable": true
+          },
+          "bodyStyle": {
+            "type": "string",
+            "nullable": true
+          },
+          "driveType": {
+            "type": "string",
+            "nullable": true
+          },
+          "engine": {
+            "type": "string",
+            "nullable": true
+          },
+          "fuelType": {
+            "type": "string",
+            "nullable": true
+          },
+          "transmission": {
+            "type": "string",
+            "nullable": true
+          },
+          "manufacturer": {
+            "type": "string",
+            "nullable": true
+          },
+          "errorText": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      }
+    },
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "description": "Access token from /auth/login. The tenant is carried in the token's `tenant` claim and cannot be overridden by any request parameter.",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    }
+  },
+  "security": [
+    {
+      "bearerAuth": [ ]
+    }
+  ],
+  "tags": [
+    {
+      "name": "Inventory"
+    },
+    {
+      "name": "Authentication"
+    }
+  ]
+}

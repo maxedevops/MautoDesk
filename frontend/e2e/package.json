@@ -1,0 +1,17 @@
+{
+  "name": "@mautodesk/e2e",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "echo \"E2E runs via `pnpm e2e` against a running stack; not part of the unit test sweep\"",
+    "e2e": "playwright test",
+    "e2e:install": "playwright install --with-deps chromium",
+    "lint": "echo \"no lint config yet\"",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.56.1",
+    "typescript": "5.9.2"
+  }
+}

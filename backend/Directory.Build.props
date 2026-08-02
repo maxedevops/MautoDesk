@@ -1,0 +1,53 @@
+<Project>
+
+  <!--
+    Shared build settings for every project in the MautoDesk solution.
+
+    Two settings here are load-bearing rather than stylistic:
+
+      TreatWarningsAsErrors  — a warning that can be ignored will be ignored.
+                               Nullability warnings in particular are the early
+                               form of a NullReferenceException inside a deal
+                               calculation, which is a wrong number on a signed
+                               contract.
+
+      EnableNETAnalyzers +   — CA2100 (SQL injection), CA5350/5351 (weak crypto),
+      AnalysisLevel latest     and CA1305/1310 (culture-sensitive formatting) are
+                               escalated to errors in .editorconfig.
+  -->
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <WarningsNotAsErrors></WarningsNotAsErrors>
+    <!-- CS1591 (missing XML comment on a public member) is suppressed: the
+         documentation file is generated for OpenAPI descriptions, not to force
+         a comment onto every DTO property. Every other warning stays an error. -->
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+    <AnalysisLevel>latest-recommended</AnalysisLevel>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <!-- Deterministic builds so a container image is reproducible from a commit. -->
+    <Deterministic>true</Deterministic>
+    <ContinuousIntegrationBuild Condition="'$(CI)' == 'true'">true</ContinuousIntegrationBuild>
+    <InvariantGlobalization>false</InvariantGlobalization>
+  </PropertyGroup>
+
+  <!--
+    Central package version management. Every project references packages without
+    a version; versions live in Directory.Packages.props. This is what stops two
+    modules from silently depending on different Npgsql versions.
+  -->
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+
+  <ItemGroup Condition="'$(IsTestProject)' == 'true'">
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+</Project>

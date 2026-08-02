@@ -1,0 +1,2309 @@
+openapi: 3.1.0
+
+# ==============================================================================
+# MautoDesk API — design-time contract (Phase 4)
+#
+# This file is hand-authored for now: it is the specification the backend must
+# implement in Phase 6. Once the ASP.NET Core API exists, this file becomes a
+# GENERATED artifact and CI fails if the committed copy drifts from the one the
+# build produces. See docs/04-api-contracts.md §1.
+#
+# Conventions enforced throughout:
+#   * Tenancy comes from the token's `tenant` claim. There is no tenant header.
+#   * Cross-tenant identifiers return 404, never 403.
+#   * Errors are RFC 9457 application/problem+json.
+#   * Money is {amount: string, currency} — string so no client rounds it.
+#   * x-permission on each operation names the permission the server enforces.
+#   * x-sensitive marks fields the log-redaction policy must never emit.
+# ==============================================================================
+
+info:
+  title: MautoDesk API
+  version: 1.0.0
+  summary: Dealership management platform for independent used-car dealers.
+  description: |
+    Multi-tenant DMS covering inventory, CRM, deals, documents, and e-signature.
+
+    **Authentication.** Bearer access tokens (15 min) obtained from `/auth/login`
+    and refreshed via `/auth/refresh` with rotation and reuse detection. Tenant
+    scope is carried in the token; supplying a tenant identifier in a header,
+    query string, or body has no effect and is never honoured.
+
+    **Errors.** All non-2xx responses are `application/problem+json` per RFC 9457.
+    A resource belonging to another tenant is reported as `404 Not Found` — the
+    API does not confirm the existence of records outside the caller's tenant.
+  contact:
+    name: MautoDesk Engineering
+    url: https://mautodesk.com/support
+  license:
+    name: Proprietary
+    url: https://mautodesk.com/legal/api-terms
+
+servers:
+  - url: https://api.mautodesk.com/api/v1
+    description: Production
+  - url: https://staging-api.mautodesk.com/api/v1
+    description: Staging
+  - url: http://localhost:5080/api/v1
+    description: Local development
+
+tags:
+  - name: Authentication
+    description: Login, MFA, token rotation, and session management.
+  - name: Inventory
+    description: Vehicles, VIN decoding, costs, pricing, and publication.
+  - name: Photos
+    description: Vehicle photo upload, ordering, and processing status.
+  - name: CRM
+    description: Customers, their consent state, and unified activity timelines.
+  - name: Leads
+    description: Inbound leads, assignment, and response tracking.
+  - name: Deals
+    description: Quotes through contracting, including the immutable calculation ledger.
+  - name: Documents
+    description: Versioned document storage, generation, and deal jackets.
+  - name: Signatures
+    description: Signature envelopes and their ESIGN/UETA evidence packages.
+  - name: Uploads
+    description: Presigned, quarantine-first file upload.
+  - name: Jobs
+    description: Polling for asynchronous operations.
+  - name: Reports
+    description: Inventory aging, profitability, and pipeline reporting.
+
+security:
+  - bearerAuth: []
+
+# ==============================================================================
+paths:
+# ==============================================================================
+
+  # ---------------------------------------------------------------- Auth ------
+  /auth/login:
+    post:
+      tags: [Authentication]
+      operationId: login
+      summary: Authenticate with email and password
+      description: |
+        Returns tokens only when no second factor is outstanding. When MFA is
+        required — which is the normal case, since MFA is mandatory for every
+        user with access to customer information — the response is
+        `mfaRequired` with a short-lived challenge token to be presented to
+        `/auth/mfa/verify`.
+
+        The response is deliberately identical for an unknown account and a bad
+        password, and the timing is equalised, so this endpoint cannot be used
+        to enumerate users.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LoginRequest' }
+      responses:
+        '200':
+          description: Authenticated, or a second factor is required.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LoginResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '423': { $ref: '#/components/responses/Locked' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+
+  /auth/mfa/verify:
+    post:
+      tags: [Authentication]
+      operationId: verifyMfa
+      summary: Complete authentication with a second factor
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/MfaVerifyRequest' }
+      responses:
+        '200':
+          description: Authenticated.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TokenResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+
+  /auth/refresh:
+    post:
+      tags: [Authentication]
+      operationId: refreshToken
+      summary: Exchange a refresh token for a new token pair
+      description: |
+        Refresh tokens rotate on every use. Presenting a token that has already
+        been rotated is treated as evidence of theft: the entire token family is
+        revoked, a security event is raised, and this endpoint returns 401.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refreshToken]
+              properties:
+                refreshToken: { type: string, writeOnly: true }
+      responses:
+        '200':
+          description: New token pair issued.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TokenResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /auth/logout:
+    post:
+      tags: [Authentication]
+      operationId: logout
+      summary: Revoke the current session
+      responses:
+        '204': { description: Session revoked. }
+
+  /auth/me:
+    get:
+      tags: [Authentication]
+      operationId: getCurrentUser
+      summary: The authenticated principal, its tenant, and its effective permissions
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CurrentUser' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /auth/sessions:
+    get:
+      tags: [Authentication]
+      operationId: listSessions
+      summary: Active sessions for the current user
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Session' }
+
+  /auth/sessions/{sessionId}:
+    delete:
+      tags: [Authentication]
+      operationId: revokeSession
+      summary: Revoke a specific session
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '204': { description: Revoked. }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  # ----------------------------------------------------------- Inventory ------
+  /vehicles:
+    get:
+      tags: [Inventory]
+      operationId: listVehicles
+      summary: List vehicles
+      description: |
+        Cost and gross figures are omitted unless the caller holds
+        `inventory.cost.read`. They are omitted from the query, not stripped
+        from the response — see docs/03-database-design.md §5.1.
+      x-permission: inventory.vehicle.read
+      parameters:
+        - { $ref: '#/components/parameters/Page' }
+        - { $ref: '#/components/parameters/PageSize' }
+        - { $ref: '#/components/parameters/Sort' }
+        - { $ref: '#/components/parameters/Query' }
+        - name: status
+          in: query
+          description: Repeatable. Multiple values are OR-ed.
+          schema:
+            type: array
+            items: { $ref: '#/components/schemas/VehicleStatus' }
+          style: form
+          explode: true
+        - { name: make,          in: query, schema: { type: string } }
+        - { name: model,         in: query, schema: { type: string } }
+        - { name: modelYearMin,  in: query, schema: { type: integer } }
+        - { name: modelYearMax,  in: query, schema: { type: integer } }
+        - { name: priceMin,      in: query, schema: { type: number } }
+        - { name: priceMax,      in: query, schema: { type: number } }
+        - { name: mileageMax,    in: query, schema: { type: integer } }
+        - { name: isPublished,   in: query, schema: { type: boolean } }
+        - name: ageDaysMin
+          in: query
+          description: Minimum days in inventory. Drives the aging report and the "stale units" filter.
+          schema: { type: integer }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PagedResult'
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items: { $ref: '#/components/schemas/VehicleSummary' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+    post:
+      tags: [Inventory]
+      operationId: createVehicle
+      summary: Create a vehicle
+      description: |
+        When `vin` is supplied and `decodeVin` is true (the default), the VIN is
+        decoded synchronously from cache when available and asynchronously
+        otherwise; unset identity fields are populated from the decode. Fields
+        the caller supplied are never overwritten by the decoder.
+      x-permission: inventory.vehicle.write
+      parameters:
+        - { $ref: '#/components/parameters/IdempotencyKey' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/VehicleCreate' }
+      responses:
+        '201':
+          description: Created
+          headers:
+            Location: { schema: { type: string } }
+            ETag:     { schema: { type: string } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Vehicle' }
+        '409':
+          description: A vehicle with this stock number or VIN already exists.
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/ProblemDetails' }
+        '422': { $ref: '#/components/responses/ValidationFailed' }
+
+  /vehicles/{vehicleId}:
+    parameters:
+      - { $ref: '#/components/parameters/VehicleId' }
+    get:
+      tags: [Inventory]
+      operationId: getVehicle
+      x-permission: inventory.vehicle.read
+      summary: Get a vehicle
+      responses:
+        '200':
+          description: OK
+          headers:
+            ETag: { schema: { type: string } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Vehicle' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [Inventory]
+      operationId: updateVehicle
+      x-permission: inventory.vehicle.write
+      summary: Update a vehicle
+      parameters:
+        - { $ref: '#/components/parameters/IfMatch' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/VehicleUpdate' }
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Vehicle' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/ValidationFailed' }
+    delete:
+      tags: [Inventory]
+      operationId: deleteVehicle
+      x-permission: inventory.vehicle.delete
+      summary: Soft-delete a vehicle
+      description: |
+        Soft delete. The record remains for audit and retention purposes and is
+        recoverable. This is not erasure — see docs/03-database-design.md §7.
+      responses:
+        '204': { description: Deleted. }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: The vehicle is attached to an active deal.
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/ProblemDetails' }
+
+  /vehicles/{vehicleId}/costs:
+    parameters:
+      - { $ref: '#/components/parameters/VehicleId' }
+    get:
+      tags: [Inventory]
+      operationId: listVehicleCosts
+      x-permission: inventory.cost.read
+      summary: List costs recorded against a vehicle
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/VehicleCost' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [Inventory]
+      operationId: addVehicleCost
+      x-permission: inventory.cost.write
+      summary: Record a cost against a vehicle
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/VehicleCostCreate' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/VehicleCost' }
+        '422': { $ref: '#/components/responses/ValidationFailed' }
+
+  /vehicles/{vehicleId}/price:
+    parameters:
+      - { $ref: '#/components/parameters/VehicleId' }
+    post:
+      tags: [Inventory]
+      operationId: changeVehiclePrice
+      x-permission: inventory.price.write
+      summary: Change an asking price
+      description: Every price change is recorded in the vehicle's price history with its reason.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [priceType, newPrice]
+              properties:
+                priceType: { type: string, enum: [list, internet, wholesale] }
+                newPrice:  { $ref: '#/components/schemas/Money' }
+                reason:    { type: string, maxLength: 500 }
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Vehicle' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /vehicles/{vehicleId}/publish:
+    parameters:
+      - { $ref: '#/components/parameters/VehicleId' }
+    post:
+      tags: [Inventory]
+      operationId: publishVehicle
+      x-permission: inventory.publish
+      summary: Publish to the website and enabled syndication channels
+      description: |
+        Asynchronous. Returns 202 with a job to poll. Publication requires at
+        least one photo and a non-null asking price; the request is rejected
+        with 422 otherwise rather than producing a listing a shopper will bounce
+        off.
+      responses:
+        '202': { $ref: '#/components/responses/JobAccepted' }
+        '422': { $ref: '#/components/responses/ValidationFailed' }
+
+  /vehicles/{vehicleId}/ai/description:
+    parameters:
+      - { $ref: '#/components/parameters/VehicleId' }
+    post:
+      tags: [Inventory]
+      operationId: generateVehicleDescription
+      x-permission: ai.generate
+      summary: Generate a vehicle description draft
+      description: |
+        Produces a **draft** only. The generated text is grounded strictly in
+        decoded and dealer-entered data and is written to
+        `aiDescriptionDraft`; it does not become `description` until a user
+        holding `ai.approve` approves it. Publishing un-reviewed AI copy about a
+        vehicle's equipment is a consumer-protection risk, so the architecture
+        makes it impossible rather than discouraged.
+
+        Counts against the tenant's plan quota, which is checked before the
+        model call.
+      responses:
+        '202': { $ref: '#/components/responses/JobAccepted' }
+        '402':
+          description: Plan quota for AI generation exhausted.
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/ProblemDetails' }
+
+  /vin/{vin}/decode:
+    get:
+      tags: [Inventory]
+      operationId: decodeVin
+      x-permission: inventory.vehicle.read
+      summary: Decode a VIN
+      description: |
+        Served from the shared decode cache when present. On a miss the upstream
+        provider (NHTSA vPIC at launch) is called; if it is slow or unavailable
+        the endpoint returns 503 rather than blocking, and the caller may still
+        create the vehicle manually.
+
+        Trim and factory-option data from vPIC is incomplete for many vehicles.
+        Callers must treat missing fields as unknown, not as absent equipment.
+      parameters:
+        - name: vin
+          in: path
+          required: true
+          schema: { $ref: '#/components/schemas/Vin' }
+        - name: refresh
+          in: query
+          description: Bypass the cache and re-decode.
+          schema: { type: boolean, default: false }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/VinDecodeResult' }
+        '422': { $ref: '#/components/responses/ValidationFailed' }
+        '503':
+          description: The decode provider is unavailable.
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/ProblemDetails' }
+
+  # -------------------------------------------------------------- Photos ------
+  /vehicles/{vehicleId}/photos:
+    parameters:
+      - { $ref: '#/components/parameters/VehicleId' }
+    get:
+      tags: [Photos]
+      operationId: listVehiclePhotos
+      x-permission: inventory.vehicle.read
+      summary: List photos in display order
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/VehiclePhoto' }
+    post:
+      tags: [Photos]
+      operationId: attachVehiclePhotos
+      x-permission: inventory.photo.write
+      summary: Attach uploaded objects as vehicle photos
+      description: |
+        Takes upload IDs previously confirmed through `/uploads`. Photos enter
+        `pending` and become `ready` only after virus scanning, magic-byte
+        verification, and re-encoding (which strips EXIF, including GPS
+        coordinates that would otherwise disclose where a vehicle is stored).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [uploadIds]
+              properties:
+                uploadIds:
+                  type: array
+                  minItems: 1
+                  maxItems: 50
+                  items: { type: string, format: uuid }
+      responses:
+        '202': { $ref: '#/components/responses/JobAccepted' }
+
+  /vehicles/{vehicleId}/photos/order:
+    parameters:
+      - { $ref: '#/components/parameters/VehicleId' }
+    put:
+      tags: [Photos]
+      operationId: reorderVehiclePhotos
+      x-permission: inventory.photo.write
+      summary: Set photo display order
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [photoIds]
+              properties:
+                photoIds:
+                  type: array
+                  items: { type: string, format: uuid }
+      responses:
+        '204': { description: Reordered. }
+
+  # ----------------------------------------------------------------- CRM ------
+  /customers:
+    get:
+      tags: [CRM]
+      operationId: listCustomers
+      summary: List customers
+      x-permission: crm.customer.read
+      parameters:
+        - { $ref: '#/components/parameters/Page' }
+        - { $ref: '#/components/parameters/PageSize' }
+        - { $ref: '#/components/parameters/Sort' }
+        - { $ref: '#/components/parameters/Query' }
+        - { name: tag,  in: query, schema: { type: string } }
+        - { name: type, in: query, schema: { type: string, enum: [individual, business] } }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PagedResult'
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items: { $ref: '#/components/schemas/CustomerSummary' }
+    post:
+      tags: [CRM]
+      operationId: createCustomer
+      summary: Create a customer
+      x-permission: crm.customer.write
+      parameters:
+        - { $ref: '#/components/parameters/IdempotencyKey' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CustomerCreate' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Customer' }
+        '422': { $ref: '#/components/responses/ValidationFailed' }
+
+  /customers/{customerId}:
+    parameters:
+      - { $ref: '#/components/parameters/CustomerId' }
+    get:
+      tags: [CRM]
+      operationId: getCustomer
+      summary: Get a customer
+      x-permission: crm.customer.read
+      responses:
+        '200':
+          description: OK
+          headers:
+            ETag: { schema: { type: string } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Customer' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [CRM]
+      operationId: updateCustomer
+      summary: Update a customer
+      x-permission: crm.customer.write
+      parameters:
+        - { $ref: '#/components/parameters/IfMatch' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CustomerUpdate' }
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Customer' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /customers/{customerId}/sensitive:
+    parameters:
+      - { $ref: '#/components/parameters/CustomerId' }
+    get:
+      tags: [CRM]
+      operationId: getCustomerSensitiveData
+      x-permission: crm.customer.pii.read
+      summary: Reveal unmasked identifiers
+      description: |
+        Decrypts and returns SSN and driver's licence number. **Every call writes
+        an audit event** recording the actor, the customer, the reason, and the
+        request context — there is no unaudited path to this data.
+
+        A reason is required. Requests without one are rejected.
+      parameters:
+        - name: reason
+          in: query
+          required: true
+          description: Why the data is being accessed. Recorded in the audit log.
+          schema: { type: string, minLength: 5, maxLength: 500 }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CustomerSensitive' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /customers/{customerId}/timeline:
+    parameters:
+      - { $ref: '#/components/parameters/CustomerId' }
+    get:
+      tags: [CRM]
+      operationId: getCustomerTimeline
+      x-permission: crm.customer.read
+      summary: Unified activity timeline
+      description: Cursor-paginated; this collection is append-only and grows without bound.
+      parameters:
+        - { $ref: '#/components/parameters/Cursor' }
+        - { $ref: '#/components/parameters/PageSize' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ActivityPage' }
+
+  # --------------------------------------------------------------- Leads ------
+  /leads:
+    get:
+      tags: [Leads]
+      operationId: listLeads
+      summary: List leads
+      x-permission: crm.lead.read
+      description: |
+        Returns only leads assigned to the caller unless they also hold
+        `crm.lead.read.all`. This is row-level scoping beyond tenancy — see
+        docs/02-architecture.md §5.
+      parameters:
+        - { $ref: '#/components/parameters/Page' }
+        - { $ref: '#/components/parameters/PageSize' }
+        - { $ref: '#/components/parameters/Sort' }
+        - name: status
+          in: query
+          schema:
+            type: array
+            items: { $ref: '#/components/schemas/LeadStatus' }
+          style: form
+          explode: true
+        - { name: source,     in: query, schema: { type: string } }
+        - { name: assignedTo, in: query, schema: { type: string, format: uuid } }
+        - name: unresponded
+          in: query
+          description: Only leads with no first response yet — the sales floor's work queue.
+          schema: { type: boolean }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PagedResult'
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items: { $ref: '#/components/schemas/Lead' }
+    post:
+      tags: [Leads]
+      operationId: createLead
+      summary: Create a lead
+      x-permission: crm.lead.write
+      parameters:
+        - { $ref: '#/components/parameters/IdempotencyKey' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LeadCreate' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Lead' }
+
+  /leads/{leadId}/assign:
+    parameters:
+      - name: leadId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [Leads]
+      operationId: assignLead
+      summary: Assign a lead to a user
+      x-permission: crm.lead.assign
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [userId]
+              properties:
+                userId: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Assigned
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Lead' }
+
+  # --------------------------------------------------------------- Deals ------
+  /deals:
+    get:
+      tags: [Deals]
+      operationId: listDeals
+      summary: List deals
+      x-permission: sales.deal.read
+      description: |
+        Restricted to deals the caller is on unless they hold
+        `sales.deal.read.all`. Gross figures are present only with
+        `sales.gross.read`.
+      parameters:
+        - { $ref: '#/components/parameters/Page' }
+        - { $ref: '#/components/parameters/PageSize' }
+        - { $ref: '#/components/parameters/Sort' }
+        - name: status
+          in: query
+          schema:
+            type: array
+            items: { $ref: '#/components/schemas/DealStatus' }
+          style: form
+          explode: true
+        - { name: salespersonId, in: query, schema: { type: string, format: uuid } }
+        - { name: customerId,    in: query, schema: { type: string, format: uuid } }
+        - { name: vehicleId,     in: query, schema: { type: string, format: uuid } }
+        - { name: createdFrom,   in: query, schema: { type: string, format: date } }
+        - { name: createdTo,     in: query, schema: { type: string, format: date } }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PagedResult'
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items: { $ref: '#/components/schemas/DealSummary' }
+    post:
+      tags: [Deals]
+      operationId: createDeal
+      x-permission: sales.deal.write
+      summary: Create a deal (quote)
+      parameters:
+        - { $ref: '#/components/parameters/IdempotencyKey' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DealCreate' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Deal' }
+        '422': { $ref: '#/components/responses/ValidationFailed' }
+
+  /deals/{dealId}:
+    parameters:
+      - { $ref: '#/components/parameters/DealId' }
+    get:
+      tags: [Deals]
+      operationId: getDeal
+      summary: Get a deal
+      x-permission: sales.deal.read
+      responses:
+        '200':
+          description: OK
+          headers:
+            ETag: { schema: { type: string } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Deal' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [Deals]
+      operationId: updateDeal
+      summary: Update a deal
+      x-permission: sales.deal.write
+      parameters:
+        - { $ref: '#/components/parameters/IfMatch' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DealUpdate' }
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Deal' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /deals/{dealId}/calculate:
+    parameters:
+      - { $ref: '#/components/parameters/DealId' }
+    post:
+      tags: [Deals]
+      operationId: calculateDeal
+      x-permission: sales.deal.write
+      summary: Compute and snapshot the deal figures
+      description: |
+        Runs the deal engine and writes a new immutable calculation version. The
+        response carries the version number, the rule-set version applied, the
+        engine version, and a content hash printable on the contract.
+
+        **Fails with 422 if no approved rule set exists** for the resolved
+        jurisdiction on the deal date. The engine will not guess at tax. At the
+        time of writing, the OK/KS/TX rule sets are unapproved skeletons, so this
+        endpoint returns 422 until they are populated and signed off — see
+        docs/03-database-design.md §5.3.
+      parameters:
+        - { $ref: '#/components/parameters/IdempotencyKey' }
+      responses:
+        '200':
+          description: Calculated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DealCalculation' }
+        '422':
+          description: |
+            Missing inputs, or no approved rule set for the jurisdiction.
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/ProblemDetails' }
+
+  /deals/{dealId}/calculations:
+    parameters:
+      - { $ref: '#/components/parameters/DealId' }
+    get:
+      tags: [Deals]
+      operationId: listDealCalculations
+      x-permission: sales.deal.read
+      summary: All calculation versions for a deal
+      description: |
+        Append-only history. This is the audit answer to "what did the system
+        compute on the day this was signed, and with which rules?"
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/DealCalculation' }
+
+  /deals/{dealId}/line-items:
+    parameters:
+      - { $ref: '#/components/parameters/DealId' }
+    post:
+      tags: [Deals]
+      operationId: addDealLineItem
+      summary: Add a line item to a deal
+      x-permission: sales.deal.write
+      description: Adding a line item invalidates the current calculation; recalculate before contracting.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DealLineItemCreate' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DealLineItem' }
+
+  /deals/{dealId}/trade-in:
+    parameters:
+      - { $ref: '#/components/parameters/DealId' }
+    put:
+      tags: [Deals]
+      operationId: setDealTradeIn
+      summary: Set or replace the trade-in
+      x-permission: sales.deal.write
+      description: |
+        Trade-in treatment materially changes the taxable amount in every launch
+        state, so setting this always invalidates the current calculation.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TradeInInput' }
+      responses:
+        '200':
+          description: Set
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TradeIn' }
+
+  /deals/{dealId}/finance:
+    parameters:
+      - { $ref: '#/components/parameters/DealId' }
+    put:
+      tags: [Deals]
+      operationId: setDealFinanceTerms
+      summary: Set financing terms
+      x-permission: sales.deal.finance.write
+      description: |
+        `buyRate` and `reserveAmount` are returned only to callers holding
+        `sales.deal.finance.read`. Rate participation is disclosure-regulated;
+        any view of it is audited.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/FinanceTermsInput' }
+      responses:
+        '200':
+          description: Set
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FinanceTerms' }
+
+  /deals/{dealId}/status:
+    parameters:
+      - { $ref: '#/components/parameters/DealId' }
+    post:
+      tags: [Deals]
+      operationId: changeDealStatus
+      x-permission: sales.deal.write
+      summary: Advance or roll back the deal workflow
+      description: |
+        Transitions are validated against the deal state machine. Moving to
+        `contracted` additionally requires `sales.deal.approve`, a current
+        (non-stale) calculation, and a complete required-document set.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status: { $ref: '#/components/schemas/DealStatus' }
+                reason: { type: string, maxLength: 500 }
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Deal' }
+        '409':
+          description: Invalid transition, or preconditions not met.
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/ProblemDetails' }
+
+  # ----------------------------------------------------------- Documents ------
+  /documents:
+    get:
+      tags: [Documents]
+      operationId: listDocuments
+      summary: List documents
+      x-permission: documents.read
+      parameters:
+        - { $ref: '#/components/parameters/Page' }
+        - { $ref: '#/components/parameters/PageSize' }
+        - { $ref: '#/components/parameters/Query' }
+        - { name: dealId,     in: query, schema: { type: string, format: uuid } }
+        - { name: vehicleId,  in: query, schema: { type: string, format: uuid } }
+        - { name: customerId, in: query, schema: { type: string, format: uuid } }
+        - { name: category,   in: query, schema: { $ref: '#/components/schemas/DocumentCategory' } }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PagedResult'
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items: { $ref: '#/components/schemas/Document' }
+    post:
+      tags: [Documents]
+      operationId: createDocument
+      x-permission: documents.write
+      summary: Create a document from a confirmed upload or a template
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DocumentCreate' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Document' }
+
+  /documents/{documentId}/download:
+    parameters:
+      - name: documentId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [Documents]
+      operationId: getDocumentDownloadUrl
+      x-permission: documents.read
+      summary: Get a short-lived signed download URL
+      description: |
+        Returns a signed URL rather than streaming bytes: documents are never
+        served from the application origin. The URL expires in 5 minutes and the
+        access is audited.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  url:       { type: string, format: uri }
+                  expiresAt: { type: string, format: date-time }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  # ---------------------------------------------------------- Signatures ------
+  /signature-envelopes:
+    post:
+      tags: [Signatures]
+      operationId: createSignatureEnvelope
+      x-permission: signatures.send
+      summary: Create a signature envelope
+      parameters:
+        - { $ref: '#/components/parameters/IdempotencyKey' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/EnvelopeCreate' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Envelope' }
+
+  /signature-envelopes/{envelopeId}/send:
+    parameters:
+      - name: envelopeId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [Signatures]
+      operationId: sendSignatureEnvelope
+      x-permission: signatures.send
+      summary: Send the envelope to its signers
+      description: |
+        Each signer receives an ESIGN consent disclosure **before** the documents
+        are presented. An envelope cannot progress for a signer who has not given
+        consent. Pre-sign document hashes are recorded at send time.
+      responses:
+        '202': { $ref: '#/components/responses/JobAccepted' }
+        '422':
+          description: Envelope has no documents, no signers, or a signer is missing contact details.
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/ProblemDetails' }
+
+  /signature-envelopes/{envelopeId}/certificate:
+    parameters:
+      - name: envelopeId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [Signatures]
+      operationId: getSignatureCertificate
+      x-permission: documents.read
+      summary: The completed envelope's evidence package
+      description: |
+        The certificate of completion: consent records, authentication method per
+        signer, per-document pre-sign and signed hashes, the full ceremony event
+        log with timestamps and IP addresses, and the completed package hash.
+        This is the artifact that makes a contested signature defensible.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SignatureCertificate' }
+        '409':
+          description: The envelope is not complete.
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/ProblemDetails' }
+
+  # ------------------------------------------------------------- Uploads ------
+  /uploads/intent:
+    post:
+      tags: [Uploads]
+      operationId: createUploadIntent
+      summary: Request a presigned upload URL
+      description: |
+        The declared `contentType`, `byteSize`, and `sha256` are verified against
+        the actual object after upload; they are constraints, not trusted facts.
+        The presigned URL targets a quarantine bucket and expires in 15 minutes.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UploadIntentRequest' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UploadIntent' }
+        '422': { $ref: '#/components/responses/ValidationFailed' }
+
+  /uploads/{uploadId}/confirm:
+    parameters:
+      - name: uploadId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [Uploads]
+      operationId: confirmUpload
+      summary: Confirm an upload and begin scanning
+      description: |
+        Enqueues size and hash verification, magic-byte content sniffing, virus
+        scanning, image re-encoding (which strips EXIF and GPS), and promotion
+        out of quarantine. The object is unusable until this pipeline succeeds.
+      responses:
+        '202': { $ref: '#/components/responses/JobAccepted' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  # ---------------------------------------------------------------- Jobs ------
+  /jobs/{jobId}:
+    parameters:
+      - name: jobId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [Jobs]
+      operationId: getJob
+      summary: Poll an asynchronous operation
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Job' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  # ------------------------------------------------------------- Reports ------
+  /reports/inventory-aging:
+    get:
+      tags: [Reports]
+      operationId: getInventoryAgingReport
+      summary: Inventory aging report
+      x-permission: reports.read
+      parameters:
+        - name: bucketDays
+          in: query
+          description: Aging bucket boundaries in days.
+          schema:
+            type: array
+            items: { type: integer }
+            default: [30, 60, 90, 120]
+          style: form
+          explode: false
+        - { name: format, in: query, schema: { type: string, enum: [json, csv, xlsx, pdf], default: json } }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/InventoryAgingReport' }
+        '202':
+          description: Non-JSON exports are generated asynchronously.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/JobAccepted' }
+
+  /reports/gross-profit:
+    get:
+      tags: [Reports]
+      operationId: getGrossProfitReport
+      summary: Gross profit report
+      x-permission: reports.financial.read
+      description: |
+        Computed from `dealCalculation` snapshots, not from live cost data, so a
+        later cost correction cannot silently restate a reported figure or an
+        already-paid commission.
+      parameters:
+        - { name: from,    in: query, required: true, schema: { type: string, format: date } }
+        - { name: to,      in: query, required: true, schema: { type: string, format: date } }
+        - { name: groupBy, in: query, schema: { type: string, enum: [month, salesperson, vehicleType, leadSource], default: month } }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GrossProfitReport' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+# ==============================================================================
+components:
+# ==============================================================================
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        Access token from `/auth/login` or `/auth/refresh`. The tenant is carried
+        in the token's `tenant` claim and cannot be overridden by any request
+        parameter.
+    apiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: Tenant-issued API key with a fixed scope set.
+
+  parameters:
+    Page:
+      name: page
+      in: query
+      schema: { type: integer, minimum: 1, default: 1 }
+    PageSize:
+      name: pageSize
+      in: query
+      description: Values above 100 are clamped to 100 rather than rejected.
+      schema: { type: integer, minimum: 1, maximum: 100, default: 25 }
+    Sort:
+      name: sort
+      in: query
+      description: 'Comma-separated fields; `-` prefix for descending. Example: `-acquiredAt,make`.'
+      schema: { type: string }
+    Query:
+      name: q
+      in: query
+      description: Full-text search.
+      schema: { type: string, maxLength: 200 }
+    Cursor:
+      name: cursor
+      in: query
+      description: Opaque cursor from a previous response's `nextCursor`.
+      schema: { type: string }
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      description: |
+        Client-generated key, retained 24 hours. Replaying it with an identical
+        body returns the original response; replaying it with a different body
+        returns 409.
+      schema: { type: string, maxLength: 128 }
+    IfMatch:
+      name: If-Match
+      in: header
+      required: true
+      description: The ETag from the last read. A stale value returns 409.
+      schema: { type: string }
+    VehicleId:
+      name: vehicleId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    CustomerId:
+      name: customerId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    DealId:
+      name: dealId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+
+  responses:
+    Unauthorized:
+      description: Missing, expired, or invalid credentials.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemDetails' }
+    Forbidden:
+      description: Authenticated, but the principal lacks the required permission.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemDetails' }
+    NotFound:
+      description: |
+        Not found, **or** the resource belongs to another tenant. These cases are
+        deliberately indistinguishable: a 403 would confirm the record exists.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemDetails' }
+    Conflict:
+      description: Optimistic-concurrency conflict or a business-rule conflict.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemDetails' }
+    ValidationFailed:
+      description: The request was well-formed but semantically invalid.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemDetails' }
+    Locked:
+      description: The account is locked following repeated failed attempts.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemDetails' }
+    TooManyRequests:
+      description: Rate limited.
+      headers:
+        Retry-After:
+          schema: { type: integer }
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemDetails' }
+    JobAccepted:
+      description: Accepted; poll the job for completion.
+      headers:
+        Location:
+          schema: { type: string }
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/JobAccepted' }
+
+  schemas:
+
+    # ---------------------------------------------------------- primitives ----
+    Money:
+      type: object
+      description: |
+        Amount is a decimal **string**, not a number. JSON numbers are IEEE 754
+        doubles in every JavaScript client; a price must never round.
+      required: [amount, currency]
+      properties:
+        amount:
+          type: string
+          pattern: '^-?\d+\.\d{2}$'
+          examples: ['28995.00']
+        currency:
+          type: string
+          enum: [USD]
+      additionalProperties: false
+
+    Vin:
+      type: string
+      minLength: 17
+      maxLength: 17
+      pattern: '^[A-HJ-NPR-Z0-9]{17}$'
+      description: 17 characters. I, O, and Q are not valid VIN characters.
+
+    ProblemDetails:
+      type: object
+      description: RFC 9457 problem details. Never contains stack traces, SQL, or internal identifiers.
+      properties:
+        type:     { type: string, format: uri }
+        title:    { type: string }
+        status:   { type: integer }
+        detail:   { type: string }
+        instance: { type: string }
+        traceId:  { type: string, description: W3C trace ID; present on every response. }
+        errors:
+          type: object
+          description: Field-keyed validation messages.
+          additionalProperties:
+            type: array
+            items: { type: string }
+
+    PagedResult:
+      type: object
+      required: [items, page, pageSize, totalCount, totalPages]
+      properties:
+        items:      { type: array, items: {} }
+        page:       { type: integer }
+        pageSize:   { type: integer }
+        totalCount: { type: integer }
+        totalPages: { type: integer }
+
+    JobAccepted:
+      type: object
+      required: [jobId, status]
+      properties:
+        jobId:             { type: string, format: uuid }
+        status:            { type: string, enum: [queued] }
+        retryAfterSeconds: { type: integer, description: Suggested minimum poll interval. }
+
+    Job:
+      type: object
+      required: [jobId, status]
+      properties:
+        jobId:       { type: string, format: uuid }
+        type:        { type: string }
+        status:      { type: string, enum: [queued, running, succeeded, failed, cancelled] }
+        progress:    { type: integer, minimum: 0, maximum: 100 }
+        result:
+          description: Operation-specific payload. Present only when status is succeeded.
+        error:       { $ref: '#/components/schemas/ProblemDetails' }
+        createdAt:   { type: string, format: date-time }
+        completedAt: { type: string, format: date-time }
+
+    # ---------------------------------------------------------------- auth ----
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:    { type: string, format: email }
+        password: { type: string, writeOnly: true, x-sensitive: true }
+
+    LoginResponse:
+      type: object
+      required: [mfaRequired]
+      properties:
+        mfaRequired:    { type: boolean }
+        challengeToken:
+          type: string
+          description: Present when mfaRequired is true. Short-lived; not an access token.
+          writeOnly: true
+        availableFactors:
+          type: array
+          items: { type: string, enum: [totp, webauthn, recovery_code] }
+        tokens: { $ref: '#/components/schemas/TokenResponse' }
+
+    MfaVerifyRequest:
+      type: object
+      required: [challengeToken, code]
+      properties:
+        challengeToken: { type: string, writeOnly: true }
+        code:           { type: string, writeOnly: true, x-sensitive: true }
+        factorType:     { type: string, enum: [totp, webauthn, recovery_code] }
+
+    TokenResponse:
+      type: object
+      required: [accessToken, refreshToken, expiresIn, tokenType]
+      properties:
+        accessToken:  { type: string, writeOnly: true }
+        refreshToken: { type: string, writeOnly: true }
+        tokenType:    { type: string, enum: [Bearer] }
+        expiresIn:    { type: integer, description: Access-token lifetime in seconds (900). }
+
+    CurrentUser:
+      type: object
+      properties:
+        id:          { type: string, format: uuid }
+        email:       { type: string, format: email }
+        firstName:   { type: string }
+        lastName:    { type: string }
+        displayName: { type: string }
+        tenant:
+          type: object
+          properties:
+            id:        { type: string, format: uuid }
+            slug:      { type: string }
+            legalName: { type: string }
+            stateCode: { type: string }
+            timezone:  { type: string }
+        roles:
+          type: array
+          items: { type: string }
+        permissions:
+          type: array
+          description: |
+            Effective permission codes. The UI uses these to hide what the user
+            cannot do; the server enforces them regardless. A hidden button is
+            not an access control.
+          items: { type: string }
+        mfaEnrolled: { type: boolean }
+
+    Session:
+      type: object
+      properties:
+        id:          { type: string, format: uuid }
+        createdAt:   { type: string, format: date-time }
+        lastSeenAt:  { type: string, format: date-time }
+        expiresAt:   { type: string, format: date-time }
+        ipAddress:   { type: string }
+        deviceLabel: { type: string }
+        isCurrent:   { type: boolean }
+
+    # ----------------------------------------------------------- inventory ----
+    VehicleStatus:
+      type: string
+      enum: [acquired, in_recon, available, on_hold, pending_sale, sold, delivered, wholesaled, archived]
+
+    VehicleSummary:
+      type: object
+      properties:
+        id:              { type: string, format: uuid }
+        stockNumber:     { type: string }
+        vin:             { $ref: '#/components/schemas/Vin' }
+        modelYear:       { type: integer }
+        make:            { type: string }
+        model:           { type: string }
+        trim:            { type: string }
+        mileage:         { type: integer }
+        exteriorColor:   { type: string }
+        listPrice:       { $ref: '#/components/schemas/Money' }
+        status:          { $ref: '#/components/schemas/VehicleStatus' }
+        daysInInventory: { type: integer, description: Null once sold; see daysToSale. }
+        daysToSale:      { type: integer }
+        primaryPhotoUrl: { type: string, format: uri }
+        photoCount:      { type: integer }
+        isPublished:     { type: boolean }
+
+    Vehicle:
+      allOf:
+        - $ref: '#/components/schemas/VehicleSummary'
+        - type: object
+          properties:
+            series:             { type: string }
+            bodyStyle:          { type: string }
+            driveType:          { type: string }
+            engine:             { type: string }
+            fuelType:           { type: string }
+            transmission:       { type: string }
+            doors:              { type: integer }
+            interiorColor:      { type: string }
+            odometerStatus:     { type: string, enum: [actual, not_actual, exceeds_limits, exempt] }
+            condition:          { type: string, enum: [new, used, certified] }
+            titleStatus:        { type: string }
+            titleState:         { type: string }
+            titleReceivedAt:    { type: string, format: date }
+            description:        { type: string }
+            aiDescriptionDraft:
+              type: string
+              description: Unapproved AI draft. Never published without explicit approval.
+            features:           { type: array, items: { type: string } }
+            factoryOptions:     { type: array, items: { type: string } }
+            msrp:               { $ref: '#/components/schemas/Money' }
+            internetPrice:      { $ref: '#/components/schemas/Money' }
+            acquiredAt:         { type: string, format: date }
+            acquisitionSource:  { type: string }
+            availableAt:        { type: string, format: date }
+            soldAt:             { type: string, format: date }
+            location:           { type: string }
+            notes:              { type: string }
+            totalCost:
+              $ref: '#/components/schemas/Money'
+              description: Present only with `inventory.cost.read`.
+            createdAt:          { type: string, format: date-time }
+            updatedAt:          { type: string, format: date-time }
+
+    VehicleCreate:
+      type: object
+      required: [stockNumber]
+      properties:
+        stockNumber:   { type: string, minLength: 1, maxLength: 50 }
+        vin:           { $ref: '#/components/schemas/Vin' }
+        decodeVin:     { type: boolean, default: true }
+        modelYear:     { type: integer, minimum: 1900, maximum: 2100 }
+        make:          { type: string }
+        model:         { type: string }
+        trim:          { type: string }
+        mileage:       { type: integer, minimum: 0 }
+        exteriorColor: { type: string }
+        interiorColor: { type: string }
+        condition:     { type: string, enum: [new, used, certified], default: used }
+        listPrice:     { $ref: '#/components/schemas/Money' }
+        acquiredAt:    { type: string, format: date }
+        acquisitionSource: { type: string }
+        acquisitionCost:
+          $ref: '#/components/schemas/Money'
+          description: Creates an `acquisition` cost row. Requires `inventory.cost.write`.
+        location:      { type: string }
+        notes:         { type: string }
+
+    VehicleUpdate:
+      type: object
+      description: Only supplied fields are changed. Nulls clear a value; omitted keys are untouched.
+      properties:
+        stockNumber:   { type: string }
+        modelYear:     { type: integer }
+        make:          { type: string }
+        model:         { type: string }
+        trim:          { type: string }
+        mileage:       { type: integer, minimum: 0 }
+        exteriorColor: { type: string }
+        interiorColor: { type: string }
+        description:   { type: string }
+        features:      { type: array, items: { type: string } }
+        status:        { $ref: '#/components/schemas/VehicleStatus' }
+        location:      { type: string }
+        notes:         { type: string }
+
+    VehicleCost:
+      type: object
+      properties:
+        id:          { type: string, format: uuid }
+        category:    { type: string, enum: [acquisition, transport, recon, parts, labor, inspection, title_fee, auction_fee, pack, floorplan, advertising, other] }
+        description: { type: string }
+        amount:      { $ref: '#/components/schemas/Money' }
+        vendorName:  { type: string }
+        incurredOn:  { type: string, format: date }
+        approvedAt:  { type: string, format: date-time }
+
+    VehicleCostCreate:
+      type: object
+      required: [category, amount]
+      properties:
+        category:      { type: string }
+        description:   { type: string }
+        amount:        { $ref: '#/components/schemas/Money' }
+        vendorName:    { type: string }
+        invoiceNumber: { type: string }
+        incurredOn:    { type: string, format: date }
+
+    VehiclePhoto:
+      type: object
+      properties:
+        id:               { type: string, format: uuid }
+        url:              { type: string, format: uri }
+        thumbnailUrl:     { type: string, format: uri }
+        largeUrl:         { type: string, format: uri }
+        width:            { type: integer }
+        height:           { type: integer }
+        sortOrder:        { type: integer }
+        caption:          { type: string }
+        isPrimary:        { type: boolean }
+        processingStatus: { type: string, enum: [pending, scanning, processing, ready, rejected] }
+        rejectionReason:  { type: string }
+
+    VinDecodeResult:
+      type: object
+      properties:
+        vin:                 { $ref: '#/components/schemas/Vin' }
+        provider:            { type: string, examples: ['nhtsa_vpic'] }
+        decodedAt:           { type: string, format: date-time }
+        fromCache:           { type: boolean }
+        modelYear:           { type: integer }
+        make:                { type: string }
+        model:               { type: string }
+        trim:
+          type: string
+          description: Frequently unavailable from vPIC. Absent means unknown, not "no trim".
+        bodyClass:           { type: string }
+        driveType:           { type: string }
+        engineCylinders:     { type: integer }
+        engineDisplacementL: { type: number }
+        fuelType:            { type: string }
+        transmissionStyle:   { type: string }
+        doors:               { type: integer }
+        manufacturer:        { type: string }
+        plantCountry:        { type: string }
+        errorText:           { type: string }
+
+    # ----------------------------------------------------------------- crm ----
+    CustomerSummary:
+      type: object
+      properties:
+        id:          { type: string, format: uuid }
+        type:        { type: string, enum: [individual, business] }
+        displayName: { type: string }
+        email:       { type: string, format: email }
+        phoneMobile: { type: string }
+        city:        { type: string }
+        stateCode:   { type: string }
+        tags:        { type: array, items: { type: string } }
+        createdAt:   { type: string, format: date-time }
+
+    Customer:
+      allOf:
+        - $ref: '#/components/schemas/CustomerSummary'
+        - type: object
+          properties:
+            firstName:    { type: string }
+            lastName:     { type: string }
+            businessName: { type: string }
+            phoneHome:    { type: string }
+            phoneWork:    { type: string }
+            addressLine1: { type: string }
+            addressLine2: { type: string }
+            county:       { type: string }
+            postalCode:   { type: string }
+            taxJurisdictionId:
+              type: string
+              format: uuid
+              description: |
+                Resolved taxing jurisdiction. Kansas assesses destination-based
+                local rates, so this cannot be derived from state alone. When a
+                postal code spans several jurisdictions the deal flow prompts for
+                disambiguation rather than guessing.
+            dateOfBirth: { type: string, format: date }
+            ssnLast4:
+              type: string
+              readOnly: true
+              x-sensitive: true
+              description: Masked. The full value is available only via /customers/{id}/sensitive.
+            dlNumberMasked: { type: string, readOnly: true, x-sensitive: true }
+            dlState:        { type: string }
+            dlExpiresOn:    { type: string, format: date }
+            consentEmail:   { type: boolean }
+            consentSms:     { type: boolean }
+            consentCall:    { type: boolean }
+            doNotContact:   { type: boolean }
+            notes:          { type: string }
+
+    CustomerCreate:
+      type: object
+      properties:
+        type:         { type: string, enum: [individual, business], default: individual }
+        firstName:    { type: string }
+        lastName:     { type: string }
+        businessName: { type: string }
+        email:        { type: string, format: email }
+        phoneMobile:  { type: string }
+        addressLine1: { type: string }
+        city:         { type: string }
+        county:       { type: string }
+        stateCode:    { type: string, minLength: 2, maxLength: 2 }
+        postalCode:   { type: string }
+        dateOfBirth:  { type: string, format: date }
+        ssn:
+          type: string
+          writeOnly: true
+          x-sensitive: true
+          description: Write-only. Envelope-encrypted at rest and never returned by any read.
+        dlNumber:     { type: string, writeOnly: true, x-sensitive: true }
+        dlState:      { type: string }
+        consentEmail: { type: boolean, default: false }
+        consentSms:
+          type: boolean
+          default: false
+          description: SMS consent is required before any outbound text. Recorded with source and timestamp.
+        tags:  { type: array, items: { type: string } }
+        notes: { type: string }
+
+    CustomerUpdate:
+      allOf:
+        - $ref: '#/components/schemas/CustomerCreate'
+
+    CustomerSensitive:
+      type: object
+      description: Returned only to `crm.customer.pii.read`, and every retrieval is audited.
+      properties:
+        customerId:  { type: string, format: uuid }
+        ssn:         { type: string, x-sensitive: true }
+        dlNumber:    { type: string, x-sensitive: true }
+        dateOfBirth: { type: string, format: date, x-sensitive: true }
+        accessedAt:  { type: string, format: date-time }
+
+    ActivityPage:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              id:           { type: integer, format: int64 }
+              occurredAt:   { type: string, format: date-time }
+              type:         { type: string }
+              summary:      { type: string }
+              body:         { type: string }
+              actorDisplay: { type: string }
+              vehicleId:    { type: string, format: uuid }
+              dealId:       { type: string, format: uuid }
+              isPinned:     { type: boolean }
+        nextCursor: { type: string }
+
+    LeadStatus:
+      type: string
+      enum: [new, contacted, working, appointment_set, shown, negotiating, sold, lost, duplicate]
+
+    Lead:
+      type: object
+      properties:
+        id:               { type: string, format: uuid }
+        customerId:       { type: string, format: uuid }
+        customerName:     { type: string }
+        vehicleId:        { type: string, format: uuid }
+        vehicleSummary:   { type: string }
+        source:           { type: string }
+        sourceDetail:     { type: string }
+        status:           { $ref: '#/components/schemas/LeadStatus' }
+        priority:         { type: string, enum: [low, normal, high] }
+        score:            { type: integer, minimum: 0, maximum: 100 }
+        aiSummary:        { type: string }
+        assignedTo:       { type: string, format: uuid }
+        assignedToName:   { type: string }
+        firstResponseAt:  { type: string, format: date-time }
+        responseMinutes:
+          type: integer
+          description: Minutes from creation to first response. The strongest predictor of conversion.
+        message:          { type: string }
+        createdAt:        { type: string, format: date-time }
+
+    LeadCreate:
+      type: object
+      required: [source]
+      properties:
+        source:       { type: string }
+        sourceDetail: { type: string }
+        customerId:   { type: string, format: uuid }
+        customer:     { $ref: '#/components/schemas/CustomerCreate' }
+        vehicleId:    { type: string, format: uuid }
+        message:      { type: string }
+        assignedTo:   { type: string, format: uuid }
+
+    # --------------------------------------------------------------- deals ----
+    DealStatus:
+      type: string
+      enum: [quote, pending, approved, contracted, funded, delivered, completed, cancelled, unwound]
+
+    DealSummary:
+      type: object
+      properties:
+        id:              { type: string, format: uuid }
+        dealNumber:      { type: string }
+        type:            { type: string, enum: [retail, wholesale, lease, consignment] }
+        status:          { $ref: '#/components/schemas/DealStatus' }
+        customerName:    { type: string }
+        vehicleSummary:  { type: string }
+        salespersonName: { type: string }
+        totalSalePrice:  { $ref: '#/components/schemas/Money' }
+        totalGross:
+          $ref: '#/components/schemas/Money'
+          description: Present only with `sales.gross.read`.
+        createdAt:       { type: string, format: date-time }
+        contractedAt:    { type: string, format: date-time }
+
+    Deal:
+      allOf:
+        - $ref: '#/components/schemas/DealSummary'
+        - type: object
+          properties:
+            vehicleId:         { type: string, format: uuid }
+            customerId:        { type: string, format: uuid }
+            coBuyerId:         { type: string, format: uuid }
+            leadId:            { type: string, format: uuid }
+            salespersonId:     { type: string, format: uuid }
+            financeManagerId:  { type: string, format: uuid }
+            jurisdictionId:    { type: string, format: uuid }
+            currentCalculation: { $ref: '#/components/schemas/DealCalculation' }
+            calculationStale:
+              type: boolean
+              description: |
+                True when line items, trade, or finance terms changed after the
+                current calculation. A deal cannot be contracted while stale.
+            tradeIn:           { $ref: '#/components/schemas/TradeIn' }
+            financeTerms:      { $ref: '#/components/schemas/FinanceTerms' }
+            lineItems:
+              type: array
+              items: { $ref: '#/components/schemas/DealLineItem' }
+            requiredDocuments:
+              type: array
+              description: Deal-jacket completeness — what is still missing before contracting.
+              items:
+                type: object
+                properties:
+                  category:  { type: string }
+                  name:      { type: string }
+                  satisfied: { type: boolean }
+            notes: { type: string }
+
+    DealCreate:
+      type: object
+      required: [vehicleId, customerId]
+      properties:
+        vehicleId:     { type: string, format: uuid }
+        customerId:    { type: string, format: uuid }
+        coBuyerId:     { type: string, format: uuid }
+        leadId:        { type: string, format: uuid }
+        type:          { type: string, enum: [retail, wholesale, lease, consignment], default: retail }
+        salespersonId: { type: string, format: uuid }
+        sellingPrice:  { $ref: '#/components/schemas/Money' }
+        notes:         { type: string }
+
+    DealUpdate:
+      type: object
+      properties:
+        coBuyerId:        { type: string, format: uuid }
+        salespersonId:    { type: string, format: uuid }
+        financeManagerId: { type: string, format: uuid }
+        sellingPrice:     { $ref: '#/components/schemas/Money' }
+        jurisdictionId:   { type: string, format: uuid }
+        notes:            { type: string }
+
+    DealCalculation:
+      type: object
+      description: |
+        An immutable snapshot. Corrections create a new version; nothing is ever
+        edited in place.
+      properties:
+        id:              { type: string, format: uuid }
+        version:         { type: integer }
+        calculatedAt:    { type: string, format: date-time }
+        ruleSetVersion:  { type: integer }
+        engineVersion:   { type: string }
+        contentHash:     { type: string, description: SHA-256 hex; printable on the contract. }
+        sellingPrice:    { $ref: '#/components/schemas/Money' }
+        tradeAllowance:  { $ref: '#/components/schemas/Money' }
+        tradePayoff:     { $ref: '#/components/schemas/Money' }
+        taxableAmount:   { $ref: '#/components/schemas/Money' }
+        salesTax:        { $ref: '#/components/schemas/Money' }
+        totalFees:       { $ref: '#/components/schemas/Money' }
+        totalStateFees:  { $ref: '#/components/schemas/Money' }
+        rebates:         { $ref: '#/components/schemas/Money' }
+        cashDown:        { $ref: '#/components/schemas/Money' }
+        amountFinanced:  { $ref: '#/components/schemas/Money' }
+        totalSalePrice:  { $ref: '#/components/schemas/Money' }
+        balanceDue:      { $ref: '#/components/schemas/Money' }
+        frontGross:      { $ref: '#/components/schemas/Money' }
+        backGross:       { $ref: '#/components/schemas/Money' }
+        totalGross:      { $ref: '#/components/schemas/Money' }
+        breakdown:
+          type: array
+          description: Ordered, human-readable lines exactly as they appear on the contract.
+          items:
+            type: object
+            properties:
+              label:  { type: string }
+              amount: { $ref: '#/components/schemas/Money' }
+              kind:   { type: string }
+
+    DealLineItem:
+      type: object
+      properties:
+        id:          { type: string, format: uuid }
+        kind:        { type: string, enum: [fee, product, accessory, discount, rebate, service_contract, gap, warranty, tax_override] }
+        code:        { type: string }
+        description: { type: string }
+        amount:      { $ref: '#/components/schemas/Money' }
+        cost:
+          $ref: '#/components/schemas/Money'
+          description: Present only with `sales.gross.read`.
+        isTaxable:   { type: boolean }
+        isStateFee:  { type: boolean }
+
+    DealLineItemCreate:
+      type: object
+      required: [kind, description, amount]
+      properties:
+        kind:            { type: string }
+        feeDefinitionId: { type: string, format: uuid }
+        description:     { type: string }
+        amount:          { $ref: '#/components/schemas/Money' }
+        cost:            { $ref: '#/components/schemas/Money' }
+        isTaxable:       { type: boolean }
+
+    TradeIn:
+      allOf:
+        - $ref: '#/components/schemas/TradeInInput'
+        - type: object
+          properties:
+            id:                { type: string, format: uuid }
+            receivedVehicleId:
+              type: string
+              format: uuid
+              description: Set when the trade is booked into inventory, closing the loop without re-entering the VIN.
+
+    TradeInInput:
+      type: object
+      required: [allowance]
+      properties:
+        vin:             { $ref: '#/components/schemas/Vin' }
+        modelYear:       { type: integer }
+        make:            { type: string }
+        model:           { type: string }
+        trim:            { type: string }
+        mileage:         { type: integer, minimum: 0 }
+        conditionNotes:  { type: string }
+        allowance:       { $ref: '#/components/schemas/Money' }
+        actualCashValue: { $ref: '#/components/schemas/Money' }
+        payoffAmount:    { $ref: '#/components/schemas/Money' }
+        payoffGoodThrough: { type: string, format: date }
+        lienholderName:  { type: string }
+        titleInHand:     { type: boolean }
+
+    FinanceTerms:
+      allOf:
+        - $ref: '#/components/schemas/FinanceTermsInput'
+        - type: object
+          properties:
+            id:              { type: string, format: uuid }
+            financeCharge:   { $ref: '#/components/schemas/Money' }
+            totalOfPayments: { $ref: '#/components/schemas/Money' }
+            buyRate:
+              type: string
+              description: Visible only with `sales.deal.finance.read`. Disclosure-regulated; access is audited.
+            reserveAmount:
+              $ref: '#/components/schemas/Money'
+              description: Dealer rate participation. Visible only with `sales.deal.finance.read`.
+
+    FinanceTermsInput:
+      type: object
+      required: [method]
+      properties:
+        method:           { type: string, enum: [cash, outside_finance, dealer_finance, bhph, lease] }
+        lenderName:       { type: string }
+        approvalNumber:   { type: string }
+        amountFinanced:   { $ref: '#/components/schemas/Money' }
+        downPayment:      { $ref: '#/components/schemas/Money' }
+        apr:
+          type: string
+          pattern: '^\d+\.\d{1,6}$'
+          description: 'Decimal string, e.g. "7.490000". Never a JSON number.'
+        termMonths:       { type: integer, minimum: 1, maximum: 120 }
+        paymentAmount:    { $ref: '#/components/schemas/Money' }
+        paymentFrequency: { type: string, enum: [weekly, biweekly, semimonthly, monthly], default: monthly }
+        firstPaymentOn:   { type: string, format: date }
+
+    # ----------------------------------------------------------- documents ----
+    DocumentCategory:
+      type: string
+      enum: [drivers_license, insurance, title, registration, contract, buyers_order,
+             bill_of_sale, odometer, inspection, invoice, purchase_agreement, finance,
+             trade_document, payoff, photo, other]
+
+    Document:
+      type: object
+      properties:
+        id:            { type: string, format: uuid }
+        category:      { $ref: '#/components/schemas/DocumentCategory' }
+        name:          { type: string }
+        description:   { type: string }
+        dealId:        { type: string, format: uuid }
+        vehicleId:     { type: string, format: uuid }
+        customerId:    { type: string, format: uuid }
+        status:        { type: string, enum: [active, superseded, void, archived] }
+        versionCount:  { type: integer }
+        currentVersion:
+          type: object
+          properties:
+            id:          { type: string, format: uuid }
+            version:     { type: integer }
+            contentType: { type: string }
+            byteSize:    { type: integer, format: int64 }
+            sha256:      { type: string }
+            pageCount:   { type: integer }
+            scanStatus:  { type: string, enum: [pending, clean, infected, error, skipped] }
+            createdAt:   { type: string, format: date-time }
+        expiresOn:  { type: string, format: date }
+        legalHold:  { type: boolean }
+        createdAt:  { type: string, format: date-time }
+
+    DocumentCreate:
+      type: object
+      required: [category, name]
+      description: Supply either `uploadId` (a confirmed upload) or `templateId` (generate from a template).
+      properties:
+        category:   { $ref: '#/components/schemas/DocumentCategory' }
+        name:       { type: string }
+        uploadId:   { type: string, format: uuid }
+        templateId: { type: string, format: uuid }
+        dealId:     { type: string, format: uuid }
+        vehicleId:  { type: string, format: uuid }
+        customerId: { type: string, format: uuid }
+        expiresOn:  { type: string, format: date }
+
+    UploadIntentRequest:
+      type: object
+      required: [fileName, contentType, byteSize, sha256]
+      properties:
+        fileName:    { type: string, maxLength: 255 }
+        contentType: { type: string }
+        byteSize:    { type: integer, format: int64, minimum: 1, maximum: 52428800 }
+        sha256:
+          type: string
+          pattern: '^[a-f0-9]{64}$'
+          description: Verified against the stored object. A mismatch rejects the upload.
+        purpose:     { type: string, enum: [vehicle_photo, document, avatar, import] }
+
+    UploadIntent:
+      type: object
+      properties:
+        uploadId:  { type: string, format: uuid }
+        url:       { type: string, format: uri, description: Presigned PUT to the quarantine bucket. }
+        method:    { type: string, enum: [PUT] }
+        headers:
+          type: object
+          additionalProperties: { type: string }
+        expiresAt: { type: string, format: date-time }
+
+    # ---------------------------------------------------------- signatures ----
+    Envelope:
+      type: object
+      properties:
+        id:           { type: string, format: uuid }
+        name:         { type: string }
+        status:       { type: string, enum: [draft, sent, in_progress, completed, declined, voided, expired] }
+        mode:         { type: string, enum: [in_person, remote, mixed] }
+        dealId:       { type: string, format: uuid }
+        sentAt:       { type: string, format: date-time }
+        completedAt:  { type: string, format: date-time }
+        expiresAt:    { type: string, format: date-time }
+        documents:
+          type: array
+          items:
+            type: object
+            properties:
+              documentVersionId: { type: string, format: uuid }
+              name:              { type: string }
+              signedAt:          { type: string, format: date-time }
+        signers:
+          type: array
+          items: { $ref: '#/components/schemas/Signer' }
+
+    EnvelopeCreate:
+      type: object
+      required: [name, documentVersionIds, signers]
+      properties:
+        name:    { type: string }
+        message: { type: string }
+        dealId:  { type: string, format: uuid }
+        mode:    { type: string, enum: [in_person, remote, mixed], default: remote }
+        documentVersionIds:
+          type: array
+          minItems: 1
+          items: { type: string, format: uuid }
+        signers:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            required: [role, fullName]
+            properties:
+              role:       { type: string, enum: [buyer, co_buyer, seller, dealer_rep, witness, notary] }
+              fullName:   { type: string }
+              email:      { type: string, format: email }
+              phone:      { type: string }
+              customerId: { type: string, format: uuid }
+              authMethod: { type: string, enum: [email_otp, sms_otp, access_code, authenticated_session, in_person_witnessed] }
+        expiresInDays: { type: integer, default: 14 }
+
+    Signer:
+      type: object
+      properties:
+        id:              { type: string, format: uuid }
+        role:            { type: string }
+        fullName:        { type: string }
+        email:           { type: string, format: email }
+        status:          { type: string, enum: [pending, sent, viewed, signed, declined, expired] }
+        consentGivenAt:
+          type: string
+          format: date-time
+          description: |
+            ESIGN consent to electronic records, captured before documents are
+            presented. An envelope cannot progress for a signer without it.
+        authMethod:      { type: string }
+        authVerifiedAt:  { type: string, format: date-time }
+        signedAt:        { type: string, format: date-time }
+        declinedAt:      { type: string, format: date-time }
+        declineReason:   { type: string }
+
+    SignatureCertificate:
+      type: object
+      description: The evidence package. This is what makes a contested signature defensible.
+      properties:
+        envelopeId:     { type: string, format: uuid }
+        completedAt:    { type: string, format: date-time }
+        completedHash:  { type: string, description: SHA-256 of the flattened package. }
+        documents:
+          type: array
+          items:
+            type: object
+            properties:
+              name:         { type: string }
+              preSignHash:  { type: string }
+              signedHash:   { type: string }
+        signers:
+          type: array
+          items:
+            type: object
+            properties:
+              fullName:                 { type: string }
+              email:                    { type: string }
+              role:                     { type: string }
+              consentGivenAt:           { type: string, format: date-time }
+              consentDisclosureVersion: { type: string }
+              authMethod:               { type: string }
+              signedAt:                 { type: string, format: date-time }
+              ipAddress:                { type: string }
+              userAgent:                { type: string }
+        events:
+          type: array
+          description: The full ceremony log, in order.
+          items:
+            type: object
+            properties:
+              event:      { type: string }
+              occurredAt: { type: string, format: date-time }
+              signerName: { type: string }
+              ipAddress:  { type: string }
+
+    # ------------------------------------------------------------- reports ----
+    InventoryAgingReport:
+      type: object
+      properties:
+        generatedAt: { type: string, format: date-time }
+        buckets:
+          type: array
+          items:
+            type: object
+            properties:
+              label:        { type: string, examples: ['0-30 days'] }
+              minDays:      { type: integer }
+              maxDays:      { type: integer }
+              vehicleCount: { type: integer }
+              totalValue:   { $ref: '#/components/schemas/Money' }
+              totalCost:
+                $ref: '#/components/schemas/Money'
+                description: Present only with `inventory.cost.read`.
+        totalVehicles:   { type: integer }
+        averageDaysInInventory: { type: number }
+
+    GrossProfitReport:
+      type: object
+      properties:
+        generatedAt: { type: string, format: date-time }
+        from:        { type: string, format: date }
+        to:          { type: string, format: date }
+        groupBy:     { type: string }
+        rows:
+          type: array
+          items:
+            type: object
+            properties:
+              group:      { type: string }
+              dealCount:  { type: integer }
+              frontGross: { $ref: '#/components/schemas/Money' }
+              backGross:  { $ref: '#/components/schemas/Money' }
+              totalGross: { $ref: '#/components/schemas/Money' }
+              averageGross: { $ref: '#/components/schemas/Money' }
+        totals:
+          type: object
+          properties:
+            dealCount:  { type: integer }
+            frontGross: { $ref: '#/components/schemas/Money' }
+            backGross:  { $ref: '#/components/schemas/Money' }
+            totalGross: { $ref: '#/components/schemas/Money' }

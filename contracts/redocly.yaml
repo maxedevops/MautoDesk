@@ -1,0 +1,35 @@
+# Redocly lint configuration for the MautoDesk API contract.
+#
+# CI runs `redocly lint contracts/openapi.yaml` and fails on any error.
+# Rules are tuned deliberately; each deviation from the recommended ruleset is
+# justified below rather than silenced quietly.
+
+extends:
+  - recommended
+
+apis:
+  mautodesk@v1:
+    root: ./openapi.design.yaml
+
+rules:
+  # The localhost server entry is intentional — it is how a developer points a
+  # generated client at their local API. It is last in the list, so tooling that
+  # picks the first server still gets production.
+  no-server-example.com: off
+
+  # 401, 403, and 404 apply universally and are specified once in
+  # docs/04-api-contracts.md §4 rather than repeated on ~90 operations. Kept as a
+  # warning so genuinely under-documented operations still surface in review.
+  operation-4xx-response: warn
+
+  # apiKeyAuth is declared for tenant-issued keys, which are applied per-operation
+  # in Release 3. Declaring the scheme ahead of its first use is deliberate.
+  no-unused-components: warn
+
+  # Everything below is enforced as an error.
+  operation-operationId: error
+  operation-operationId-unique: error
+  operation-summary: error
+  no-invalid-media-type-examples: error
+  path-params-defined: error
+  spec: error

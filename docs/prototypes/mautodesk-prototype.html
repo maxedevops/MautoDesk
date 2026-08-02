@@ -1,0 +1,1146 @@
+<title>MautoDesk — Phase 5 UI/UX Prototype</title>
+
+<style>
+/* ============================================================================
+   Tokens — mirrored from frontend/packages/ui/tokens.css (74/74 contrast
+   checks passing, WCAG 2.2 AA, both themes).
+
+   COLOUR DOCTRINE
+     1. Blue is for interaction. Primary button, links, focus ring, active nav
+        marker. Blue on something you cannot click is a bug.
+     2. Semantic colour marks state, and marks it small — a dot, a 3px rule, an
+        aging bar. Never a filled panel.
+     3. Grouping is whitespace, alignment, and a hairline rule.
+     4. Neutral type does the rest: three sizes and three weights.
+   ============================================================================ */
+:root {
+  color-scheme: light dark;
+
+  --slate-50:#f8fafc; --slate-100:#f1f5f9; --slate-200:#e2e8f0; --slate-300:#cbd5e1;
+  --slate-400:#94a3b8; --slate-500:#64748b; --slate-600:#475569; --slate-700:#334155;
+  --slate-800:#1e293b; --slate-900:#0f172a; --slate-950:#020617;
+  --accent-400:#60a5fa; --accent-500:#3b82f6; --accent-600:#2563eb; --accent-700:#1d4ed8;
+  --green-500:#22c55e; --green-600:#16a34a; --green-700:#15803d;
+  --amber-500:#f59e0b; --amber-600:#d97706; --amber-700:#b45309;
+  --red-500:#ef4444;   --red-600:#dc2626;   --red-700:#b91c1c;
+  --sky-500:#0ea5e9;   --sky-600:#0284c7;   --sky-700:#0369a1;
+
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+               "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+
+  --text-2xs:.6875rem; --text-xs:.75rem; --text-sm:.875rem; --text-base:1rem;
+  --text-lg:1.125rem; --text-xl:1.25rem;
+
+  --space-1:.25rem; --space-2:.5rem; --space-3:.75rem; --space-4:1rem;
+  --space-5:1.25rem; --space-6:1.5rem; --space-8:2rem; --space-10:2.5rem;
+
+  --radius-sm:.25rem; --radius-md:.375rem; --radius-lg:.5rem; --radius-full:9999px;
+  --duration-fast:140ms; --ease-out:cubic-bezier(.16,1,.3,1);
+  --rail-width:14rem; --header-height:3.25rem; --touch-target-min:2.75rem;
+  --rule-width:3px;
+}
+
+:root, :root[data-theme="light"] {
+  --bg-canvas:var(--slate-50); --bg-surface:#fff; --bg-raised:#fff;
+  --bg-inset:var(--slate-100); --bg-hover:var(--slate-100); --bg-active:var(--slate-200);
+  --text-primary:var(--slate-900); --text-secondary:var(--slate-600);
+  --text-tertiary:var(--slate-500); --text-on-accent:#fff;
+  --border-subtle:var(--slate-200); --border-default:var(--slate-300);
+  --border-control:var(--slate-500); --border-focus:var(--accent-600);
+  --status-neutral-dot:var(--slate-500);
+  --accent-bg:var(--accent-600); --accent-bg-hover:var(--accent-700); --accent-fg:var(--accent-700);
+  --success-mark:#16a34a; --success-text:#15803d;
+  --warning-mark:#d97706; --warning-text:#b45309;
+  --danger-mark:#dc2626;  --danger-text:#b91c1c;
+  --info-mark:var(--sky-600); --info-text:var(--sky-700);
+  --shadow-sm:0 1px 2px 0 rgb(15 23 42 / .06);
+  --shadow-lg:0 10px 20px -6px rgb(15 23 42 / .12), 0 4px 8px -4px rgb(15 23 42 / .06);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg-canvas:var(--slate-950); --bg-surface:var(--slate-900); --bg-raised:var(--slate-800);
+    --bg-inset:#0b1220; --bg-hover:rgb(148 163 184 / .08); --bg-active:rgb(148 163 184 / .16);
+    --text-primary:var(--slate-100); --text-secondary:var(--slate-400);
+    --text-tertiary:var(--slate-500); --text-on-accent:#fff;
+    --border-subtle:rgb(148 163 184 / .14); --border-default:rgb(148 163 184 / .24);
+    --border-control:var(--slate-400); --border-focus:var(--accent-400);
+    --status-neutral-dot:var(--slate-400);
+    --accent-bg:var(--accent-600); --accent-bg-hover:var(--accent-500); --accent-fg:var(--accent-400);
+    --success-mark:var(--green-500); --success-text:#4ade80;
+    --warning-mark:var(--amber-500); --warning-text:#fbbf24;
+    --danger-mark:var(--red-500);    --danger-text:#f87171;
+    --info-mark:var(--sky-500);      --info-text:#38bdf8;
+    --shadow-sm:0 1px 2px 0 rgb(0 0 0 / .4);
+    --shadow-lg:0 12px 24px -8px rgb(0 0 0 / .6);
+  }
+}
+
+:root[data-theme="dark"] {
+  --bg-canvas:var(--slate-950); --bg-surface:var(--slate-900); --bg-raised:var(--slate-800);
+  --bg-inset:#0b1220; --bg-hover:rgb(148 163 184 / .08); --bg-active:rgb(148 163 184 / .16);
+  --text-primary:var(--slate-100); --text-secondary:var(--slate-400);
+  --text-tertiary:var(--slate-500); --text-on-accent:#fff;
+  --border-subtle:rgb(148 163 184 / .14); --border-default:rgb(148 163 184 / .24);
+  --border-control:var(--slate-400); --border-focus:var(--accent-400);
+  --status-neutral-dot:var(--slate-400);
+  --accent-bg:var(--accent-600); --accent-bg-hover:var(--accent-500); --accent-fg:var(--accent-400);
+  --success-mark:var(--green-500); --success-text:#4ade80;
+  --warning-mark:var(--amber-500); --warning-text:#fbbf24;
+  --danger-mark:var(--red-500);    --danger-text:#f87171;
+  --info-mark:var(--sky-500);      --info-text:#38bdf8;
+  --shadow-sm:0 1px 2px 0 rgb(0 0 0 / .4);
+  --shadow-lg:0 12px 24px -8px rgb(0 0 0 / .6);
+}
+
+/* Aging: only the bar is coloured, and only the two buckets that need action
+   colour their numeral. Bar weight rises monotonically, so the ordering is
+   legible with no colour perception at all. */
+:root {
+  --aging-fresh-bar:transparent;         --aging-fresh-w:0px;
+  --aging-watch-bar:var(--info-mark);    --aging-watch-w:2px;
+  --aging-stale-bar:var(--warning-mark); --aging-stale-w:4px;
+  --aging-crit-bar:var(--danger-mark);   --aging-crit-w:6px;
+  --aging-fresh-text:var(--text-secondary);
+  --aging-watch-text:var(--text-primary);
+  --aging-stale-text:var(--warning-text);
+  --aging-crit-text:var(--danger-text);
+
+  --status-acquired-dot:var(--status-neutral-dot);
+  --status-in_recon-dot:var(--warning-mark);
+  --status-available-dot:var(--success-mark);
+  --status-on_hold-dot:var(--status-neutral-dot);
+  --status-pending_sale-dot:var(--info-mark);
+  --status-sold-dot:var(--accent-bg);
+}
+
+/* ============================================================================
+   Base + typographic hierarchy
+   ============================================================================ */
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+  color: var(--text-primary);
+  background: var(--bg-canvas);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* The four levels that replace colour as the organising device. */
+.t-page    { font-size: var(--text-xl); font-weight: 650; letter-spacing: -.015em; margin: 0; text-wrap: balance; }
+.t-section { font-size: var(--text-sm); font-weight: 600; color: var(--text-primary); }
+.t-label   { font-size: var(--text-2xs); font-weight: 700; letter-spacing: .06em;
+             text-transform: uppercase; color: var(--text-tertiary); }
+.t-muted   { color: var(--text-secondary); }
+.t-hint    { font-size: var(--text-2xs); color: var(--text-tertiary); }
+
+:where(a, button, input, select, [tabindex]):focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+}
+
+/* ============================================================================
+   Prototype chrome — dashed, so a reviewer never mistakes a demo control for
+   a product feature.
+   ============================================================================ */
+.proto-bar {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-4);
+  padding: var(--space-3) var(--space-5);
+  background: var(--bg-inset);
+  border-bottom: 2px dashed var(--border-default);
+  font-size: var(--text-xs);
+}
+.proto-group { display: flex; align-items: center; gap: var(--space-2); }
+.proto-group > span { color: var(--text-secondary); }
+
+.seg {
+  display: inline-flex; background: var(--bg-surface);
+  border: 1px solid var(--border-control); border-radius: var(--radius-md); overflow: hidden;
+}
+.seg button {
+  appearance: none; border: 0; background: transparent; cursor: pointer;
+  font: inherit; font-size: var(--text-xs); color: var(--text-secondary);
+  padding: var(--space-1) var(--space-3); min-height: 1.75rem;
+  transition: background var(--duration-fast) var(--ease-out);
+}
+.seg button + button { border-left: 1px solid var(--border-subtle); }
+.seg button:hover { background: var(--bg-hover); color: var(--text-primary); }
+/* Selected state is neutral and bold, not blue — a segmented control is a
+   filter, not the page's primary action. */
+.seg button[aria-pressed="true"] {
+  background: var(--bg-active); color: var(--text-primary); font-weight: 600;
+}
+
+/* ============================================================================
+   App shell
+   ============================================================================ */
+.shell { display: grid; grid-template-columns: var(--rail-width) minmax(0, 1fr); min-height: 82vh; }
+
+.rail {
+  background: var(--bg-surface); border-right: 1px solid var(--border-subtle);
+  display: flex; flex-direction: column; gap: 2px; padding: var(--space-3) var(--space-2);
+}
+.rail__brand {
+  display: flex; align-items: center; gap: var(--space-2);
+  padding: var(--space-2) var(--space-3) var(--space-5);
+  font-weight: 700; font-size: var(--text-base); letter-spacing: -.01em;
+}
+.rail__mark {
+  width: 1.5rem; height: 1.5rem; border-radius: var(--radius-sm);
+  background: var(--accent-bg); color: var(--text-on-accent);
+  display: grid; place-items: center; font-size: var(--text-xs); font-weight: 700;
+}
+.rail a {
+  display: flex; align-items: center; gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border-left: 2px solid transparent;      /* reserved so nothing shifts */
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
+  color: var(--text-secondary); text-decoration: none;
+  font-size: var(--text-sm); min-height: 2.25rem;
+  transition: background var(--duration-fast) var(--ease-out);
+}
+.rail a:hover { background: var(--bg-hover); color: var(--text-primary); }
+/* Active nav: a thin accent rule plus weight. Blue marks the position; it does
+   not flood a panel. */
+.rail a[aria-current="page"] {
+  background: var(--bg-hover);
+  border-left-color: var(--accent-bg);
+  color: var(--text-primary); font-weight: 600;
+}
+.rail__icon { width: 1rem; text-align: center; opacity: .8; }
+.rail__count {
+  margin-left: auto; display: inline-flex; align-items: center; gap: var(--space-2);
+  font-size: var(--text-xs); font-variant-numeric: tabular-nums; color: var(--text-secondary);
+}
+.rail__count i { width: .375rem; height: .375rem; border-radius: var(--radius-full);
+  background: var(--danger-mark); display: block; }
+.rail__spacer { flex: 1; }
+
+.header {
+  display: flex; align-items: center; gap: var(--space-3);
+  height: var(--header-height); padding: 0 var(--space-5);
+  background: var(--bg-surface); border-bottom: 1px solid var(--border-subtle);
+  position: sticky; top: 0; z-index: 10;
+}
+.omnibox {
+  display: flex; align-items: center; gap: var(--space-2);
+  flex: 1; max-width: 26rem; padding: var(--space-1) var(--space-3); min-height: 2rem;
+  background: var(--bg-inset); border: 1px solid var(--border-default);
+  border-radius: var(--radius-md); color: var(--text-tertiary);
+  font-size: var(--text-sm); cursor: text;
+}
+.kbd {
+  font-family: var(--font-mono); font-size: var(--text-2xs);
+  padding: 1px var(--space-2); border-radius: var(--radius-sm);
+  background: var(--bg-surface); border: 1px solid var(--border-default);
+  color: var(--text-secondary);
+}
+.header__right { margin-left: auto; display: flex; align-items: center; gap: var(--space-2); }
+
+.btn {
+  appearance: none; font: inherit; font-size: var(--text-sm); font-weight: 500;
+  cursor: pointer; border-radius: var(--radius-md);
+  padding: var(--space-2) var(--space-4); min-height: 2rem;
+  display: inline-flex; align-items: center; gap: var(--space-2);
+  border: 1px solid var(--border-control); background: var(--bg-surface); color: var(--text-primary);
+  transition: background var(--duration-fast) var(--ease-out);
+}
+.btn:hover { background: var(--bg-hover); }
+/* The one filled blue element on the screen. */
+.btn--primary {
+  background: var(--accent-bg); border-color: var(--accent-bg);
+  color: var(--text-on-accent); font-weight: 600;
+}
+.btn--primary:hover { background: var(--accent-bg-hover); }
+.btn--ghost { border-color: transparent; background: transparent; color: var(--text-secondary); }
+.btn--ghost:hover { background: var(--bg-hover); color: var(--text-primary); }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+
+.avatar {
+  width: 1.75rem; height: 1.75rem; border-radius: var(--radius-full);
+  background: var(--slate-600); color: #fff;
+  display: grid; place-items: center; font-size: var(--text-2xs); font-weight: 700;
+}
+
+.work { padding: var(--space-6) var(--space-5); display: flex; flex-direction: column; gap: var(--space-5); }
+
+.page-head { display: flex; align-items: flex-end; gap: var(--space-4); flex-wrap: wrap; }
+.page-head p { margin: var(--space-1) 0 0; color: var(--text-secondary); font-size: var(--text-xs); }
+.page-head__actions { margin-left: auto; display: flex; gap: var(--space-2); }
+
+/* --- Filter bar: the group is defined by alignment and a hairline, not a
+       tinted container. ---------------------------------------------------- */
+.filters { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
+.chip {
+  appearance: none; font: inherit; font-size: var(--text-xs); cursor: pointer;
+  display: inline-flex; align-items: center; gap: var(--space-2);
+  padding: var(--space-1) var(--space-3); min-height: 1.75rem;
+  border: 1px solid var(--border-default); border-radius: var(--radius-full);
+  background: var(--bg-surface); color: var(--text-secondary);
+  transition: background var(--duration-fast) var(--ease-out);
+}
+.chip:hover { background: var(--bg-hover); color: var(--text-primary); }
+.chip[aria-pressed="true"] {
+  background: var(--bg-active); border-color: var(--border-control);
+  color: var(--text-primary); font-weight: 600;
+}
+.chip__n { font-variant-numeric: tabular-nums; font-size: var(--text-2xs); color: var(--text-tertiary); }
+.chip[aria-pressed="true"] .chip__n { color: var(--text-secondary); }
+.filters__right { margin-left: auto; display: flex; align-items: center; gap: var(--space-2); }
+
+/* --- Table ------------------------------------------------------------- */
+.table-wrap {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle); border-radius: var(--radius-lg);
+  overflow-x: auto;
+}
+table { border-collapse: collapse; width: 100%; min-width: 54rem; }
+thead th {
+  text-align: left; font-size: var(--text-2xs); font-weight: 700;
+  letter-spacing: .06em; text-transform: uppercase; color: var(--text-tertiary);
+  padding: var(--space-3); border-bottom: 1px solid var(--border-subtle);
+  white-space: nowrap; background: var(--bg-surface); position: sticky; top: 0;
+}
+tbody td { padding: var(--space-3); border-bottom: 1px solid var(--border-subtle); vertical-align: middle; }
+tbody tr:last-child td { border-bottom: 0; }
+tbody tr { transition: background var(--duration-fast) var(--ease-out); }
+tbody tr:hover { background: var(--bg-hover); }
+.num { font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+.th-num { text-align: right; }
+
+.vehicle { display: flex; align-items: center; gap: var(--space-3); }
+.thumb {
+  width: 3.25rem; height: 2.25rem; border-radius: var(--radius-sm); flex: none;
+  background: var(--bg-inset); border: 1px solid var(--border-subtle); overflow: hidden;
+}
+.thumb canvas { display: block; width: 100%; height: 100%; }
+.vehicle__name { font-weight: 600; letter-spacing: -.005em; }
+.vin { font-family: var(--font-mono); font-size: var(--text-2xs); color: var(--text-tertiary); }
+.stock { font-size: var(--text-xs); color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+
+/* Status: a dot plus a plain-text label. Eight tinted pills down a column is
+   the busiest thing a dense grid can do, and the label already carries the
+   meaning — the dot only speeds up scanning. */
+.status { display: inline-flex; align-items: center; gap: var(--space-2); white-space: nowrap; }
+.status__dot { width: .5rem; height: .5rem; border-radius: var(--radius-full); flex: none; }
+.status--available    .status__dot { background: var(--status-available-dot); }
+.status--in_recon     .status__dot { background: var(--status-in_recon-dot); }
+.status--pending_sale .status__dot { background: var(--status-pending_sale-dot); }
+.status--acquired     .status__dot { background: var(--status-acquired-dot); }
+.status--on_hold      .status__dot { background: var(--status-on_hold-dot); }
+.status--sold         .status__dot { background: var(--status-sold-dot); }
+
+.aging { display: inline-flex; align-items: center; gap: var(--space-2); }
+.aging__bar { width: 1.25rem; height: 1.25rem; border-radius: 1px; flex: none; }
+.aging__n { font-variant-numeric: tabular-nums; }
+.aging--fresh .aging__n { color: var(--aging-fresh-text); font-weight: 500; }
+.aging--fresh .aging__bar { border-left: var(--aging-fresh-w) solid var(--aging-fresh-bar); }
+.aging--watch .aging__n { color: var(--aging-watch-text); font-weight: 500; }
+.aging--watch .aging__bar { border-left: var(--aging-watch-w) solid var(--aging-watch-bar); }
+.aging--stale .aging__n { color: var(--aging-stale-text); font-weight: 600; }
+.aging--stale .aging__bar { border-left: var(--aging-stale-w) solid var(--aging-stale-bar); }
+.aging--crit .aging__n { color: var(--aging-crit-text); font-weight: 700; }
+.aging--crit .aging__bar { border-left: var(--aging-crit-w) solid var(--aging-crit-bar); }
+
+.web-live { font-size: var(--text-xs); color: var(--text-secondary); }
+.web-off  { font-size: var(--text-xs); color: var(--text-tertiary); }
+
+.sk {
+  height: .75rem; border-radius: var(--radius-sm);
+  background: linear-gradient(90deg, var(--bg-inset) 25%, var(--bg-hover) 50%, var(--bg-inset) 75%);
+  background-size: 200% 100%; animation: shimmer 1.4s linear infinite;
+}
+@keyframes shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+
+.empty {
+  padding: var(--space-10) var(--space-5); text-align: center;
+  display: flex; flex-direction: column; align-items: center; gap: var(--space-3);
+}
+.empty h3 { margin: 0; font-size: var(--text-base); font-weight: 600; }
+.empty p { margin: 0; color: var(--text-secondary); max-width: 32rem; }
+
+/* Callout: an ordinary surface with a 3px semantic rule. Says the same thing
+   as a filled amber box without shouting across the whole screen. */
+.note {
+  display: flex; gap: var(--space-3); align-items: flex-start;
+  padding: var(--space-3) var(--space-4);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-left: var(--rule-width) solid var(--border-default);
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
+  font-size: var(--text-xs); color: var(--text-secondary);
+}
+.note strong { display: block; margin-bottom: 2px; color: var(--text-primary); font-size: var(--text-sm); }
+.note__mark { flex: none; font-size: var(--text-sm); line-height: 1.2; }
+.note--warning { border-left-color: var(--warning-mark); }
+.note--warning .note__mark { color: var(--warning-text); }
+.note--danger  { border-left-color: var(--danger-mark); }
+.note--danger  .note__mark { color: var(--danger-text); }
+.note--success { border-left-color: var(--success-mark); }
+.note--success .note__mark { color: var(--success-text); }
+
+.legend {
+  display: flex; gap: var(--space-5); flex-wrap: wrap; align-items: center;
+  padding-top: var(--space-1);
+  font-size: var(--text-xs); color: var(--text-secondary);
+}
+.legend__item { display: flex; align-items: center; gap: var(--space-2); }
+
+/* ============================================================================
+   Deal screen
+   ============================================================================ */
+.deal-grid {
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 22rem);
+  gap: var(--space-5); align-items: start;
+}
+@media (max-width: 60rem) { .deal-grid { grid-template-columns: minmax(0, 1fr); } }
+
+.card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); overflow: hidden;
+}
+.card__head {
+  display: flex; align-items: center; gap: var(--space-3);
+  padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--border-subtle);
+}
+.card__head .t-hint { margin-left: auto; }
+.card__body { padding: var(--space-4); display: flex; flex-direction: column; gap: var(--space-4); }
+
+.kv { display: grid; grid-template-columns: 1fr auto; gap: var(--space-2) var(--space-4); margin: 0; }
+.kv dt { color: var(--text-secondary); font-size: var(--text-xs); }
+.kv dd { margin: 0; font-variant-numeric: tabular-nums; text-align: right; }
+
+.field { display: flex; flex-direction: column; gap: var(--space-1); }
+.field label { font-size: var(--text-2xs); font-weight: 700; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--text-tertiary); }
+.field input, .field select {
+  font: inherit; font-size: var(--text-base);
+  padding: var(--space-2) var(--space-3); min-height: var(--touch-target-min);
+  border: 1px solid var(--border-control); border-radius: var(--radius-md);
+  background: var(--bg-surface); color: var(--text-primary); font-variant-numeric: tabular-nums;
+}
+.field-row { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); }
+
+.breakdown { display: flex; flex-direction: column; }
+.breakdown__row {
+  display: grid; grid-template-columns: 1fr auto; gap: var(--space-4);
+  padding: var(--space-2) 0; border-bottom: 1px solid var(--border-subtle);
+  font-variant-numeric: tabular-nums;
+}
+.breakdown__row:last-child { border-bottom: 0; }
+.breakdown__row--sub { color: var(--text-secondary); font-size: var(--text-xs); }
+/* Emphasis by weight and size, not by a coloured band. */
+.breakdown__row--total {
+  margin-top: var(--space-2); padding-top: var(--space-3);
+  border-top: 2px solid var(--border-control); border-bottom: 0;
+  font-weight: 700; font-size: var(--text-lg);
+}
+.breakdown__label { display: flex; align-items: center; gap: var(--space-2); }
+.trace {
+  appearance: none; border: 0; background: transparent; cursor: pointer; padding: 0;
+  font: inherit; font-size: var(--text-2xs); color: var(--accent-fg);
+  text-decoration: underline; text-underline-offset: 2px;
+}
+
+.calc--stale .breakdown { opacity: .35; filter: grayscale(.6); }
+
+.gross { border-top: 1px solid var(--border-subtle); padding-top: var(--space-3); }
+.gross .t-label { display: block; margin-bottom: var(--space-2); }
+
+/* ============================================================================
+   Mobile
+   ============================================================================ */
+.mobile-stage {
+  display: flex; gap: var(--space-8); flex-wrap: wrap;
+  align-items: flex-start; justify-content: center; padding: var(--space-4) 0;
+}
+.phone {
+  width: 20rem; flex: none; border: 10px solid var(--slate-800);
+  border-radius: 2.25rem; background: var(--bg-surface); overflow: hidden; box-shadow: var(--shadow-lg);
+}
+.phone__status {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: var(--space-2) var(--space-5); font-size: var(--text-2xs); font-weight: 600;
+  color: var(--text-secondary); font-variant-numeric: tabular-nums;
+}
+.phone__body { padding: var(--space-4); display: flex; flex-direction: column; gap: var(--space-4); min-height: 30rem; }
+.phone__caption { width: 20rem; font-size: var(--text-xs); color: var(--text-secondary);
+  display: flex; flex-direction: column; gap: var(--space-3); }
+.phone__caption ul { margin: 0; padding-left: var(--space-4); display: flex; flex-direction: column; gap: var(--space-2); }
+.phone__caption strong { color: var(--text-primary); }
+
+.scanner {
+  aspect-ratio: 4 / 3; border-radius: var(--radius-lg);
+  background: var(--slate-900); position: relative; overflow: hidden;
+  display: grid; place-items: center;
+}
+.scanner canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+.scanner__frame {
+  position: relative; width: 76%; height: 34%;
+  border: 2px solid rgb(255 255 255 / .9); border-radius: var(--radius-md);
+  box-shadow: 0 0 0 100vmax rgb(2 6 23 / .55);
+}
+.scanner__hint {
+  position: absolute; bottom: var(--space-3); left: 0; right: 0; text-align: center;
+  color: #fff; font-size: var(--text-xs); font-weight: 500; text-shadow: 0 1px 3px rgb(0 0 0 / .8);
+}
+
+.decoded {
+  display: flex; flex-direction: column; gap: 2px;
+  padding: var(--space-3); background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-left: var(--rule-width) solid var(--success-mark);
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
+}
+.decoded__value { font-size: var(--text-base); font-weight: 650; color: var(--text-primary); }
+
+.meter { display: flex; flex-direction: column; gap: var(--space-2); }
+.meter__head { display: flex; justify-content: space-between; align-items: baseline;
+  font-size: var(--text-xs); color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+.meter__track { height: .375rem; border-radius: var(--radius-full); background: var(--bg-inset); overflow: hidden; }
+.meter__fill { height: 100%; background: var(--text-tertiary); border-radius: var(--radius-full); }
+
+.thumb-btn { margin-top: auto; display: flex; flex-direction: column; gap: var(--space-2); }
+.btn--block { width: 100%; justify-content: center; min-height: var(--touch-target-min); font-size: var(--text-base); }
+
+[hidden] { display: none !important; }
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+</style>
+
+<div class="proto-bar">
+  <span class="t-label">Prototype controls</span>
+
+  <div class="proto-group">
+    <span>Screen</span>
+    <div class="seg" role="group" aria-label="Screen">
+      <button type="button" data-screen="inventory" aria-pressed="true">Inventory</button>
+      <button type="button" data-screen="deal" aria-pressed="false">Deal</button>
+      <button type="button" data-screen="mobile" aria-pressed="false">Mobile</button>
+    </div>
+  </div>
+
+  <div class="proto-group">
+    <span>Signed in as</span>
+    <div class="seg" role="group" aria-label="Role">
+      <button type="button" data-role="salesperson" aria-pressed="true">Salesperson</button>
+      <button type="button" data-role="manager" aria-pressed="false">Sales Manager</button>
+    </div>
+  </div>
+
+  <div class="proto-group">
+    <span>Density</span>
+    <div class="seg" role="group" aria-label="Density">
+      <button type="button" data-density="comfortable" aria-pressed="true">Comfortable</button>
+      <button type="button" data-density="compact" aria-pressed="false">Compact</button>
+    </div>
+  </div>
+
+  <div class="proto-group">
+    <span>State</span>
+    <div class="seg" role="group" aria-label="Table state">
+      <button type="button" data-state="loaded" aria-pressed="true">Loaded</button>
+      <button type="button" data-state="loading" aria-pressed="false">Loading</button>
+      <button type="button" data-state="empty" aria-pressed="false">Filtered empty</button>
+    </div>
+  </div>
+
+  <div class="proto-group">
+    <button type="button" class="btn btn--ghost" id="theme-toggle" aria-pressed="false">
+      <span aria-hidden="true">◐</span> Theme
+    </button>
+  </div>
+</div>
+
+<div class="shell">
+  <nav class="rail" aria-label="Main">
+    <div class="rail__brand">
+      <span class="rail__mark" aria-hidden="true">M</span> MautoDesk
+    </div>
+    <a href="#" data-nav="today"><span class="rail__icon" aria-hidden="true">◉</span> Today</a>
+    <a href="#" data-nav="inventory" aria-current="page"><span class="rail__icon" aria-hidden="true">▤</span> Inventory</a>
+    <a href="#" data-nav="customers"><span class="rail__icon" aria-hidden="true">☺</span> Customers</a>
+    <a href="#" data-nav="leads">
+      <span class="rail__icon" aria-hidden="true">⚑</span> Leads
+      <span class="rail__count"><i aria-hidden="true"></i>4<span class="sr-only"> unanswered</span></span>
+    </a>
+    <a href="#" data-nav="deals"><span class="rail__icon" aria-hidden="true">⛒</span> Deals</a>
+    <a href="#" data-nav="documents"><span class="rail__icon" aria-hidden="true">▦</span> Documents</a>
+    <a href="#" data-nav="reports"><span class="rail__icon" aria-hidden="true">▲</span> Reports</a>
+    <span class="rail__spacer"></span>
+    <a href="#" data-nav="settings"><span class="rail__icon" aria-hidden="true">⚙</span> Settings</a>
+  </nav>
+
+  <div>
+    <header class="header">
+      <div class="omnibox">
+        <span aria-hidden="true">⌕</span>
+        <span>Search vehicles, customers, deals…</span>
+        <span class="kbd" style="margin-left:auto">⌘K</span>
+      </div>
+      <div class="header__right">
+        <button type="button" class="btn btn--primary">＋ New</button>
+        <button type="button" class="btn btn--ghost" aria-label="Notifications">🔔</button>
+        <span class="avatar" id="who" title="Signed-in user">DR</span>
+      </div>
+    </header>
+
+    <!-- ================================================== INVENTORY ===== -->
+    <main class="work" data-screen-panel="inventory">
+      <div class="page-head">
+        <div>
+          <h1 class="t-page">Inventory</h1>
+          <p id="result-count">42 vehicles · Ridgeline Auto, Tulsa OK</p>
+        </div>
+        <div class="page-head__actions">
+          <button type="button" class="btn">Saved views ▾</button>
+          <button type="button" class="btn btn--primary">＋ Add vehicle</button>
+        </div>
+      </div>
+
+      <div class="filters">
+        <button type="button" class="chip" aria-pressed="true">All <span class="chip__n">42</span></button>
+        <button type="button" class="chip" aria-pressed="false">Available <span class="chip__n">28</span></button>
+        <button type="button" class="chip" aria-pressed="false">In recon <span class="chip__n">7</span></button>
+        <button type="button" class="chip" aria-pressed="false">Pending sale <span class="chip__n">4</span></button>
+        <button type="button" class="chip" aria-pressed="false">Aged 60+ <span class="chip__n">9</span></button>
+        <button type="button" class="chip" aria-pressed="false">Not published <span class="chip__n">5</span></button>
+        <div class="filters__right">
+          <span class="kbd">/</span> <span class="t-hint">to search</span>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <caption class="sr-only">Vehicle inventory, sorted by days in stock, oldest first</caption>
+          <thead>
+            <tr>
+              <th scope="col">Vehicle</th>
+              <th scope="col">Stock</th>
+              <th scope="col" class="th-num">Mileage</th>
+              <th scope="col">Status</th>
+              <th scope="col" class="th-num">Age</th>
+              <th scope="col" class="th-num">Price</th>
+              <th scope="col" class="th-num" data-cost-col>Cost</th>
+              <th scope="col" class="th-num" data-cost-col>Gross</th>
+              <th scope="col">Web</th>
+            </tr>
+          </thead>
+          <tbody id="rows"></tbody>
+        </table>
+
+        <div class="empty" id="empty-state" hidden>
+          <h3>No vehicles match these filters</h3>
+          <p>Nothing in stock is both aged over 60 days and unpublished right now — which is usually a good sign.</p>
+          <button type="button" class="btn">Clear filters</button>
+        </div>
+      </div>
+
+      <div class="legend" aria-label="Aging legend">
+        <span class="legend__item"><span class="aging aging--fresh"><span class="aging__bar"></span></span> 0–30 days</span>
+        <span class="legend__item"><span class="aging aging--watch"><span class="aging__bar"></span></span> 31–60 · watch</span>
+        <span class="legend__item"><span class="aging aging--stale"><span class="aging__bar"></span></span> 61–90 · stale</span>
+        <span class="legend__item"><span class="aging aging--crit"><span class="aging__bar"></span></span> 91+ · critical</span>
+        <span class="legend__item t-hint" style="margin-left:auto">Bar weight rises with age; only the two buckets needing action colour their number.</span>
+      </div>
+    </main>
+
+    <!-- ======================================================= DEAL ===== -->
+    <main class="work" data-screen-panel="deal" hidden>
+      <div class="page-head">
+        <div>
+          <h1 class="t-page">Deal D-1047 — Marcus Whitfield</h1>
+          <p>2021 Ford F-150 XLT SuperCrew · Stock A-1188 · Salesperson: Dana Reyes</p>
+        </div>
+        <div class="page-head__actions">
+          <button type="button" class="btn">Print worksheet</button>
+          <button type="button" class="btn btn--primary" id="recalc">Recalculate</button>
+        </div>
+      </div>
+
+      <div class="note note--warning" id="stale-note">
+        <span class="note__mark" aria-hidden="true">▲</span>
+        <span>
+          <strong>The trade allowance changed. These figures are out of date.</strong>
+          Recalculate to update. Contracting stays disabled until the calculation is current —
+          a stale number must never look like a live one.
+        </span>
+      </div>
+
+      <div class="deal-grid">
+        <div style="display:flex;flex-direction:column;gap:var(--space-5)">
+          <section class="card">
+            <div class="card__head"><span class="t-section">Vehicle &amp; price</span></div>
+            <div class="card__body">
+              <div class="field-row">
+                <div class="field">
+                  <label for="sale-price">Selling price</label>
+                  <input id="sale-price" type="text" value="38,450.00" inputmode="decimal">
+                </div>
+                <div class="field">
+                  <label for="down">Cash down</label>
+                  <input id="down" type="text" value="4,000.00" inputmode="decimal">
+                </div>
+              </div>
+              <p class="t-hint" style="margin:0">
+                Amounts are handled as decimal strings end to end — never parsed into a
+                JavaScript number, which cannot represent money exactly.
+              </p>
+            </div>
+          </section>
+
+          <section class="card">
+            <div class="card__head">
+              <span class="t-section">Trade-in</span>
+              <span class="t-hint">Edited · not yet in the calculation</span>
+            </div>
+            <div class="card__body">
+              <div class="field-row">
+                <div class="field">
+                  <label for="trade-allow">Allowance</label>
+                  <input id="trade-allow" type="text" value="9,500.00" inputmode="decimal">
+                </div>
+                <div class="field">
+                  <label for="trade-payoff">Payoff</label>
+                  <input id="trade-payoff" type="text" value="6,180.00" inputmode="decimal">
+                </div>
+              </div>
+              <p class="t-hint" style="margin:0">
+                2018 Chevrolet Silverado 1500 · 74,220 mi · payoff good through 12 Aug.
+                Trade treatment changes the taxable amount in all three launch states.
+              </p>
+            </div>
+          </section>
+
+          <section class="card">
+            <div class="card__head"><span class="t-section">Jurisdiction</span></div>
+            <div class="card__body">
+              <div class="field">
+                <label for="juris">Taxing jurisdiction</label>
+                <select id="juris">
+                  <option value="ok">Tulsa County, OK</option>
+                  <option value="ks">Sedgwick County, KS</option>
+                </select>
+                <span class="t-hint">
+                  Resolved from the customer's address. Kansas assesses destination-based local
+                  rates, so this cannot be derived from the state alone.
+                </span>
+              </div>
+            </div>
+          </section>
+        </div>
+
+        <section class="card" id="calc-card">
+          <div class="card__head">
+            <span class="t-section">Buyer order</span>
+            <span class="t-hint" id="calc-version">Snapshot v3</span>
+          </div>
+          <div class="card__body">
+            <div class="note note--danger" id="no-rules" hidden>
+              <span class="note__mark" aria-hidden="true">■</span>
+              <span>
+                <strong>Tax rules for Sedgwick County, KS are not configured.</strong>
+                This deal cannot be priced. Contact your administrator to load and approve the
+                Kansas rule set. No estimate is shown, because a guessed tax figure on a buyer
+                order is worse than a blocked screen.
+              </span>
+            </div>
+
+            <div id="calc-body" style="display:flex;flex-direction:column;gap:var(--space-4)">
+              <div class="breakdown">
+                <div class="breakdown__row"><span class="breakdown__label">Selling price</span><span>$38,450.00</span></div>
+                <div class="breakdown__row"><span class="breakdown__label">Trade allowance</span><span>−$9,500.00</span></div>
+                <div class="breakdown__row breakdown__row--sub"><span class="breakdown__label">Taxable amount</span><span>$28,950.00</span></div>
+                <div class="breakdown__row">
+                  <span class="breakdown__label">Sales tax <button type="button" class="trace">rule set v4</button></span><span>$1,158.00</span>
+                </div>
+                <div class="breakdown__row">
+                  <span class="breakdown__label">Documentary fee <button type="button" class="trace">why $299?</button></span><span>$299.00</span>
+                </div>
+                <div class="breakdown__row"><span class="breakdown__label">Title &amp; registration</span><span>$168.50</span></div>
+                <div class="breakdown__row"><span class="breakdown__label">Trade payoff</span><span>$6,180.00</span></div>
+                <div class="breakdown__row"><span class="breakdown__label">Cash down</span><span>−$4,000.00</span></div>
+                <div class="breakdown__row breakdown__row--total"><span>Amount financed</span><span>$23,255.50</span></div>
+              </div>
+
+              <div class="gross" data-gross hidden>
+                <span class="t-label">Gross profit</span>
+                <dl class="kv">
+                  <dt>Front</dt><dd>$2,910.00</dd>
+                  <dt>Back</dt><dd>$1,340.00</dd>
+                  <dt><strong>Total</strong></dt><dd><strong>$4,250.00</strong></dd>
+                </dl>
+              </div>
+
+              <p class="t-hint" style="margin:0" id="gross-hidden-note">
+                Gross is hidden for your role. It sits below the fold and behind a permission so it
+                is never on screen by accident while a customer is looking.
+              </p>
+
+              <button type="button" class="btn btn--primary btn--block" id="contract-btn" disabled>
+                Send for signature
+              </button>
+              <p class="t-hint" style="text-align:center;margin:0">engine 1.0.0 · hash 8f3c…a91d</p>
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
+
+    <!-- ===================================================== MOBILE ===== -->
+    <main class="work" data-screen-panel="mobile" hidden>
+      <div class="page-head">
+        <div>
+          <h1 class="t-page">Lot walk — add a vehicle</h1>
+          <p>Target: under 15 seconds, four interactions, one-handed, in sunlight</p>
+        </div>
+      </div>
+
+      <div class="mobile-stage">
+        <div class="phone">
+          <div class="phone__status"><span>9:41</span><span>▮▮▮ ⌁</span></div>
+          <div class="phone__body">
+            <div class="scanner">
+              <canvas id="scan-canvas" width="320" height="240" aria-hidden="true"></canvas>
+              <div class="scanner__frame"></div>
+              <p class="scanner__hint">Line up the VIN barcode</p>
+            </div>
+
+            <div class="decoded">
+              <span class="t-label">Decoded</span>
+              <span class="decoded__value">2021 Ford F-150 XLT</span>
+              <span class="t-hint">3.5L V6 · SuperCrew · 4WD · 1FTFW1ET5MFA48219</span>
+            </div>
+
+            <div class="field">
+              <label for="m-miles">Mileage</label>
+              <input id="m-miles" type="text" inputmode="numeric" value="46,910">
+            </div>
+
+            <div class="field">
+              <label for="m-stock">Stock number</label>
+              <input id="m-stock" type="text" value="A-1204">
+              <span class="t-hint">Suggested from your sequence</span>
+            </div>
+
+            <div class="meter">
+              <div class="meter__head"><span>Ready to publish</span><span>2 of 6</span></div>
+              <div class="meter__track"><div class="meter__fill" style="width:33%"></div></div>
+            </div>
+
+            <div class="thumb-btn">
+              <button type="button" class="btn btn--primary btn--block">Save vehicle</button>
+              <button type="button" class="btn btn--block">Enter VIN manually</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="phone__caption">
+          <h3 class="t-section" style="margin:0">Why this screen looks like this</h3>
+          <ul>
+            <li><strong>Camera first.</strong> No menu, no empty form — the scanner is the screen.</li>
+            <li><strong>Two fields.</strong> Price, photos, and costs come later from whoever has them.</li>
+            <li><strong>Nothing blocks the save.</strong> Completeness is a meter that invites finishing, not validation that refuses.</li>
+            <li><strong>Actions in the bottom third.</strong> That is where a thumb reaches.</li>
+            <li><strong>16px inputs, 44px targets.</strong> Below 16px iOS zooms on focus; below 44px a gloved hand misses.</li>
+            <li><strong>Manual entry always one tap away.</strong> Windshield barcodes are scratched, dirty, and sometimes absent.</li>
+          </ul>
+          <p style="margin:0">
+            Note the progress meter is neutral grey, not blue. It is not something you can click.
+          </p>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  var VEHICLES = [
+    { yr:2019, mk:'RAM',       md:'1500 Big Horn Crew Cab', stock:'A-0994', vin:'1C6SRFFT2KN512204',
+      mi:88420, status:'available',    age:104, price:'28,995.00', cost:'22,410.00', gross:'4,185.00', pub:true,  hue:214 },
+    { yr:2017, mk:'Chevrolet', md:'Equinox LT',             stock:'A-1021', vin:'2GNAXJEV1H6284471',
+      mi:96110, status:'available',    age:78,  price:'14,450.00', cost:'10,900.00', gross:'2,220.00', pub:true,  hue:6 },
+    { yr:2020, mk:'Honda',     md:'Civic Sport',            stock:'A-1064', vin:'2HGFC2F59LH551903',
+      mi:52380, status:'pending_sale', age:63,  price:'19,900.00', cost:'15,750.00', gross:'2,840.00', pub:true,  hue:32 },
+    { yr:2021, mk:'Ford',      md:'F-150 XLT SuperCrew',    stock:'A-1188', vin:'1FTFW1ET5MFA48219',
+      mi:46910, status:'available',    age:44,  price:'38,450.00', cost:'31,200.00', gross:'4,250.00', pub:true,  hue:210 },
+    { yr:2018, mk:'Toyota',    md:'RAV4 XLE',               stock:'A-1190', vin:'2T3WFREV5JW441882',
+      mi:71240, status:'available',    age:37,  price:'21,750.00', cost:'17,300.00', gross:'2,960.00', pub:true,  hue:0 },
+    { yr:2022, mk:'Nissan',    md:'Altima SV',              stock:'A-1197', vin:'1N4BL4DV7NN318870',
+      mi:33990, status:'in_recon',     age:21,  price:'22,400.00', cost:'18,050.00', gross:'—',        pub:false, hue:196 },
+    { yr:2019, mk:'Jeep',      md:'Grand Cherokee Laredo',  stock:'A-1201', vin:'1C4RJFAG2KC733015',
+      mi:64775, status:'in_recon',     age:12,  price:'24,900.00', cost:'19,880.00', gross:'—',        pub:false, hue:120 },
+    { yr:2020, mk:'Subaru',    md:'Outback Premium',        stock:'A-1203', vin:'4S4BTACC9L3182664',
+      mi:58120, status:'acquired',     age:3,   price:'—',         cost:'20,150.00', gross:'—',        pub:false, hue:150 }
+  ];
+
+  var STATUS_LABEL = {
+    available:'Available', in_recon:'In recon', pending_sale:'Pending sale',
+    acquired:'Acquired', on_hold:'On hold', sold:'Sold'
+  };
+
+  function agingClass(days) {
+    if (days > 90) return 'crit';
+    if (days > 60) return 'stale';
+    if (days > 30) return 'watch';
+    return 'fresh';
+  }
+
+  /* Generated thumbnail so the grid reads with real image weight without
+     shipping photographs. Canvas, not hand-authored SVG path data. */
+  function paintThumb(canvas, hue) {
+    var ctx = canvas.getContext('2d');
+    var w = canvas.width, h = canvas.height;
+    var sky = ctx.createLinearGradient(0, 0, 0, h);
+    sky.addColorStop(0, 'hsl(' + hue + ' 22% 84%)');
+    sky.addColorStop(1, 'hsl(' + hue + ' 18% 64%)');
+    ctx.fillStyle = sky; ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = 'hsl(' + hue + ' 38% 40%)';
+    ctx.beginPath();
+    ctx.moveTo(w * .10, h * .72); ctx.lineTo(w * .26, h * .44); ctx.lineTo(w * .62, h * .42);
+    ctx.lineTo(w * .80, h * .60); ctx.lineTo(w * .90, h * .72); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = 'hsl(' + hue + ' 28% 24%)';
+    ctx.beginPath(); ctx.arc(w * .30, h * .74, h * .10, 0, 6.3); ctx.fill();
+    ctx.beginPath(); ctx.arc(w * .72, h * .74, h * .10, 0, 6.3); ctx.fill();
+  }
+
+  var rows = document.getElementById('rows');
+
+  function cell(text, cls, attr) {
+    var c = document.createElement('td');
+    if (cls) c.className = cls;
+    if (attr) c.setAttribute(attr, '');
+    c.textContent = text;
+    return c;
+  }
+
+  function renderRows() {
+    rows.textContent = '';
+    VEHICLES.forEach(function (v) {
+      var tr = document.createElement('tr');
+
+      var td = document.createElement('td');
+      var wrap = document.createElement('div');
+      wrap.className = 'vehicle';
+      var thumb = document.createElement('div');
+      thumb.className = 'thumb';
+      var cv = document.createElement('canvas');
+      cv.width = 104; cv.height = 72;
+      thumb.appendChild(cv);
+      paintThumb(cv, v.hue);
+      var names = document.createElement('div');
+      var n1 = document.createElement('div');
+      n1.className = 'vehicle__name';
+      n1.textContent = v.yr + ' ' + v.mk + ' ' + v.md;
+      var n2 = document.createElement('div');
+      n2.className = 'vin';
+      n2.textContent = v.vin;
+      names.appendChild(n1); names.appendChild(n2);
+      wrap.appendChild(thumb); wrap.appendChild(names);
+      td.appendChild(wrap);
+      tr.appendChild(td);
+
+      tr.appendChild(cell(v.stock, 'stock'));
+      tr.appendChild(cell(v.mi.toLocaleString('en-US'), 'num'));
+
+      /* Dot + plain label, no filled pill. */
+      var st = document.createElement('td');
+      var sw = document.createElement('span');
+      sw.className = 'status status--' + v.status;
+      var dot = document.createElement('span');
+      dot.className = 'status__dot';
+      dot.setAttribute('aria-hidden', 'true');
+      var lbl = document.createElement('span');
+      lbl.textContent = STATUS_LABEL[v.status];
+      sw.appendChild(dot); sw.appendChild(lbl);
+      st.appendChild(sw);
+      tr.appendChild(st);
+
+      var age = document.createElement('td');
+      age.className = 'num';
+      var agWrap = document.createElement('span');
+      agWrap.className = 'aging aging--' + agingClass(v.age);
+      var bar = document.createElement('span');
+      bar.className = 'aging__bar';
+      bar.setAttribute('aria-hidden', 'true');
+      var num = document.createElement('span');
+      num.className = 'aging__n';
+      num.textContent = v.age + 'd';
+      agWrap.appendChild(bar); agWrap.appendChild(num);
+      age.appendChild(agWrap);
+      tr.appendChild(age);
+
+      tr.appendChild(cell(v.price === '—' ? '—' : '$' + v.price, 'num'));
+      tr.appendChild(cell('$' + v.cost, 'num', 'data-cost-col'));
+      tr.appendChild(cell(v.gross === '—' ? '—' : '$' + v.gross, 'num', 'data-cost-col'));
+      tr.appendChild(cell(v.pub ? 'Live' : 'Not listed', v.pub ? 'web-live' : 'web-off'));
+
+      rows.appendChild(tr);
+    });
+    applyRole();
+  }
+
+  function renderSkeleton() {
+    rows.textContent = '';
+    for (var i = 0; i < 6; i++) {
+      var tr = document.createElement('tr');
+      for (var c = 0; c < 9; c++) {
+        var td = document.createElement('td');
+        var sk = document.createElement('div');
+        sk.className = 'sk';
+        sk.style.width = c === 0 ? '80%' : (40 + ((i * 7 + c * 13) % 30)) + '%';
+        if (c === 0) sk.style.height = '2.25rem';
+        td.appendChild(sk);
+        tr.appendChild(td);
+      }
+      rows.appendChild(tr);
+    }
+  }
+
+  /* Permission-shaped, not permission-broken: the columns are REMOVED. */
+  var role = 'salesperson';
+
+  function applyRole() {
+    var isManager = role === 'manager';
+    document.querySelectorAll('[data-cost-col]').forEach(function (el) { el.hidden = !isManager; });
+    document.querySelectorAll('[data-gross]').forEach(function (el) { el.hidden = !isManager; });
+    var note = document.getElementById('gross-hidden-note');
+    if (note) note.hidden = isManager;
+    var who = document.getElementById('who');
+    if (who) {
+      who.textContent = isManager ? 'SM' : 'DR';
+      who.title = isManager ? 'Sam Mercer — Sales Manager' : 'Dana Reyes — Salesperson';
+    }
+  }
+
+  function bindSegment(attr, handler) {
+    document.querySelectorAll('[' + attr + ']').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        btn.parentElement.querySelectorAll('button').forEach(function (b) {
+          b.setAttribute('aria-pressed', String(b === btn));
+        });
+        handler(btn.getAttribute(attr));
+      });
+    });
+  }
+
+  bindSegment('data-screen', function (name) {
+    document.querySelectorAll('[data-screen-panel]').forEach(function (panel) {
+      panel.hidden = panel.getAttribute('data-screen-panel') !== name;
+    });
+    var navFor = { inventory: 'inventory', deal: 'deals', mobile: 'inventory' };
+    document.querySelectorAll('.rail a').forEach(function (a) {
+      if (a.getAttribute('data-nav') === navFor[name]) a.setAttribute('aria-current', 'page');
+      else a.removeAttribute('aria-current');
+    });
+  });
+
+  bindSegment('data-role', function (value) { role = value; applyRole(); });
+
+  bindSegment('data-density', function (value) {
+    var pad = value === 'compact' ? '.375rem' : '.75rem';
+    document.querySelectorAll('tbody td').forEach(function (td) {
+      td.style.paddingTop = pad; td.style.paddingBottom = pad;
+    });
+    document.querySelectorAll('.thumb').forEach(function (t) {
+      t.style.height = value === 'compact' ? '1.5rem' : '2.25rem';
+      t.style.width = value === 'compact' ? '2.25rem' : '3.25rem';
+    });
+  });
+
+  bindSegment('data-state', function (value) {
+    var empty = document.getElementById('empty-state');
+    var count = document.getElementById('result-count');
+    var table = rows.closest('table');
+    if (value === 'loading') {
+      empty.hidden = true; table.hidden = false; renderSkeleton();
+      count.textContent = 'Loading…';
+    } else if (value === 'empty') {
+      rows.textContent = ''; table.hidden = true; empty.hidden = false;
+      count.textContent = '0 of 42 vehicles match';
+    } else {
+      empty.hidden = true; table.hidden = false; renderRows();
+      count.textContent = '42 vehicles · Ridgeline Auto, Tulsa OK';
+    }
+  });
+
+  var toggle = document.getElementById('theme-toggle');
+  toggle.addEventListener('click', function () {
+    var root = document.documentElement;
+    var isDark = root.getAttribute('data-theme') === 'dark';
+    if (!root.getAttribute('data-theme')) {
+      isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    }
+    root.setAttribute('data-theme', isDark ? 'light' : 'dark');
+    toggle.setAttribute('aria-pressed', String(!isDark));
+  });
+
+  /* ---- deal screen ---- */
+  var recalc = document.getElementById('recalc');
+  var calcCard = document.getElementById('calc-card');
+  var staleNote = document.getElementById('stale-note');
+  var contractBtn = document.getElementById('contract-btn');
+  var version = document.getElementById('calc-version');
+  var juris = document.getElementById('juris');
+  var noRules = document.getElementById('no-rules');
+  var calcBody = document.getElementById('calc-body');
+  var v = 3;
+
+  calcCard.classList.add('calc--stale');
+
+  recalc.addEventListener('click', function () {
+    if (juris.value === 'ks') return;
+    calcCard.classList.remove('calc--stale');
+    staleNote.hidden = true;
+    contractBtn.disabled = false;
+    v += 1;
+    version.textContent = 'Snapshot v' + v;
+  });
+
+  juris.addEventListener('change', function () {
+    var blocked = juris.value === 'ks';
+    noRules.hidden = !blocked;
+    calcBody.hidden = blocked;
+    recalc.disabled = blocked;
+  });
+
+  /* ---- scanner ---- */
+  var scan = document.getElementById('scan-canvas');
+  if (scan) {
+    var ctx = scan.getContext('2d');
+    var w = scan.width, h = scan.height;
+    var g = ctx.createLinearGradient(0, 0, w, h);
+    g.addColorStop(0, '#1e293b'); g.addColorStop(1, '#0f172a');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = 'rgba(226,232,240,.92)';
+    ctx.fillRect(w * .16, h * .40, w * .68, h * .22);
+    ctx.fillStyle = '#0f172a';
+    var x = w * .20, seed = 7;
+    while (x < w * .80) {
+      seed = (seed * 1103515245 + 12345) % 2147483648;
+      var bw = 1 + (seed % 4);
+      ctx.fillRect(x, h * .44, bw, h * .11);
+      x += bw + 1 + (seed % 3);
+    }
+    ctx.fillStyle = '#334155';
+    ctx.font = '9px ui-monospace, monospace';
+    ctx.fillText('1FTFW1ET5MFA48219', w * .20, h * .60);
+  }
+
+  renderRows();
+})();
+</script>

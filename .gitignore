@@ -1,0 +1,65 @@
+# --- Secrets: nothing in these patterns may ever be committed -----------------
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.pfx
+appsettings.Local.json
+appsettings.*.Local.json
+secrets.json
+**/terraform.tfvars
+**/*.auto.tfvars
+
+# --- .NET ---------------------------------------------------------------------
+bin/
+obj/
+[Dd]ebug/
+[Rr]elease/
+artifacts/
+*.user
+*.suo
+.vs/
+TestResults/
+coverage/
+*.coverage
+*.trx
+
+# --- Node ---------------------------------------------------------------------
+node_modules/
+.pnpm-store/
+.next/
+out/
+dist/
+build/
+*.tsbuildinfo
+.turbo/
+
+# --- Python (OCR worker) ------------------------------------------------------
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# --- Terraform ----------------------------------------------------------------
+.terraform/
+*.tfstate
+*.tfstate.*
+.terraform.lock.hcl
+
+# --- Editors / OS -------------------------------------------------------------
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.recommended.json
+.DS_Store
+Thumbs.db
+*.swp
+
+# --- Local scratch ------------------------------------------------------------
+tmp/
+scratch/
+*.log
