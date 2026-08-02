@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import Link from 'next/link';
 import { revalidatePath } from 'next/cache';
 import { notFound, redirect } from 'next/navigation';
@@ -38,6 +39,11 @@ export default async function VehiclePage({
 
   const readiness = vehicle.readiness;
   const canPublish = permissions.has('inventory.publish');
+  const canEditPhotos = permissions.has('inventory.photo.write');
+
+  // Photos load with the page rather than on demand: a listing screen without
+  // its photos is not a listing screen.
+  const photos = await (await apiClient()).listPhotos(vehicleId).catch(() => []);
   const canWrite = permissions.has('inventory.vehicle.write');
 
   // Straight from the server, so the menu offers exactly the moves the domain
@@ -62,6 +68,92 @@ export default async function VehiclePage({
 
     // The page reads the vehicle on every request, but the cached render has to
     // be dropped or the user sees the status they just left.
+    revalidatePath(`/inventory/${vehicleId}`);
+    redirect(`/inventory/${vehicleId}`);
+  }
+
+  /**
+   * Uploads one photo through the three-step pipeline.
+   *
+   * The file passes through the Next server rather than going straight from the
+   * browser to the bucket. Direct-to-bucket would save a hop, but it needs CORS
+   * opened on the quarantine bucket and the presigned URL handed to client-side
+   * JavaScript — and this app deliberately keeps every credential, including
+   * capability URLs, on the server (ADR §4).
+   */
+  async function uploadPhoto(formData: FormData) {
+    'use server';
+
+    const file = formData.get('photo');
+
+    if (!(file instanceof File) || file.size === 0) {
+      redirect(`/inventory/${vehicleId}?error=${encodeURIComponent('Choose a photo to upload.')}`);
+    }
+
+    const bytes = Buffer.from(await file.arrayBuffer());
+    const digest = createHash('sha256').update(bytes).digest('hex');
+
+    try {
+      const client = await apiClient();
+
+      const intent = await client.requestPhotoUpload(vehicleId, {
+        contentType: file.type,
+        byteSize: bytes.byteLength,
+        sha256: digest,
+      });
+
+      // Straight to the quarantine bucket. The API never sees the bytes.
+      const put = await fetch(intent.uploadUrl!, {
+        method: 'PUT',
+        headers: { 'Content-Type': file.type },
+        body: bytes,
+      });
+
+      if (!put.ok) {
+        redirect(
+          `/inventory/${vehicleId}?error=${encodeURIComponent(
+            `The upload did not complete (${put.status}). Try again.`,
+          )}`,
+        );
+      }
+
+      // Nothing is a photo until this passes: size, digest, malware, and a
+      // decode, followed by a re-encode that strips the metadata.
+      await client.confirmPhotoUpload(vehicleId, intent.photoId!);
+    } catch (failure) {
+      redirect(`/inventory/${vehicleId}?error=${encodeURIComponent(describe(failure))}`);
+    }
+
+    revalidatePath(`/inventory/${vehicleId}`);
+    redirect(`/inventory/${vehicleId}`);
+  }
+
+  async function makePrimaryPhoto(formData: FormData) {
+    'use server';
+
+    const photoId = String(formData.get('photoId') ?? '');
+
+    try {
+      await (await apiClient()).setPrimaryPhoto(vehicleId, photoId);
+    } catch (failure) {
+      redirect(`/inventory/${vehicleId}?error=${encodeURIComponent(describe(failure))}`);
+    }
+
+    revalidatePath(`/inventory/${vehicleId}`);
+    redirect(`/inventory/${vehicleId}`);
+  }
+
+  async function removePhoto(formData: FormData) {
+    'use server';
+
+    const photoId = String(formData.get('photoId') ?? '');
+
+    try {
+      await (await apiClient()).deletePhoto(vehicleId, photoId);
+    } catch (failure) {
+      redirect(`/inventory/${vehicleId}?error=${encodeURIComponent(describe(failure))}`);
+    }
+
     revalidatePath(`/inventory/${vehicleId}`);
     redirect(`/inventory/${vehicleId}`);
   }
@@ -190,6 +282,101 @@ export default async function VehiclePage({
             <Row label="Mileage" value={vehicle.mileage?.toLocaleString('en-US')} numeric />
             <Row label="Status" value={statusLabel(vehicle.status ?? 'acquired')} />
           </dl>
+        </section>
+
+        <section className="overflow-hidden rounded-lg border border-line bg-surface lg:col-span-2">
+          <div className="flex items-center justify-between border-b border-line px-4 py-3">
+            <span className="t-section">Photos</span>
+            <span className="text-xs text-muted">
+              {photos.filter((photo) => photo.status === 'ready').length} ready
+            </span>
+          </div>
+
+          <div className="flex flex-col gap-4 p-4">
+            {photos.length === 0 ? (
+              <p className="m-0 text-xs text-muted">
+                No photos yet. A vehicle cannot be published without at least one, and listings
+                without photos are skipped by shoppers.
+              </p>
+            ) : (
+              <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+                {photos.map((photo) => (
+                  <li
+                    key={photo.id}
+                    className="flex flex-col gap-2 overflow-hidden rounded-md border border-line"
+                  >
+                    {photo.status === 'ready' && photo.thumbnailUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element -- the
+                      // URL is a short-lived presigned one, which next/image
+                      // cannot cache or optimise anyway.
+                      <img
+                        src={photo.thumbnailUrl}
+                        alt={photo.caption ?? `Photo of ${title}`}
+                        className="aspect-[4/3] w-full object-cover"
+                      />
+                    ) : (
+                      <div className="flex aspect-[4/3] w-full items-center justify-center bg-inset p-2 text-center text-[0.6875rem] text-muted">
+                        {photo.status === 'rejected'
+                          ? (photo.rejectionReason ?? 'Rejected')
+                          : 'Checking…'}
+                      </div>
+                    )}
+
+                    <div className="flex items-center justify-between gap-1 px-2 pb-2">
+                      <span className="text-[0.6875rem] text-faint">
+                        {photo.isPrimary ? 'Lead photo' : photo.status}
+                      </span>
+
+                      {canEditPhotos ? (
+                        <span className="flex gap-1">
+                          {photo.status === 'ready' && !photo.isPrimary ? (
+                            <form action={makePrimaryPhoto}>
+                              <input type="hidden" name="photoId" value={photo.id ?? ''} />
+                              <button type="submit" className="text-[0.6875rem] underline">
+                                Make lead
+                              </button>
+                            </form>
+                          ) : null}
+
+                          <form action={removePhoto}>
+                            <input type="hidden" name="photoId" value={photo.id ?? ''} />
+                            <button
+                              type="submit"
+                              className="text-[0.6875rem] underline"
+                              style={{ color: 'var(--danger-text)' }}
+                            >
+                              Remove
+                            </button>
+                          </form>
+                        </span>
+                      ) : null}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            {canEditPhotos ? (
+              <form action={uploadPhoto} className="flex flex-wrap items-center gap-2">
+                <input
+                  type="file"
+                  name="photo"
+                  accept="image/jpeg,image/png,image/webp"
+                  required
+                  className="min-h-11 max-w-full text-xs text-muted"
+                />
+                <button
+                  type="submit"
+                  className="inline-flex min-h-11 items-center rounded-md border border-control px-4 font-medium hover:bg-hover"
+                >
+                  Upload photo
+                </button>
+                <span className="text-[0.6875rem] text-faint">
+                  JPEG, PNG, or WebP, up to 20 MB. Location data is removed on upload.
+                </span>
+              </form>
+            ) : null}
+          </div>
         </section>
 
         <div className="flex flex-col gap-5">

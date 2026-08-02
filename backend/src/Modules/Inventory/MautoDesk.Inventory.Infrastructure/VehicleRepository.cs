@@ -49,7 +49,7 @@ public sealed class VehicleRepository : IVehicleRepository
         // still subject to RLS on the same connection.
         // EF wraps a SqlQueryRaw scalar in `select s."Value" from (...) as s`, so the
         // projected column must literally be named "Value".
-        var sql = """select count(*)::int as "Value" from inventory.vehicle_photo where vehicle_id = {0} and deleted_at is null""";
+        var sql = """select count(*)::int as "Value" from inventory.vehicle_photo where vehicle_id = {0} and deleted_at is null and processing_status = 'ready'""";
 
         return await _db.Database
             .SqlQueryRaw<int>(sql, vehicleId)
@@ -201,7 +201,7 @@ public sealed class VehicleReadStore : IVehicleReadStore
                 """
                 select vehicle_id as "VehicleId", count(*)::int as "Count"
                   from inventory.vehicle_photo
-                 where vehicle_id = any({0}) and deleted_at is null
+                 where vehicle_id = any({0}) and deleted_at is null and processing_status = 'ready'
                  group by vehicle_id
                 """,
                 vehicleIds)
@@ -227,7 +227,7 @@ public sealed class VehicleReadStore : IVehicleReadStore
 
         var photoCount = await _db.Database
             .SqlQueryRaw<int>(
-                """select count(*)::int as "Value" from inventory.vehicle_photo where vehicle_id = {0} and deleted_at is null""",
+                """select count(*)::int as "Value" from inventory.vehicle_photo where vehicle_id = {0} and deleted_at is null and processing_status = 'ready'""",
                 id)
             .SingleAsync(cancellationToken)
             .ConfigureAwait(false);

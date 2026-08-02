@@ -11,5 +11,10 @@
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
     <PackageReference Include="Microsoft.Extensions.Http" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+    <PackageReference Include="SkiaSharp" />
+    <!-- The API runs in a Linux container; SkiaSharp's Windows natives come
+         with the main package, Linux's do not. NoDependencies is the build
+         without a libfontconfig requirement, which we have no use for. -->
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" />
   </ItemGroup>
 </Project>

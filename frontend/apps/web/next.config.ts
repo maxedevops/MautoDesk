@@ -1,9 +1,28 @@
 import type { NextConfig } from 'next';
 
+/**
+ * Where photos are served from.
+ *
+ * ADR-0005 is explicit that nothing user-uploaded is ever served from the
+ * application origin, so photos come from the media bucket's own host — MinIO
+ * locally, the CDN in deployment. That host therefore has to be named in the
+ * image policy; it cannot be inferred, and a wildcard would defeat the point.
+ */
+const mediaOrigin = process.env['MEDIA_ORIGIN'] ?? 'http://localhost:9000';
+
 const config: NextConfig = {
   reactStrictMode: true,
   transpilePackages: ['@mautodesk/api-client'],
   poweredByHeader: false,
+
+  experimental: {
+    serverActions: {
+      // Photos are posted to a Server Action, and the default cap is 1 MB —
+      // which rejects essentially every photo a phone takes. The API enforces
+      // its own 20 MB limit; this only has to be above it.
+      bodySizeLimit: '25mb',
+    },
+  },
 
   /**
    * Security headers for the HTML surface.
@@ -37,7 +56,7 @@ const config: NextConfig = {
               "default-src 'self'",
               "script-src 'self' 'unsafe-inline'",
               "style-src 'self' 'unsafe-inline'",
-              "img-src 'self' data: blob:",
+              `img-src 'self' data: blob: ${mediaOrigin}`,
               "font-src 'self'",
               // The browser never calls the API directly — the BFF does, server
               // side — so no external connect origin is needed.

@@ -1,8 +1,9 @@
 # MautoDesk — Handoff
 
-**State:** Phases 1–10 of 13 complete, plus MFA recovery codes · backend green
-(76 unit, 68 integration, 8 architecture) and frontend unit green (21); the e2e
-suite needs a running stack · zero known dependency vulnerabilities
+**State:** Phases 1–10 of 13 complete, plus MFA recovery codes, wired-up
+inventory writes, and photo uploads · backend green (79 unit, 83 integration,
+8 architecture) and frontend unit green (21); the e2e suite needs a running
+stack · zero known dependency vulnerabilities
 
 > **Checkpointed.** Phases 1–10 are in a single initial commit on `main`, pushed
 > to <https://github.com/maxedevops/MautoDesk>. Work from a branch off `main`
@@ -64,15 +65,15 @@ more than one project's database.
 | --- | --- |
 | Database | 9 migrations, RLS enabled *and forced* on every tenant table, 0 coverage gaps, hash-chained audit ledger |
 | Backend | 14 projects. SharedKernel, shared Infrastructure, Inventory module (4), Identity module (4), API host |
-| Inventory | Vehicles, VIN decode (NHTSA), costs schema, status lifecycle, publish rules, outbox |
+| Inventory | Vehicles, VIN decode (NHTSA), photos (quarantine-first upload, verified and re-encoded), costs schema, status lifecycle, publish rules, outbox |
 | Identity | Argon2id, mandatory TOTP MFA, single-use recovery codes, JWT, refresh rotation with reuse detection, exponential lockout |
-| Frontend | Inventory grid, vehicle detail, add-vehicle form, status changes and publish (all wired to the API), login (3-step, plus recovery-code sign-in), recovery-code settings, BFF session, generated API client, design tokens |
+| Frontend | Inventory grid, vehicle detail, add-vehicle form, photo upload and gallery, status changes and publish (all wired to the API), login (3-step, plus recovery-code sign-in), recovery-code settings, BFF session, generated API client, design tokens |
 | Contracts | `contracts/openapi.json` **generated** from the endpoints; drift fails the build |
 | CI | 8 jobs: secrets, database, contract, design tokens, backend, frontend, e2e, CodeQL |
 
 ### Not built — designed only
 
-Photos · costs UI · CRM · deals and the deal engine · documents · e-signature ·
+Costs UI · CRM · deals and the deal engine · documents · e-signature ·
 OCR · messaging · marketplace publishing · reporting · billing · the outbox
 dispatcher · Terraform.
 
@@ -153,6 +154,9 @@ they are the sort of thing that costs an afternoon.
 | **EF raw SQL rejects `DBNull.Value`** | Its overload takes `IEnumerable<object>`. Use `NpgsqlParameter` instances for nullable values |
 | **`SqlQueryRaw` scalars must be named `"Value"`** | EF wraps them in `select s."Value" from (…) as s` |
 | **`inet` columns need a value converter** | Npgsql maps `inet` to `IPAddress`, not `string` |
+| **Presigned URLs ignore the endpoint's scheme** | `GetPreSignedUrlRequest.Protocol` defaults to HTTPS regardless of `ServiceURL`, so a local MinIO gets an `https://localhost:9000` URL nothing can connect to. `S3ObjectStore` sets it from the configured endpoint |
+| **Server Actions cap request bodies at 1 MB** | Which rejects essentially every photo a phone takes. `next.config.ts` raises it to 25 MB; the API's own 20 MB limit is the real one |
+| **Photo tests need MinIO, not just Postgres** | `docker compose up -d minio minio-init`. Point elsewhere with `TEST_STORAGE_URL`. The suite sets `MalwareScanning__Required=false` because clamd takes three minutes to load its signatures |
 | **Configuration must be set via environment for tests** | `Program.cs` uses top-level statements, so `CreateBuilder` reads config before `WebApplicationFactory` can contribute an in-memory source |
 | **Integration tests do not run in parallel** | Deliberate — they share one database and process-wide environment. `AssemblyInfo.cs` disables it |
 | **Two OpenAPI files, on purpose** | `openapi.json` is generated and is what the client is built from. `openapi.design.yaml` is the Phase 4 spec and still describes unbuilt endpoints |
@@ -172,9 +176,9 @@ measured**, so it would largely be speculation. Two sensible orders:
   table.
 
 If the goal is a usable product rather than the next phase number, the highest
-value work is neither: it is **photos** — a dealer cannot publish a vehicle
-without one, and the publish button now says so out loud. MFA recovery codes and
-the inert UI, which used to head this list, are done.
+value work is neither: it is the **audit ledger** and **PII log redaction**,
+both listed above. MFA recovery codes, the inert UI, and photos — which used to
+head this list — are done.
 
 ---
 

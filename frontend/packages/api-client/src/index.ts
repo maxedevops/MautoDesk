@@ -25,6 +25,8 @@ export type VinDecode = components['schemas']['VinDecodeDto'];
 export type ProblemDetails = components['schemas']['ProblemDetails'];
 export type VehiclePage = components['schemas']['PagedResultOfVehicleSummaryDto'];
 export type CreateVehicle = components['schemas']['CreateVehicleCommand'];
+export type VehiclePhoto = components['schemas']['VehiclePhotoDto'];
+export type PhotoUploadIntent = components['schemas']['PhotoUploadIntentDto'];
 export type RecoveryCodeSet = components['schemas']['RecoveryCodeSetDto'];
 export type RecoveryCodeStatus = components['schemas']['RecoveryCodeStatusDto'];
 
@@ -150,6 +152,45 @@ export class MautoDeskClient {
 
   async publish(vehicleId: string): Promise<Vehicle> {
     return this.#request<Vehicle>('POST', `/api/v1/vehicles/${vehicleId}/publish`);
+  }
+
+  async listPhotos(vehicleId: string, signal?: AbortSignal): Promise<VehiclePhoto[]> {
+    return this.#request<VehiclePhoto[]>(
+      'GET',
+      `/api/v1/vehicles/${vehicleId}/photos`,
+      undefined,
+      signal,
+    );
+  }
+
+  /**
+   * Step one of three: declare the file and get a URL to put it at.
+   *
+   * `sha256` is a lowercase hex digest of the exact bytes about to be uploaded.
+   * The server checks the object against it, so a wrong digest is a rejected
+   * photo rather than a silently corrupted one.
+   */
+  async requestPhotoUpload(
+    vehicleId: string,
+    file: { contentType: string; byteSize: number; sha256: string },
+  ): Promise<PhotoUploadIntent> {
+    return this.#request<PhotoUploadIntent>('POST', `/api/v1/vehicles/${vehicleId}/photos`, file);
+  }
+
+  /** Step three: verification, re-encode, and promotion out of quarantine. */
+  async confirmPhotoUpload(vehicleId: string, photoId: string): Promise<VehiclePhoto> {
+    return this.#request<VehiclePhoto>(
+      'POST',
+      `/api/v1/vehicles/${vehicleId}/photos/${photoId}/confirm`,
+    );
+  }
+
+  async setPrimaryPhoto(vehicleId: string, photoId: string): Promise<void> {
+    await this.#request<void>('POST', `/api/v1/vehicles/${vehicleId}/photos/${photoId}/primary`);
+  }
+
+  async deletePhoto(vehicleId: string, photoId: string): Promise<void> {
+    await this.#request<void>('DELETE', `/api/v1/vehicles/${vehicleId}/photos/${photoId}`);
   }
 
   /** How many MFA recovery codes the signed-in user has left. */

@@ -261,6 +261,10 @@ public sealed class EndpointCoverageTests
     /// <summary>Substitutes plausible values for path parameters.</summary>
     private static string Concretize(string template) => template
         .Replace("{vehicleId}", Guid.CreateVersion7().ToString(), StringComparison.Ordinal)
+        // A parameter left un-substituted fails the :guid route constraint, so
+        // the route never matches and the probe reads a 404 as "unauthenticated
+        // access was refused" when nothing of the sort was tested.
+        .Replace("{photoId}", Guid.CreateVersion7().ToString(), StringComparison.Ordinal)
         .Replace("{vin}", "1FTFW1ET5MFA48219", StringComparison.Ordinal);
 
     private static Task<HttpResponseMessage> SendAsync(HttpClient client, HttpMethod method, string path)

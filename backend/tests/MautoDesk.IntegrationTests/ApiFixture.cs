@@ -100,6 +100,20 @@ public sealed class ApiFixture : WebApplicationFactory<Program>, IAsyncLifetime
         Environment.SetEnvironmentVariable("Encryption__MasterKey", TestMasterKey);
         Environment.SetEnvironmentVariable("Encryption__KeyId", "test-1");
 
+        // Object storage: the MinIO from docker-compose, with the buckets
+        // minio-init creates. Overridable so CI can point at its own service.
+        Environment.SetEnvironmentVariable(
+            "Storage__ServiceUrl",
+            Environment.GetEnvironmentVariable("TEST_STORAGE_URL") ?? "http://localhost:9000");
+        Environment.SetEnvironmentVariable("Storage__AccessKey", "mautodesk");
+        Environment.SetEnvironmentVariable("Storage__SecretKey", "devpassword");
+
+        // No clamd in the test environment: it takes three minutes to load its
+        // signature databases, which is not a price worth paying on every run.
+        // The fail-closed behaviour it exists for is asserted directly in
+        // MalwareScannerTests instead of being implied here.
+        Environment.SetEnvironmentVariable("MalwareScanning__Required", "false");
+
         // The suite signs in dozens of times from one address, which the
         // production auth limit (10 per 15 minutes) would correctly refuse.
         // Raised here so the limiter does not rate-limit the tests; RateLimitingTests
@@ -163,7 +177,7 @@ public sealed class ApiFixture : WebApplicationFactory<Program>, IAsyncLifetime
         var permissions = new[]
         {
             "inventory.vehicle.read", "inventory.vehicle.write", "inventory.vehicle.delete",
-            "inventory.price.write", "inventory.publish",
+            "inventory.price.write", "inventory.publish", "inventory.photo.write",
         };
 
         UserA = await AuthFlow.CreateUserAsync(

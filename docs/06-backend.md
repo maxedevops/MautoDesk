@@ -197,3 +197,40 @@ Connection strings default to the compose setup and are overridable with `TEST_A
    "permission-shaped, not permission-broken" rule in §6 of the UX doc.
 4. Money crosses the wire as a decimal string. The client must format it, never parse it into a
    JavaScript number.
+
+---
+
+## 9. Photo uploads
+
+Implements ADR-0005's quarantine-first flow. Three calls, and the middle one does not touch this
+API at all:
+
+1. `POST /vehicles/{id}/photos` — the client declares content type, byte size, and a SHA-256. A row
+   is created in `pending` and a presigned PUT URL for the **quarantine** bucket comes back, good
+   for 15 minutes and signed with the declared type and length.
+2. The client PUTs the file straight to storage. A 20 MB photo never crosses the request pipeline.
+3. `POST /vehicles/{id}/photos/{photoId}/confirm` — verification, in order, each failure a rejection
+   with a reason rather than an exception: the object exists → its length matches what was declared
+   → its SHA-256 matches → the malware scanner passes → it decodes as an image. The decoded image is
+   re-encoded to JPEG at two sizes and written to the **media** bucket; the quarantine object is
+   deleted either way.
+
+**The re-encode is the security control.** Writing a fresh file from a pixel buffer discards EXIF
+(including the GPS coordinates of the lot, and sometimes of someone's house), colour-profile
+payloads, appended archives, and the polyglot files that are a valid JPEG *and* a valid script.
+Nothing that was not pixels survives it.
+
+**Deliberate deviations from the ADR sketch,** both recorded rather than hidden:
+
+- **Verification runs inline on confirm, not in a background job.** The outbox dispatcher does not
+  exist yet, and a photo stuck in `processing` because nothing consumes the queue is worse than a
+  confirm call that takes a second. `PhotoCommandHandler.ProcessAsync` is already shaped like a job
+  body; moving it later changes the caller, not the logic.
+- **Scanning fails closed.** `ClamAvScanner` throws when clamd is unreachable and
+  `MalwareScanning:Required` is true, which is the default. Setting it false is a deliberate act for
+  a machine with no clamav container, and the verdict then reads `not-scanned` rather than claiming
+  the file was checked and found clean.
+
+Only a `ready` photo counts toward publish readiness, and only a `ready` photo is given a URL.
+`PhotoUploadTests` covers the happy path, a digest mismatch, a text file declared as a JPEG, a
+confirm with nothing uploaded, cross-tenant access, and the single-primary rule.

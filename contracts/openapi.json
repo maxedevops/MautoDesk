@@ -969,6 +969,349 @@
         },
         "x-permission": "inventory.publish"
       }
+    },
+    "/api/v1/vehicles/{vehicleId}/photos": {
+      "get": {
+        "tags": [
+          "Inventory"
+        ],
+        "summary": "List a vehicle's photos",
+        "description": "Includes photos that are still being checked and photos that were rejected, so the screen can say what happened. Only a photo with status 'ready' carries a URL.",
+        "operationId": "listVehiclePhotos",
+        "parameters": [
+          {
+            "name": "vehicleId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/VehiclePhotoDto"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired, or invalid credentials.",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "403": {
+            "description": "The principal lacks the required permission.",
+            "content": {
+              "application/problem+json": { }
+            }
+          }
+        },
+        "x-permission": "inventory.vehicle.read"
+      },
+      "post": {
+        "tags": [
+          "Inventory"
+        ],
+        "summary": "Request permission to upload one photo",
+        "description": "Returns a short-lived, single-object URL for a PUT to the quarantine bucket. The declared content type, byte size, and SHA-256 are recorded and checked against the object that actually arrives; a mismatch is a rejection.",
+        "operationId": "requestPhotoUpload",
+        "parameters": [
+          {
+            "name": "vehicleId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RequestUploadRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PhotoUploadIntentDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired, or invalid credentials.",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "403": {
+            "description": "The principal lacks the required permission.",
+            "content": {
+              "application/problem+json": { }
+            }
+          }
+        },
+        "x-permission": "inventory.photo.write"
+      }
+    },
+    "/api/v1/vehicles/{vehicleId}/photos/{photoId}/confirm": {
+      "post": {
+        "tags": [
+          "Inventory"
+        ],
+        "summary": "Verify an uploaded photo and publish it to the media bucket",
+        "description": "Checks size, digest, and malware, decodes the image, re-encodes it — which is what strips EXIF and GPS — and promotes the result. Any failure rejects the photo and deletes the quarantined object. Confirming an already-verified photo is a no-op.",
+        "operationId": "confirmPhotoUpload",
+        "parameters": [
+          {
+            "name": "vehicleId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "photoId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VehiclePhotoDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired, or invalid credentials.",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "403": {
+            "description": "The principal lacks the required permission.",
+            "content": {
+              "application/problem+json": { }
+            }
+          }
+        },
+        "x-permission": "inventory.photo.write"
+      }
+    },
+    "/api/v1/vehicles/{vehicleId}/photos/{photoId}/primary": {
+      "post": {
+        "tags": [
+          "Inventory"
+        ],
+        "summary": "Make a photo the lead image for the listing",
+        "operationId": "setPrimaryPhoto",
+        "parameters": [
+          {
+            "name": "vehicleId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "photoId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired, or invalid credentials.",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "403": {
+            "description": "The principal lacks the required permission.",
+            "content": {
+              "application/problem+json": { }
+            }
+          }
+        },
+        "x-permission": "inventory.photo.write"
+      }
+    },
+    "/api/v1/vehicles/{vehicleId}/photos/{photoId}": {
+      "delete": {
+        "tags": [
+          "Inventory"
+        ],
+        "summary": "Remove a photo",
+        "description": "The row is kept for the audit trail; the stored object is deleted, so a photo of the wrong car stops being fetchable immediately.",
+        "operationId": "deleteVehiclePhoto",
+        "parameters": [
+          {
+            "name": "vehicleId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "photoId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired, or invalid credentials.",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "403": {
+            "description": "The principal lacks the required permission.",
+            "content": {
+              "application/problem+json": { }
+            }
+          }
+        },
+        "x-permission": "inventory.photo.write"
+      }
     }
   },
   "components": {
@@ -1205,6 +1548,27 @@
           }
         }
       },
+      "PhotoUploadIntentDto": {
+        "required": [
+          "photoId",
+          "uploadUrl",
+          "expiresIn"
+        ],
+        "type": "object",
+        "properties": {
+          "photoId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "uploadUrl": {
+            "type": "string"
+          },
+          "expiresIn": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
       "ProblemDetails": {
         "type": "object",
         "properties": {
@@ -1315,6 +1679,28 @@
         "type": "object",
         "properties": {
           "refreshToken": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "RequestUploadRequest": {
+        "required": [
+          "contentType",
+          "byteSize",
+          "sha256"
+        ],
+        "type": "object",
+        "properties": {
+          "contentType": {
+            "type": "string",
+            "nullable": true
+          },
+          "byteSize": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "sha256": {
             "type": "string",
             "nullable": true
           }
@@ -1552,6 +1938,63 @@
           "updatedAt": {
             "type": "string",
             "format": "date-time"
+          }
+        }
+      },
+      "VehiclePhotoDto": {
+        "required": [
+          "id",
+          "url",
+          "thumbnailUrl",
+          "width",
+          "height",
+          "isPrimary",
+          "sortOrder",
+          "caption",
+          "status",
+          "rejectionReason"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "url": {
+            "type": "string",
+            "nullable": true
+          },
+          "thumbnailUrl": {
+            "type": "string",
+            "nullable": true
+          },
+          "width": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "height": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "isPrimary": {
+            "type": "boolean"
+          },
+          "sortOrder": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "caption": {
+            "type": "string",
+            "nullable": true
+          },
+          "status": {
+            "type": "string"
+          },
+          "rejectionReason": {
+            "type": "string",
+            "nullable": true
           }
         }
       },

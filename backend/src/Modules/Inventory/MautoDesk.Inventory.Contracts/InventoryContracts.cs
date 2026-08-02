@@ -84,6 +84,36 @@ public sealed record VehicleDto(
 /// <summary>How close a vehicle is to being publishable.</summary>
 public sealed record PublishReadinessDto(int Satisfied, int Total, IReadOnlyList<string> Missing);
 
+/// <summary>
+/// Permission to upload one file, and where to put it.
+/// </summary>
+/// <remarks>
+/// The URL points at the quarantine bucket and expires. Uploading to it is not
+/// the end of the story — the file is nothing until it is confirmed and passes
+/// verification.
+/// </remarks>
+public sealed record PhotoUploadIntentDto(Guid PhotoId, string UploadUrl, int ExpiresIn);
+
+/// <summary>
+/// A photo, or an attempt at one.
+/// </summary>
+/// <remarks>
+/// <c>Url</c> is null unless <c>Status</c> is <c>ready</c>: a pending or
+/// rejected row is still reported so the screen can show what happened, but
+/// there is deliberately nothing to fetch.
+/// </remarks>
+public sealed record VehiclePhotoDto(
+    Guid Id,
+    string? Url,
+    string? ThumbnailUrl,
+    int? Width,
+    int? Height,
+    bool IsPrimary,
+    int SortOrder,
+    string? Caption,
+    string Status,
+    string? RejectionReason);
+
 /// <summary>A decoded VIN.</summary>
 public sealed record VinDecodeDto(
     string Vin,

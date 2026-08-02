@@ -3,6 +3,7 @@ using System.Text;
 using MautoDesk.Api;
 using MautoDesk.Identity.Application;
 using MautoDesk.Identity.Infrastructure;
+using MautoDesk.Infrastructure;
 using MautoDesk.Infrastructure.Persistence;
 using MautoDesk.Infrastructure.Tenancy;
 using MautoDesk.Inventory.Application;
@@ -28,6 +29,10 @@ var vinDecoderBaseUrl = builder.Configuration["VinDecoder:BaseUrl"] ?? "https://
 
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection("Jwt"));
 builder.Services.Configure<EncryptionOptions>(builder.Configuration.GetSection("Encryption"));
+builder.Services.Configure<ObjectStorageOptions>(
+    builder.Configuration.GetSection(ObjectStorageOptions.SectionName));
+builder.Services.Configure<MalwareScanningOptions>(
+    builder.Configuration.GetSection(MalwareScanningOptions.SectionName));
 
 var jwt = builder.Configuration.GetSection("Jwt").Get<JwtOptions>() ?? new JwtOptions();
 
@@ -67,6 +72,15 @@ builder.Services.AddScoped<IVehicleReadStore, VehicleReadStore>();
 builder.Services.AddScoped<IStockNumberGenerator, StockNumberGenerator>();
 builder.Services.AddScoped<VehicleCommandHandler>();
 builder.Services.AddScoped<VehicleQueryHandler>();
+builder.Services.AddScoped<IPhotoRepository, PhotoRepository>();
+builder.Services.AddScoped<PhotoCommandHandler>();
+builder.Services.AddScoped<PhotoQueryHandler>();
+builder.Services.AddSingleton<IImageProcessor, SkiaImageProcessor>();
+
+// Storage and upload scanning. Singletons: both hold a client or socket
+// configuration, neither holds request state.
+builder.Services.AddSingleton<IObjectStore, S3ObjectStore>();
+builder.Services.AddSingleton<IMalwareScanner, ClamAvScanner>();
 
 // Identity
 builder.Services.AddSingleton<IPasswordHasher, Argon2PasswordHasher>();
@@ -185,6 +199,7 @@ app.MapHealthChecks("/health/ready");
 
 app.MapAuthEndpoints();
 app.MapInventoryEndpoints();
+app.MapPhotoEndpoints();
 
 await app.RunAsync().ConfigureAwait(false);
 

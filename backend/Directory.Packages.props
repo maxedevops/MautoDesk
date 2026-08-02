@@ -42,6 +42,19 @@
     <PackageVersion Include="Otp.NET" Version="1.4.0" />
   </ItemGroup>
 
+  <ItemGroup Label="Storage and media">
+    <!-- S3-compatible: MinIO in development, Cloudflare R2 in deployment
+         (ADR-0005). The SDK is the same for both; only the endpoint differs. -->
+    <PackageVersion Include="AWSSDK.S3" Version="3.7.416.11" />
+    <!-- Image decode and re-encode. SkiaSharp rather than ImageSharp because
+         ImageSharp's split licence requires a paid commercial licence above a
+         revenue threshold this product intends to cross; SkiaSharp is MIT.
+         Re-encoding is what strips EXIF, GPS, and any payload hidden in a
+         file that is a valid image AND something else. -->
+    <PackageVersion Include="SkiaSharp" Version="2.88.9" />
+    <PackageVersion Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="2.88.9" />
+  </ItemGroup>
+
   <ItemGroup Label="Host">
     <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="9.0.11" />
     <PackageVersion Include="Microsoft.Extensions.Diagnostics.HealthChecks" Version="9.0.11" />

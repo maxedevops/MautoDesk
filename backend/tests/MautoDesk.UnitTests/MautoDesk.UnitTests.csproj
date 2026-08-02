@@ -8,6 +8,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\Modules\Inventory\MautoDesk.Inventory.Application\MautoDesk.Inventory.Application.csproj" />
     <ProjectReference Include="..\..\src\Modules\Identity\MautoDesk.Identity.Infrastructure\MautoDesk.Identity.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Inventory\MautoDesk.Inventory.Infrastructure\MautoDesk.Inventory.Infrastructure.csproj" />
   </ItemGroup>
 
   <ItemGroup>

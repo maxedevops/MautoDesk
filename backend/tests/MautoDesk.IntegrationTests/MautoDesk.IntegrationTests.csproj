@@ -15,6 +15,9 @@
     <PackageReference Include="xunit.runner.visualstudio" />
     <PackageReference Include="FluentAssertions" />
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
+    <!-- The photo tests upload real images, because a pipeline that only ever
+         sees hand-written bytes proves nothing about decoding one. -->
+    <PackageReference Include="SkiaSharp" />
   </ItemGroup>
 
 </Project>
