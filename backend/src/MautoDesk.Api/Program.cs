@@ -73,6 +73,7 @@ builder.Services.AddSingleton<IPasswordHasher, Argon2PasswordHasher>();
 builder.Services.AddSingleton<ITotpService, TotpService>();
 builder.Services.AddSingleton<ITokenIssuer, TokenIssuer>();
 builder.Services.AddSingleton<ISecretProtector, SecretProtector>();
+builder.Services.AddSingleton<IRecoveryCodeService, RecoveryCodeService>();
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<ISessionRepository, SessionRepository>();
 builder.Services.AddScoped<MautoDesk.Identity.Application.IUnitOfWork, IdentityUnitOfWork>();

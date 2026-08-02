@@ -1,5 +1,6 @@
 import Link from 'next/link';
-import { notFound } from 'next/navigation';
+import { revalidatePath } from 'next/cache';
+import { notFound, redirect } from 'next/navigation';
 import { ApiError, formatMoney, statusLabel } from '@mautodesk/api-client';
 import { apiClient, currentPermissions } from '@/lib/api';
 import { AgingIndicator, Note, ReadinessMeter, StatusDot } from '@/components/primitives';
@@ -8,10 +9,13 @@ export const dynamic = 'force-dynamic';
 
 export default async function VehiclePage({
   params,
+  searchParams,
 }: {
   readonly params: Promise<{ vehicleId: string }>;
+  readonly searchParams: Promise<Record<string, string | undefined>>;
 }) {
   const { vehicleId } = await params;
+  const query = await searchParams;
   const permissions = await currentPermissions();
 
   let vehicle;
@@ -34,6 +38,48 @@ export default async function VehiclePage({
 
   const readiness = vehicle.readiness;
   const canPublish = permissions.has('inventory.publish');
+  const canWrite = permissions.has('inventory.vehicle.write');
+
+  // Straight from the server, so the menu offers exactly the moves the domain
+  // will accept rather than a copy of the transition table that can drift.
+  const transitions = vehicle.allowedTransitions ?? [];
+
+  async function changeStatus(formData: FormData) {
+    'use server';
+
+    const status = String(formData.get('status') ?? '');
+    const reason = String(formData.get('reason') ?? '').trim();
+
+    if (status === '') {
+      return;
+    }
+
+    try {
+      await (await apiClient()).changeStatus(vehicleId, status, reason === '' ? undefined : reason);
+    } catch (failure) {
+      redirect(`/inventory/${vehicleId}?error=${encodeURIComponent(describe(failure))}`);
+    }
+
+    // The page reads the vehicle on every request, but the cached render has to
+    // be dropped or the user sees the status they just left.
+    revalidatePath(`/inventory/${vehicleId}`);
+    redirect(`/inventory/${vehicleId}`);
+  }
+
+  async function publish() {
+    'use server';
+
+    try {
+      await (await apiClient()).publish(vehicleId);
+    } catch (failure) {
+      // Publishing fails for ordinary, fixable reasons — no photos, no price —
+      // so the message the API gives is the useful thing to show.
+      redirect(`/inventory/${vehicleId}?error=${encodeURIComponent(describe(failure))}`);
+    }
+
+    revalidatePath(`/inventory/${vehicleId}`);
+    redirect(`/inventory/${vehicleId}?published=1`);
+  }
 
   return (
     <div className="flex flex-col gap-5 px-5 py-6">
@@ -54,25 +100,69 @@ export default async function VehiclePage({
             <StatusDot status={vehicle.status ?? 'acquired'} />
           </p>
         </div>
-        <div className="ml-auto flex gap-2">
-          <button
-            type="button"
-            className="inline-flex min-h-8 items-center rounded-md border border-control px-4 font-medium hover:bg-hover"
-          >
-            Change status
-          </button>
+        <div className="ml-auto flex flex-wrap items-end gap-2">
+          {canWrite && transitions.length > 0 ? (
+            <form action={changeStatus} className="flex flex-wrap items-end gap-2">
+              <label className="flex flex-col gap-1">
+                <span className="t-label">Change status</span>
+                <select
+                  name="status"
+                  defaultValue=""
+                  className="min-h-8 rounded-md border border-control bg-surface px-3 text-base text-ink"
+                >
+                  <option value="" disabled>
+                    Move to…
+                  </option>
+                  {transitions.map((target) => (
+                    <option key={target} value={target}>
+                      {statusLabel(target)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="flex flex-col gap-1">
+                <span className="sr-only">Reason</span>
+                <input
+                  name="reason"
+                  placeholder="Reason (optional)"
+                  className="min-h-8 rounded-md border border-control bg-surface px-3 text-base text-ink"
+                />
+              </label>
+              <button
+                type="submit"
+                className="inline-flex min-h-8 items-center rounded-md border border-control px-4 font-medium hover:bg-hover"
+              >
+                Apply
+              </button>
+            </form>
+          ) : null}
+
           {/* Hidden, not disabled, when the user cannot publish. */}
-          {canPublish ? (
-            <button
-              type="button"
-              className="inline-flex min-h-8 items-center rounded-md px-4 font-semibold"
-              style={{ background: 'var(--accent-bg)', color: 'var(--text-on-accent)' }}
-            >
-              Publish
-            </button>
+          {canPublish && !vehicle.isPublished ? (
+            <form action={publish}>
+              <button
+                type="submit"
+                className="inline-flex min-h-8 items-center rounded-md px-4 font-semibold"
+                style={{ background: 'var(--accent-bg)', color: 'var(--text-on-accent)' }}
+              >
+                Publish
+              </button>
+            </form>
           ) : null}
         </div>
       </div>
+
+      {query['error'] ? (
+        <Note tone="danger" title="That change was not applied">
+          {query['error']}
+        </Note>
+      ) : null}
+
+      {query['published'] ? (
+        <Note tone="success" title="Published">
+          This vehicle is live on the website and queued for syndication.
+        </Note>
+      ) : null}
 
       {readiness && !isReady(readiness) ? (
         <Note tone="warning" title="This vehicle is not ready to publish yet">
@@ -150,6 +240,21 @@ export default async function VehiclePage({
       </div>
     </div>
   );
+}
+
+/**
+ * Turns a failure into something worth showing a dealer.
+ *
+ * The API's own message is the useful one — "a vehicle needs at least one photo
+ * before it can be published" beats anything this layer could invent — and the
+ * trace id is what support needs to find the request.
+ */
+function describe(failure: unknown): string {
+  if (failure instanceof ApiError) {
+    return `${failure.message}${failure.traceId ? ` (trace ${failure.traceId})` : ''}`;
+  }
+
+  return 'The change could not be saved. Check that the API is running.';
 }
 
 function isReady(readiness: { satisfied?: number; total?: number }): boolean {

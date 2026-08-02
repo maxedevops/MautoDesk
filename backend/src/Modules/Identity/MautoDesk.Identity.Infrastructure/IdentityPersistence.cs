@@ -88,6 +88,23 @@ public sealed class MfaFactorConfiguration : IEntityTypeConfiguration<MfaFactor>
     }
 }
 
+public sealed class MfaRecoveryCodeConfiguration : IEntityTypeConfiguration<MfaRecoveryCode>
+{
+    public void Configure(EntityTypeBuilder<MfaRecoveryCode> builder)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+
+        builder.ToTable("mfa_recovery_code", "identity");
+        builder.HasKey(c => c.Id);
+        builder.Property(c => c.Id).HasColumnName("id");
+        builder.Property(c => c.TenantId).HasColumnName("tenant_id");
+        builder.Property(c => c.UserId).HasColumnName("user_id");
+        builder.Property(c => c.CodeHash).HasColumnName("code_hash");
+        builder.Property(c => c.UsedAt).HasColumnName("used_at");
+        builder.Property(c => c.CreatedAt).HasColumnName("created_at");
+    }
+}
+
 public sealed class SessionConfiguration : IEntityTypeConfiguration<Session>
 {
     /// <summary>
@@ -260,6 +277,42 @@ public sealed class UserRepository : IUserRepository
             .FirstOrDefaultAsync(cancellationToken);
 
     public void AddFactor(MfaFactor factor) => _db.Set<MfaFactor>().Add(factor);
+
+    public void AddRecoveryCodes(IEnumerable<MfaRecoveryCode> codes) =>
+        _db.Set<MfaRecoveryCode>().AddRange(codes);
+
+    public Task<MfaRecoveryCode?> FindUnusedRecoveryCodeAsync(
+        Guid userId,
+        string codeHash,
+        CancellationToken cancellationToken) =>
+        _db.Set<MfaRecoveryCode>()
+            .FirstOrDefaultAsync(
+                c => c.UserId == userId && c.CodeHash == codeHash && c.UsedAt == null,
+                cancellationToken);
+
+    public Task<int> CountUnusedRecoveryCodesAsync(Guid userId, CancellationToken cancellationToken) =>
+        _db.Set<MfaRecoveryCode>()
+            .CountAsync(c => c.UserId == userId && c.UsedAt == null, cancellationToken);
+
+    /// <summary>
+    /// Removes unspent codes through the change tracker rather than ExecuteDelete.
+    /// </summary>
+    /// <remarks>
+    /// Regeneration deletes the old set and inserts the new one, and those two
+    /// have to land together — ExecuteDelete would run immediately, outside the
+    /// SaveChanges transaction, leaving a user with no codes at all if the
+    /// insert then failed. The set is ten rows, so the tracked path costs
+    /// nothing.
+    /// </remarks>
+    public async Task DiscardUnusedRecoveryCodesAsync(Guid userId, CancellationToken cancellationToken)
+    {
+        var existing = await _db.Set<MfaRecoveryCode>()
+            .Where(c => c.UserId == userId && c.UsedAt == null)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        _db.Set<MfaRecoveryCode>().RemoveRange(existing);
+    }
 
     public async Task<IReadOnlyList<string>> GetPermissionsAsync(
         Guid userId,

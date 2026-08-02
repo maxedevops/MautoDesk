@@ -33,7 +33,18 @@ public sealed record AuthResult(
     TokenPair? Tokens,
     string? ChallengeToken,
     string? EnrolmentSecret,
-    string? EnrolmentUri);
+    string? EnrolmentUri,
+
+    // Plaintext recovery codes, populated only on the response that issues them
+    // — the enrolment that created them, or an explicit regeneration. They are
+    // stored hashed, so this is the only time they can ever be shown.
+    IReadOnlyList<string>? RecoveryCodes = null);
+
+/// <summary>A newly issued set of recovery codes, shown once.</summary>
+public sealed record RecoveryCodeSetDto(IReadOnlyList<string> Codes, DateTimeOffset IssuedAt);
+
+/// <summary>How many recovery codes are left, for the "you are running low" nudge.</summary>
+public sealed record RecoveryCodeStatusDto(int Remaining, int SetSize);
 
 /// <summary>An access token and the refresh token that renews it.</summary>
 /// <remarks>

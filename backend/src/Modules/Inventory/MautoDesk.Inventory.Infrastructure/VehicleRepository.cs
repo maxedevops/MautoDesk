@@ -263,6 +263,7 @@ public sealed class VehicleReadStore : IVehicleReadStore
             vehicle.Notes,
             DaysInInventory(vehicle.AcquiredAt, vehicle.SoldAt, today),
             new PublishReadinessDto(readiness.Satisfied, readiness.Total, readiness.Missing),
+            [.. vehicle.AllowedTransitions.Select(ToWire)],
             vehicle.CreatedAt,
             vehicle.UpdatedAt);
     }

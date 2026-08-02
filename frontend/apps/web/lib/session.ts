@@ -18,6 +18,7 @@ import { cookies } from 'next/headers';
  */
 
 const COOKIE_NAME = 'md_session';
+const RECOVERY_COOKIE_NAME = 'md_recovery';
 const NONCE_BYTES = 12;
 const TAG_BYTES = 16;
 
@@ -53,14 +54,14 @@ function key(): Buffer {
   return bytes;
 }
 
-function seal(data: SessionData): string {
+function seal(data: unknown): string {
   const nonce = randomBytes(NONCE_BYTES);
   const cipher = createCipheriv('aes-256-gcm', key(), nonce);
   const body = Buffer.concat([cipher.update(JSON.stringify(data), 'utf8'), cipher.final()]);
   return Buffer.concat([nonce, cipher.getAuthTag(), body]).toString('base64url');
 }
 
-function unseal(sealed: string): SessionData | null {
+function unseal<T>(sealed: string): T | null {
   try {
     const raw = Buffer.from(sealed, 'base64url');
 
@@ -74,7 +75,7 @@ function unseal(sealed: string): SessionData | null {
       decipher.final(),
     ]);
 
-    return JSON.parse(plain.toString('utf8')) as SessionData;
+    return JSON.parse(plain.toString('utf8')) as T;
   } catch {
     // A tampered, truncated, or stale-key cookie is simply not a session. It is
     // never an error the user should see — they just get the login page.
@@ -85,7 +86,38 @@ function unseal(sealed: string): SessionData | null {
 export async function readSession(): Promise<SessionData | null> {
   const store = await cookies();
   const raw = store.get(COOKIE_NAME)?.value;
-  return raw ? unseal(raw) : null;
+  return raw ? unseal<SessionData>(raw) : null;
+}
+
+/**
+ * Hands a freshly issued set of recovery codes to the page that displays them.
+ *
+ * Sealed in a cookie rather than passed in the URL: the codes are credentials,
+ * and a query string lands in browser history, in the referrer of the next
+ * request, and in any proxy log along the way. Short-lived, because they only
+ * have to survive one redirect.
+ */
+export async function stashRecoveryCodes(codes: readonly string[]): Promise<void> {
+  const store = await cookies();
+
+  store.set(RECOVERY_COOKIE_NAME, seal(codes), {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production',
+    path: '/',
+    maxAge: 60 * 10,
+  });
+}
+
+/** Reads the stashed codes and clears them, so a refresh does not show them again. */
+export async function takeRecoveryCodes(): Promise<readonly string[] | null> {
+  const store = await cookies();
+  const raw = store.get(RECOVERY_COOKIE_NAME)?.value;
+
+  if (!raw) return null;
+
+  store.delete(RECOVERY_COOKIE_NAME);
+  return unseal<readonly string[]>(raw);
 }
 
 export async function writeSession(data: SessionData): Promise<void> {

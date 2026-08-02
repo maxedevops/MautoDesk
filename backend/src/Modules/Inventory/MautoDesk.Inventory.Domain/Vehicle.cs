@@ -232,6 +232,18 @@ public sealed class Vehicle : AggregateRoot
     }
 
     /// <summary>Moves the vehicle through its lifecycle, validating the transition.</summary>
+    /// <summary>
+    /// The statuses this vehicle may legally move to right now.
+    /// </summary>
+    /// <remarks>
+    /// Published so a client can offer exactly the moves that will succeed,
+    /// instead of reimplementing the transition table and drifting from it. The
+    /// server still validates — this is a convenience for the UI, never the
+    /// enforcement point.
+    /// </remarks>
+    public IReadOnlyList<VehicleStatus> AllowedTransitions =>
+        [.. Enum.GetValues<VehicleStatus>().Where(target => IsTransitionAllowed(Status, target))];
+
     public Result ChangeStatus(VehicleStatus target, DateOnly today)
     {
         if (target == Status)

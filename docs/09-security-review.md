@@ -125,15 +125,17 @@ instance, which is the launch topology. The seam for a Valkey-backed distributed
 limiter is `RateLimiting.cs` alone. **Revisit before scaling past one instance** —
 not before.
 
-### F-9 — No MFA recovery path · **OPEN, blocking for real users**
+### F-9 — No MFA recovery path · **CLOSED**
 
-`identity.mfa_recovery_code` exists and is unused. With MFA mandatory, **a user
-who loses their phone cannot get in without an administrator.** This is a
-support burden that turns into a business problem the week after launch.
+Ten single-use codes are issued at enrolment, stored hashed, redeemable at
+`POST /auth/mfa/recovery` against the challenge token from the password step,
+and replaceable from account settings. A wrong code counts toward lockout; a
+spent code and an unknown code return the same error, so neither confirms the
+other. See `docs/08-authentication.md` §9 for the reasoning and
+`MfaRecoveryTests` for the evidence.
 
-Carried from Phase 8 and reiterated here because it is the highest-impact open
-item that is not a security *weakness* — it is a security control with no relief
-valve.
+The control no longer lacks a relief valve, and no administrator needs the
+ability to switch off someone's second factor over the phone.
 
 ### F-10 — `RISK-SEC-001`: no hardware-backed KMS · **OPEN, known**
 
@@ -277,8 +279,7 @@ institutions. They will send us a vendor questionnaire.
 
 ## 5. What I would fix next, in order
 
-1. **F-9 — MFA recovery codes.** The only open item that will hurt real users in
-   week one.
+1. ~~**F-9 — MFA recovery codes.**~~ Done — see F-9 above.
 2. **Audit events for business actions.** The ledger is built, chained, and
    empty. An auditor asking "who changed this price?" currently has no answer.
 3. **PII log redaction.** Before the CRM module writes a customer object anywhere

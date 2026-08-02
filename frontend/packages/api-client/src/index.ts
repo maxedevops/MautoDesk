@@ -25,6 +25,8 @@ export type VinDecode = components['schemas']['VinDecodeDto'];
 export type ProblemDetails = components['schemas']['ProblemDetails'];
 export type VehiclePage = components['schemas']['PagedResultOfVehicleSummaryDto'];
 export type CreateVehicle = components['schemas']['CreateVehicleCommand'];
+export type RecoveryCodeSet = components['schemas']['RecoveryCodeSetDto'];
+export type RecoveryCodeStatus = components['schemas']['RecoveryCodeStatusDto'];
 
 export type VehicleListQuery = NonNullable<
   paths['/api/v1/vehicles']['get']['parameters']['query']
@@ -148,6 +150,26 @@ export class MautoDeskClient {
 
   async publish(vehicleId: string): Promise<Vehicle> {
     return this.#request<Vehicle>('POST', `/api/v1/vehicles/${vehicleId}/publish`);
+  }
+
+  /** How many MFA recovery codes the signed-in user has left. */
+  async recoveryCodeStatus(signal?: AbortSignal): Promise<RecoveryCodeStatus> {
+    return this.#request<RecoveryCodeStatus>(
+      'GET',
+      '/api/v1/auth/mfa/recovery-codes',
+      undefined,
+      signal,
+    );
+  }
+
+  /**
+   * Issues a fresh set of recovery codes and discards the previous one.
+   *
+   * The plaintext codes come back exactly once — they are stored hashed, so
+   * nothing can retrieve them again. Show them, then let them go.
+   */
+  async regenerateRecoveryCodes(): Promise<RecoveryCodeSet> {
+    return this.#request<RecoveryCodeSet>('POST', '/api/v1/auth/mfa/recovery-codes');
   }
 
   async decodeVin(vin: string, signal?: AbortSignal): Promise<VinDecode> {

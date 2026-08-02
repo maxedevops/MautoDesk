@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 import { anonymousClient } from '@/lib/api';
-import { writeSession } from '@/lib/session';
+import { stashRecoveryCodes, writeSession } from '@/lib/session';
 import { Note } from '@/components/primitives';
 
 export const dynamic = 'force-dynamic';
@@ -69,8 +69,13 @@ export default async function LoginPage({
 
     const code = String(formData.get('code') ?? '');
     const challengeToken = String(formData.get('challenge') ?? '');
-    const enrolling = String(formData.get('enrolling') ?? '') === 'true';
-    const path = enrolling ? 'mfa/enrol' : 'mfa/verify';
+    const submittedStage = String(formData.get('stage') ?? 'code');
+    const path =
+      submittedStage === 'enrol'
+        ? 'mfa/enrol'
+        : submittedStage === 'recovery'
+          ? 'mfa/recovery'
+          : 'mfa/verify';
 
     const response = await fetch(`${process.env['API_BASE_URL']}/api/v1/auth/${path}`, {
       method: 'POST',
@@ -82,13 +87,14 @@ export default async function LoginPage({
     if (!response.ok) {
       const problem = (await response.json().catch(() => null)) as { detail?: string } | null;
       redirect(
-        `/login?stage=${enrolling ? 'enrol' : 'code'}&challenge=${encodeURIComponent(challengeToken)}` +
+        `/login?stage=${submittedStage}&challenge=${encodeURIComponent(challengeToken)}` +
           `&error=${encodeURIComponent(problem?.detail ?? 'That code was not accepted.')}`,
       );
     }
 
     const body = (await response.json()) as {
       tokens: { accessToken: string; refreshToken: string; expiresIn: number };
+      recoveryCodes?: readonly string[];
     };
 
     await writeSession({
@@ -97,6 +103,15 @@ export default async function LoginPage({
       accessTokenExpiresAt: Math.floor(Date.now() / 1000) + body.tokens.expiresIn,
       email: '',
     });
+
+    // Enrolment issues recovery codes, and this response is the only time the
+    // server will ever hand them over. Divert to the page that shows them
+    // instead of dropping the user straight into inventory, where they would
+    // never learn the codes existed.
+    if (body.recoveryCodes && body.recoveryCodes.length > 0) {
+      await stashRecoveryCodes(body.recoveryCodes);
+      redirect('/settings/recovery-codes?issued=1');
+    }
 
     redirect('/inventory');
   }
@@ -112,7 +127,9 @@ export default async function LoginPage({
             ? 'Use your dealership email address.'
             : stage === 'enrol'
               ? 'Set up your authenticator to finish signing in.'
-              : 'Enter the code from your authenticator app.'}
+              : stage === 'recovery'
+                ? 'Enter one of the recovery codes you saved when you set up your authenticator.'
+                : 'Enter the code from your authenticator app.'}
         </p>
       </div>
 
@@ -144,7 +161,7 @@ export default async function LoginPage({
       ) : (
         <form action={submitCode} className="flex flex-col gap-4">
           <input type="hidden" name="challenge" value={challenge ?? ''} />
-          <input type="hidden" name="enrolling" value={stage === 'enrol' ? 'true' : 'false'} />
+          <input type="hidden" name="stage" value={stage} />
 
           {stage === 'enrol' && secret ? (
             <div className="flex flex-col gap-2 rounded-r-md border border-l-[3px] border-line bg-surface p-4"
@@ -164,16 +181,52 @@ export default async function LoginPage({
             </div>
           ) : null}
 
-          <Field
-            label="Six-digit code"
-            name="code"
-            type="text"
-            inputMode="numeric"
-            autoComplete="one-time-code"
-            maxLength={6}
-            required
-          />
+          {stage === 'recovery' ? (
+            <Field
+              label="Recovery code"
+              name="code"
+              type="text"
+              // Not numeric, and no one-time-code autofill: a recovery code is
+              // letters and digits off a printout, not something an
+              // authenticator can offer.
+              autoComplete="off"
+              autoCapitalize="characters"
+              spellCheck={false}
+              maxLength={16}
+              placeholder="XXXXX-XXXXX"
+              required
+            />
+          ) : (
+            <Field
+              label="Six-digit code"
+              name="code"
+              type="text"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              maxLength={6}
+              required
+            />
+          )}
+
           <SubmitButton>{stage === 'enrol' ? 'Confirm and sign in' : 'Sign in'}</SubmitButton>
+
+          {stage === 'code' ? (
+            <a
+              className="text-center text-xs text-muted underline"
+              href={`/login?stage=recovery&challenge=${encodeURIComponent(challenge ?? '')}`}
+            >
+              Lost your phone? Use a recovery code
+            </a>
+          ) : null}
+
+          {stage === 'recovery' ? (
+            <a
+              className="text-center text-xs text-muted underline"
+              href={`/login?stage=code&challenge=${encodeURIComponent(challenge ?? '')}`}
+            >
+              Back to your authenticator code
+            </a>
+          ) : null}
         </form>
       )}
     </div>

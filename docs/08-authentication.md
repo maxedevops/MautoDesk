@@ -164,6 +164,42 @@ otherwise — a check that caught a 34-byte key during this very verification.
 | No rate limiting yet | Lockout bounds per-account guessing, but there is no per-IP throttle. Cloudflare covers the edge in deployed environments; the API-side limiter from `docs/04-api-contracts.md` §7 is not built |
 | No password reset or invitation flow | Users are seeded. Needed before anyone but us can onboard |
 | No WebAuthn | The schema supports it; only TOTP is implemented |
-| No recovery codes | `identity.mfa_recovery_code` exists and is unused. **A user who loses their phone currently cannot get in without an administrator.** This should land before real users do |
+| Recovery codes cannot be re-shown | Built (see §9), but the codes are stored hashed, so a user who loses the printout must generate a new set rather than retrieve the old one. That is the intended trade; it is listed here because support will be asked |
 | Sessions are not listed or revocable in the UI | `/auth/sessions` is specified in the design contract but not implemented |
 | `RISK-SEC-001` still open | The envelope-encryption master key lives in configuration; DigitalOcean has no managed KMS |
+
+---
+
+## 9. Recovery codes
+
+MFA is mandatory, so the system needs an answer for the phone that ends up in a
+car wash. The alternative to a recovery code is an administrator disabling
+someone's second factor because a voice on the phone asked — which is the
+social-engineering path the whole control exists to close.
+
+**The shape of it:**
+
+- **Ten codes, issued at enrolment**, not offered as a later opt-in. A code the
+  user never generated is worth nothing on the day they need it.
+- **Shown exactly once.** They are stored as SHA-256 hashes, so there is nothing
+  to retrieve later. Losing them means generating a new set.
+- **Unsalted digest, deliberately.** A code is ~49 bits of randomness *we*
+  generated, not a human-chosen password, so a slow KDF defends nothing and an
+  unsalted digest keeps redemption a single indexed lookup.
+- **A second factor, not a bypass.** `POST /auth/mfa/recovery` requires the
+  signed challenge token from the password step, exactly as `mfa/verify` does.
+- **Single use, enforced in the domain.** `MfaRecoveryCode.Redeem` refuses a
+  second redemption; the row records when it was spent.
+- **A wrong code costs a lockout attempt**, the same as a wrong TOTP code —
+  otherwise this endpoint is simply the cheapest way to guess.
+- **Regeneration discards the old set** in the same transaction that writes the
+  new one, so a discarded printout stops working.
+- **The session records `amr: ["pwd","recovery"]`**, so an auditor can tell which
+  logins skipped the authenticator.
+
+The alphabet omits `0/O` and `1/I/L/U`. That is not fussiness: these are read off
+paper, over the phone, by someone already having a bad day.
+
+Covered by `MfaRecoveryTests` (single use, cross-user rejection, regeneration
+invalidating the old set, formatting tolerance, and the requirement for a
+challenge token) and `RecoveryCodeServiceTests`.

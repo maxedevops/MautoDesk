@@ -1,11 +1,12 @@
 # MautoDesk — Handoff
 
-**State:** Phases 1–10 of 13 complete · 234 assertions across 6 suites, all green ·
-zero known dependency vulnerabilities
+**State:** Phases 1–10 of 13 complete, plus MFA recovery codes · backend green
+(76 unit, 68 integration, 8 architecture) and frontend unit green (21); the e2e
+suite needs a running stack · zero known dependency vulnerabilities
 
-> ⚠️ **Nothing is committed.** The repository is initialised and 132 files are
-> staged, but there is no commit. First action for whoever picks this up: review
-> `git status`, then commit. Nothing is lost, but nothing is checkpointed either.
+> **Checkpointed.** Phases 1–10 are in a single initial commit on `main`, pushed
+> to <https://github.com/maxedevops/MautoDesk>. Work from a branch off `main`
+> from here.
 
 ---
 
@@ -64,8 +65,8 @@ more than one project's database.
 | Database | 9 migrations, RLS enabled *and forced* on every tenant table, 0 coverage gaps, hash-chained audit ledger |
 | Backend | 14 projects. SharedKernel, shared Infrastructure, Inventory module (4), Identity module (4), API host |
 | Inventory | Vehicles, VIN decode (NHTSA), costs schema, status lifecycle, publish rules, outbox |
-| Identity | Argon2id, mandatory TOTP MFA, JWT, refresh rotation with reuse detection, exponential lockout |
-| Frontend | Inventory grid, vehicle detail, login (3-step), BFF session, generated API client, design tokens |
+| Identity | Argon2id, mandatory TOTP MFA, single-use recovery codes, JWT, refresh rotation with reuse detection, exponential lockout |
+| Frontend | Inventory grid, vehicle detail, add-vehicle form, status changes and publish (all wired to the API), login (3-step, plus recovery-code sign-in), recovery-code settings, BFF session, generated API client, design tokens |
 | Contracts | `contracts/openapi.json` **generated** from the endpoints; drift fails the build |
 | CI | 8 jobs: secrets, database, contract, design tokens, backend, frontend, e2e, CodeQL |
 
@@ -105,10 +106,6 @@ shape everything:
 ## 5. Open items, in the order I would address them
 
 ### Blocking for real users
-
-**MFA recovery codes are not implemented.** `identity.mfa_recovery_code` exists
-and is unused. With MFA mandatory, **a user who loses their phone cannot get in
-without an administrator.** This becomes a support problem in week one.
 
 **Tax rule sets are unapproved skeletons.** OK/KS/TX are seeded with
 `'UNVERIFIED'` placeholders and `approved_at IS NULL`, so the deal engine will
@@ -175,9 +172,9 @@ measured**, so it would largely be speculation. Two sensible orders:
   table.
 
 If the goal is a usable product rather than the next phase number, the highest
-value work is neither: it is **MFA recovery codes**, then **making the UI mutate
-data** (Add vehicle, change status and publish all render but are inert), then
-**photos** — because a dealer cannot publish a vehicle without one.
+value work is neither: it is **photos** — a dealer cannot publish a vehicle
+without one, and the publish button now says so out loud. MFA recovery codes and
+the inert UI, which used to head this list, are done.
 
 ---
 

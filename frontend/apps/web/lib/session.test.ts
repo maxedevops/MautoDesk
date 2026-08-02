@@ -93,8 +93,10 @@ describe('session cookie', () => {
     const sealed = seal(session);
     const raw = Buffer.from(sealed, 'base64url');
 
-    // Flip one bit in the ciphertext body.
-    raw[raw.length - 1] ^= 0x01;
+    // Flip one bit in the ciphertext body. Indexed through a local because
+    // noUncheckedIndexedAccess types the read as possibly undefined.
+    const last = raw.length - 1;
+    raw[last] = (raw[last] ?? 0) ^ 0x01;
 
     expect(unseal(raw.toString('base64url'))).toBeNull();
   });

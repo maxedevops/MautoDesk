@@ -14,7 +14,8 @@ public sealed record AuthenticatedUser(
     string Password,
     string TotpSecret,
     string AccessToken,
-    string RefreshToken);
+    string RefreshToken,
+    IReadOnlyList<string> RecoveryCodes);
 
 /// <summary>
 /// Drives the real authentication flow to obtain real tokens.
@@ -64,6 +65,13 @@ public static class AuthFlow
 
         var tokens = confirmed.GetProperty("tokens");
 
+        // Enrolment is the one response that carries recovery codes in
+        // plaintext, so the fixture captures them here or not at all.
+        var recoveryCodes = confirmed.TryGetProperty("recoveryCodes", out var codes)
+            && codes.ValueKind == JsonValueKind.Array
+                ? codes.EnumerateArray().Select(code => code.GetString()!).ToList()
+                : [];
+
         return new AuthenticatedUser(
             tenantId,
             userId,
@@ -71,7 +79,8 @@ public static class AuthFlow
             Password,
             secret,
             tokens.GetProperty("accessToken").GetString()!,
-            tokens.GetProperty("refreshToken").GetString()!);
+            tokens.GetProperty("refreshToken").GetString()!,
+            recoveryCodes);
     }
 
     /// <summary>Signs an existing user in again, returning a fresh token pair.</summary>

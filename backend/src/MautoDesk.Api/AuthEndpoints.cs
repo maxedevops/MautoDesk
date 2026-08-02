@@ -48,6 +48,35 @@ public static class AuthEndpoints
             .Produces<AuthResponse>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status403Forbidden);
 
+        auth.MapPost("/mfa/recovery", RedeemRecoveryCodeAsync)
+            .AllowAnonymous()
+            .WithName("redeemRecoveryCode")
+            .WithSummary("Complete authentication with a single-use recovery code")
+            .WithDescription(
+                "For a user who has lost access to their authenticator. It is a second factor, " +
+                "not a bypass: the challenge token from the password step is still required, each " +
+                "code works exactly once, and a wrong code counts toward lockout exactly as a " +
+                "wrong TOTP code does.")
+            .Produces<AuthResponse>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status403Forbidden);
+
+        auth.MapPost("/mfa/recovery-codes", RegenerateRecoveryCodesAsync)
+            .RequireAuthorization()
+            .WithName("regenerateRecoveryCodes")
+            .WithSummary("Issue a fresh set of recovery codes, discarding the old ones")
+            .WithDescription(
+                "The codes are returned in plaintext exactly once. They are stored hashed, so a " +
+                "user who loses them has to generate a new set rather than retrieve the old one.")
+            .Produces<RecoveryCodeSetDto>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status409Conflict);
+
+        auth.MapGet("/mfa/recovery-codes", GetRecoveryCodeStatusAsync)
+            .RequireAuthorization()
+            .WithName("getRecoveryCodeStatus")
+            .WithSummary("How many recovery codes remain unused")
+            .Produces<RecoveryCodeStatusDto>(StatusCodes.Status200OK);
+
         auth.MapPost("/refresh", RefreshAsync)
             .AllowAnonymous()
             .WithName("refreshToken")
@@ -123,6 +152,64 @@ public static class AuthEndpoints
             .ConfigureAwait(false);
 
         return ToResponse(result, context);
+    }
+
+    private static async Task<IResult> RedeemRecoveryCodeAsync(
+        [FromServices] AuthenticationService service,
+        [FromBody] RedeemRecoveryCodeRequest request,
+        HttpContext context,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        var result = await service
+            .RedeemRecoveryCodeAsync(
+                new RedeemRecoveryCodeCommand(
+                    request.ChallengeToken, request.Code, ClientIp(context), UserAgent(context)),
+                cancellationToken)
+            .ConfigureAwait(false);
+
+        return ToResponse(result, context);
+    }
+
+    private static async Task<IResult> RegenerateRecoveryCodesAsync(
+        [FromServices] AuthenticationService service,
+        [FromServices] ITenantContext tenant,
+        HttpContext context,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(tenant);
+
+        if (tenant.UserId is not { } userId)
+        {
+            return Error.Forbidden("auth.required", "You are not signed in.").ToProblem(context);
+        }
+
+        var result = await service
+            .RegenerateRecoveryCodesAsync(userId, cancellationToken)
+            .ConfigureAwait(false);
+
+        return result.ToHttp(context);
+    }
+
+    private static async Task<IResult> GetRecoveryCodeStatusAsync(
+        [FromServices] AuthenticationService service,
+        [FromServices] ITenantContext tenant,
+        HttpContext context,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(tenant);
+
+        if (tenant.UserId is not { } userId)
+        {
+            return Error.Forbidden("auth.required", "You are not signed in.").ToProblem(context);
+        }
+
+        var result = await service
+            .GetRecoveryCodeStatusAsync(userId, cancellationToken)
+            .ConfigureAwait(false);
+
+        return result.ToHttp(context);
     }
 
     private static async Task<IResult> RefreshAsync(
@@ -208,7 +295,8 @@ public static class AuthEndpoints
             value.Tokens,
             value.ChallengeToken,
             value.EnrolmentSecret,
-            value.EnrolmentUri));
+            value.EnrolmentUri,
+            value.RecoveryCodes));
     }
 
     /// <summary>
@@ -247,13 +335,16 @@ public static class AuthEndpoints
 
     public sealed record RefreshRequest(string? RefreshToken);
 
+    public sealed record RedeemRecoveryCodeRequest(string? ChallengeToken, string? Code);
+
     /// <summary>The result of an authentication step.</summary>
     public sealed record AuthResponse(
         string Outcome,
         TokenPair? Tokens,
         string? ChallengeToken,
         string? EnrolmentSecret,
-        string? EnrolmentUri);
+        string? EnrolmentUri,
+        IReadOnlyList<string>? RecoveryCodes);
 }
 
 /// <summary>

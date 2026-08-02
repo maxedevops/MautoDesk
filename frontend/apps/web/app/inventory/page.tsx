@@ -76,19 +76,16 @@ export default async function InventoryPage({
           </p>
         </div>
         <div className="ml-auto flex gap-2">
-          <button
-            type="button"
-            className="inline-flex min-h-8 items-center gap-2 rounded-md border border-control px-4 font-medium hover:bg-hover"
-          >
-            Saved views ▾
-          </button>
-          <button
-            type="button"
-            className="inline-flex min-h-8 items-center gap-2 rounded-md px-4 font-semibold"
-            style={{ background: 'var(--accent-bg)', color: 'var(--text-on-accent)' }}
-          >
-            ＋ Add vehicle
-          </button>
+          {/* Hidden rather than disabled for a user who cannot write. */}
+          {permissions.has('inventory.vehicle.write') ? (
+            <Link
+              href="/inventory/new"
+              className="inline-flex min-h-8 items-center gap-2 rounded-md px-4 font-semibold"
+              style={{ background: 'var(--accent-bg)', color: 'var(--text-on-accent)' }}
+            >
+              ＋ Add vehicle
+            </Link>
+          ) : null}
         </div>
       </div>
 

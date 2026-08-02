@@ -32,6 +32,27 @@ public interface ITotpService
     public long? Validate(string secret, string code, DateTimeOffset now);
 }
 
+public interface IRecoveryCodeService
+{
+    /// <summary>Generates one recovery code in its display form.</summary>
+    public string Generate();
+
+    /// <summary>
+    /// Hashes a code for storage and comparison.
+    /// </summary>
+    /// <remarks>
+    /// Deterministic and unsalted on purpose: a code is ~50 bits of uniform
+    /// randomness that we generated, not a human-chosen password, so there is
+    /// nothing for a slow KDF to defend and an unsalted digest lets the lookup
+    /// be a single indexed comparison instead of an Argon2 run against every
+    /// unused row.
+    /// </remarks>
+    public string Hash(string code);
+
+    /// <summary>Strips formatting so "abcde-fghij" and "ABCDEFGHIJ" match.</summary>
+    public string Normalize(string code);
+}
+
 public interface ITokenIssuer
 {
     public string IssueAccessToken(
@@ -91,6 +112,25 @@ public interface IUserRepository
     public Task<MfaFactor?> GetPendingTotpFactorAsync(Guid userId, CancellationToken cancellationToken);
 
     public void AddFactor(MfaFactor factor);
+
+    public void AddRecoveryCodes(IEnumerable<MfaRecoveryCode> codes);
+
+    /// <summary>Finds an unspent code by its hash. Null when it is unknown or already spent.</summary>
+    public Task<MfaRecoveryCode?> FindUnusedRecoveryCodeAsync(
+        Guid userId,
+        string codeHash,
+        CancellationToken cancellationToken);
+
+    public Task<int> CountUnusedRecoveryCodesAsync(Guid userId, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Discards every unspent code for a user, so a new set replaces the old one.
+    /// </summary>
+    /// <remarks>
+    /// Regeneration has to invalidate what came before, or a printout the user
+    /// threw away because they generated new codes still opens the account.
+    /// </remarks>
+    public Task DiscardUnusedRecoveryCodesAsync(Guid userId, CancellationToken cancellationToken);
 
     public Task<IReadOnlyList<string>> GetPermissionsAsync(Guid userId, CancellationToken cancellationToken);
 
@@ -152,6 +192,12 @@ public sealed record EnrolMfaCommand(string? ChallengeToken, string? Code, strin
 
 public sealed record RefreshCommand(string? RefreshToken, string? IpAddress);
 
+public sealed record RedeemRecoveryCodeCommand(
+    string? ChallengeToken,
+    string? Code,
+    string? IpAddress,
+    string? UserAgent);
+
 /* ----------------------------------------------------------------- service -- */
 
 /// <summary>
@@ -186,6 +232,7 @@ public sealed class AuthenticationService
     private readonly ITotpService _totp;
     private readonly ITokenIssuer _tokens;
     private readonly ISecretProtector _protector;
+    private readonly IRecoveryCodeService _recoveryCodes;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IClock _clock;
 
@@ -196,6 +243,7 @@ public sealed class AuthenticationService
         ITotpService totp,
         ITokenIssuer tokens,
         ISecretProtector protector,
+        IRecoveryCodeService recoveryCodes,
         IUnitOfWork unitOfWork,
         IClock clock)
     {
@@ -205,6 +253,7 @@ public sealed class AuthenticationService
         _totp = totp;
         _tokens = tokens;
         _protector = protector;
+        _recoveryCodes = recoveryCodes;
         _unitOfWork = unitOfWork;
         _clock = clock;
         _decoyHash = passwords.Hash(Guid.NewGuid().ToString("N"));
@@ -434,9 +483,161 @@ public sealed class AuthenticationService
         user.Activate(now);
         user.RecordSuccessfulLogin(now);
 
+        // Issued at enrolment rather than offered as a later opt-in. A recovery
+        // code the user never generated is worth nothing on the day they drop
+        // their phone, and that day is the whole reason this exists.
+        var codes = await IssueRecoveryCodesAsync(user, now, cancellationToken).ConfigureAwait(false);
+
         return await CompleteAuthenticationAsync(
-            user, ["pwd", "totp"], command.IpAddress, command.UserAgent, now, cancellationToken)
+            user, ["pwd", "totp"], command.IpAddress, command.UserAgent, now, cancellationToken, codes)
             .ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Completes a login with a recovery code instead of a TOTP code.
+    /// </summary>
+    /// <remarks>
+    /// This is a second factor, not a bypass: it still requires the challenge
+    /// token, which is only issued after a correct password. A wrong code counts
+    /// toward lockout exactly as a wrong TOTP code does, because otherwise this
+    /// endpoint would be the cheapest way to brute-force an account.
+    /// </remarks>
+    public async Task<Result<AuthResult>> RedeemRecoveryCodeAsync(
+        RedeemRecoveryCodeCommand command,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(command);
+
+        var principal = _tokens.ValidateChallengeToken(command.ChallengeToken ?? string.Empty, ChallengePurposeMfa);
+        if (principal.IsFailure)
+        {
+            return principal.Error!;
+        }
+
+        await _users
+            .EstablishScopeAsync(principal.Value.TenantId, principal.Value.UserId, cancellationToken)
+            .ConfigureAwait(false);
+
+        var now = _clock.UtcNow;
+        var user = await _users.GetAsync(principal.Value.UserId, cancellationToken).ConfigureAwait(false);
+
+        if (user is null)
+        {
+            return InvalidCredentials();
+        }
+
+        var eligibility = user.CanAuthenticate(now);
+        if (eligibility.IsFailure)
+        {
+            return eligibility.Error!;
+        }
+
+        var submitted = _recoveryCodes.Normalize(command.Code ?? string.Empty);
+        var code = submitted.Length == 0
+            ? null
+            : await _users
+                .FindUnusedRecoveryCodeAsync(user.Id, _recoveryCodes.Hash(submitted), cancellationToken)
+                .ConfigureAwait(false);
+
+        if (code is null)
+        {
+            user.RecordFailedLogin(now);
+            await RecordAttemptAsync(
+                user.TenantId, user.Email, false, LoginFailureReason.MfaFailed,
+                new LoginCommand(user.Email, null, command.IpAddress, command.UserAgent),
+                cancellationToken).ConfigureAwait(false);
+            await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+            // Says nothing about whether the code was unknown or already spent.
+            // Both mean the same thing to a legitimate user, and telling them
+            // apart would let an attacker confirm a guessed code after the fact.
+            return Error.Forbidden(
+                "auth.recovery_code_invalid",
+                "That recovery code is not valid. Each code works once — try another from your list.");
+        }
+
+        var redeemed = code.Redeem(now);
+        if (redeemed.IsFailure)
+        {
+            return redeemed.Error!;
+        }
+
+        user.RecordSuccessfulLogin(now);
+
+        // "recovery" rather than "totp" so the session records honestly how the
+        // second factor was satisfied. An auditor asking which logins bypassed
+        // the authenticator gets an answer from the session row.
+        return await CompleteAuthenticationAsync(
+            user, ["pwd", "recovery"], command.IpAddress, command.UserAgent, now, cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Replaces a signed-in user's recovery codes with a fresh set.
+    /// </summary>
+    /// <remarks>
+    /// Requires an established session, so the caller has already passed
+    /// password and a second factor. Every previous code is discarded in the
+    /// same transaction.
+    /// </remarks>
+    public async Task<Result<RecoveryCodeSetDto>> RegenerateRecoveryCodesAsync(
+        Guid userId,
+        CancellationToken cancellationToken)
+    {
+        var now = _clock.UtcNow;
+        var user = await _users.GetAsync(userId, cancellationToken).ConfigureAwait(false);
+
+        if (user is null)
+        {
+            return Error.Forbidden("auth.required", "You are not signed in.");
+        }
+
+        if (user.MfaEnrolledAt is null)
+        {
+            return Error.Conflict(
+                "auth.mfa_not_enrolled",
+                "Set up your authenticator first. Recovery codes stand in for it, so there is " +
+                "nothing for them to recover yet.");
+        }
+
+        var codes = await IssueRecoveryCodesAsync(user, now, cancellationToken).ConfigureAwait(false);
+        await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+        return new RecoveryCodeSetDto(codes, now);
+    }
+
+    public async Task<Result<RecoveryCodeStatusDto>> GetRecoveryCodeStatusAsync(
+        Guid userId,
+        CancellationToken cancellationToken)
+    {
+        var remaining = await _users
+            .CountUnusedRecoveryCodesAsync(userId, cancellationToken)
+            .ConfigureAwait(false);
+
+        return new RecoveryCodeStatusDto(remaining, MfaRecoveryCode.SetSize);
+    }
+
+    /// <summary>Discards any existing codes and stores the hashes of a new set.</summary>
+    private async Task<IReadOnlyList<string>> IssueRecoveryCodesAsync(
+        User user,
+        DateTimeOffset now,
+        CancellationToken cancellationToken)
+    {
+        await _users.DiscardUnusedRecoveryCodesAsync(user.Id, cancellationToken).ConfigureAwait(false);
+
+        var plaintext = new List<string>(MfaRecoveryCode.SetSize);
+        var rows = new List<MfaRecoveryCode>(MfaRecoveryCode.SetSize);
+
+        for (var i = 0; i < MfaRecoveryCode.SetSize; i++)
+        {
+            var code = _recoveryCodes.Generate();
+            plaintext.Add(code);
+            rows.Add(MfaRecoveryCode.Issue(
+                user.TenantId, user.Id, _recoveryCodes.Hash(_recoveryCodes.Normalize(code)), now));
+        }
+
+        _users.AddRecoveryCodes(rows);
+        return plaintext;
     }
 
     /// <summary>
@@ -597,7 +798,8 @@ public sealed class AuthenticationService
         string? ipAddress,
         string? userAgent,
         DateTimeOffset now,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        IReadOnlyList<string>? recoveryCodes = null)
     {
         var session = Session.Start(
             user.TenantId, user.Id, now, _tokens.RefreshTokenLifetime, amr, ipAddress, userAgent);
@@ -625,7 +827,8 @@ public sealed class AuthenticationService
             new TokenPair(accessToken, plaintext, "Bearer", (int)_tokens.AccessTokenLifetime.TotalSeconds),
             ChallengeToken: null,
             EnrolmentSecret: null,
-            EnrolmentUri: null);
+            EnrolmentUri: null,
+            recoveryCodes);
     }
 
     private Task RecordAttemptAsync(

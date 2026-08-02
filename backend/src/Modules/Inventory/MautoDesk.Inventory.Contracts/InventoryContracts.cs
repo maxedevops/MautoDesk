@@ -74,6 +74,10 @@ public sealed record VehicleDto(
     string? Notes,
     int? DaysInInventory,
     PublishReadinessDto Readiness,
+
+    // The status moves this vehicle may make right now, so a client can offer
+    // only what will succeed rather than duplicating the transition table.
+    IReadOnlyList<string> AllowedTransitions,
     DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt);
 

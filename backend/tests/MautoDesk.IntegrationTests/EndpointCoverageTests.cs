@@ -37,6 +37,13 @@ public sealed class EndpointCoverageTests
         "/api/v1/auth/login",
         "/api/v1/auth/mfa/verify",
         "/api/v1/auth/mfa/enrol",
+
+        // Anonymous for the same reason as mfa/verify: the caller is halfway
+        // through a login and holds a signed challenge token, not a bearer
+        // token. The challenge is only issued after a correct password, so this
+        // is still gated — MfaRecoveryTests asserts that a call without one is
+        // refused.
+        "/api/v1/auth/mfa/recovery",
         "/api/v1/auth/refresh",
         "/api/v1/auth/logout",
     };

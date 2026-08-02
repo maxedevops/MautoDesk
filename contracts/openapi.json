@@ -244,6 +244,133 @@
         }
       }
     },
+    "/api/v1/auth/mfa/recovery": {
+      "post": {
+        "tags": [
+          "Authentication"
+        ],
+        "summary": "Complete authentication with a single-use recovery code",
+        "description": "For a user who has lost access to their authenticator. It is a second factor, not a bypass: the challenge token from the password step is still required, each code works exactly once, and a wrong code counts toward lockout exactly as a wrong TOTP code does.",
+        "operationId": "redeemRecoveryCode",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RedeemRecoveryCodeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired, or invalid credentials.",
+            "content": {
+              "application/problem+json": { }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/mfa/recovery-codes": {
+      "post": {
+        "tags": [
+          "Authentication"
+        ],
+        "summary": "Issue a fresh set of recovery codes, discarding the old ones",
+        "description": "The codes are returned in plaintext exactly once. They are stored hashed, so a user who loses them has to generate a new set rather than retrieve the old one.",
+        "operationId": "regenerateRecoveryCodes",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecoveryCodeSetDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired, or invalid credentials.",
+            "content": {
+              "application/problem+json": { }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Authentication"
+        ],
+        "summary": "How many recovery codes remain unused",
+        "operationId": "getRecoveryCodeStatus",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecoveryCodeStatusDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired, or invalid credentials.",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "403": {
+            "description": "The principal lacks the required permission.",
+            "content": {
+              "application/problem+json": { }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/auth/refresh": {
       "post": {
         "tags": [
@@ -852,7 +979,8 @@
           "tokens",
           "challengeToken",
           "enrolmentSecret",
-          "enrolmentUri"
+          "enrolmentUri",
+          "recoveryCodes"
         ],
         "type": "object",
         "properties": {
@@ -872,6 +1000,13 @@
           },
           "enrolmentUri": {
             "type": "string",
+            "nullable": true
+          },
+          "recoveryCodes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
             "nullable": true
           }
         }
@@ -1120,6 +1255,59 @@
           }
         }
       },
+      "RecoveryCodeSetDto": {
+        "required": [
+          "codes",
+          "issuedAt"
+        ],
+        "type": "object",
+        "properties": {
+          "codes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "issuedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "RecoveryCodeStatusDto": {
+        "required": [
+          "remaining",
+          "setSize"
+        ],
+        "type": "object",
+        "properties": {
+          "remaining": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "setSize": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "RedeemRecoveryCodeRequest": {
+        "required": [
+          "challengeToken",
+          "code"
+        ],
+        "type": "object",
+        "properties": {
+          "challengeToken": {
+            "type": "string",
+            "nullable": true
+          },
+          "code": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
       "RefreshRequest": {
         "required": [
           "refreshToken"
@@ -1235,6 +1423,7 @@
           "notes",
           "daysInInventory",
           "readiness",
+          "allowedTransitions",
           "createdAt",
           "updatedAt"
         ],
@@ -1349,6 +1538,12 @@
           },
           "readiness": {
             "$ref": "#/components/schemas/PublishReadinessDto"
+          },
+          "allowedTransitions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           },
           "createdAt": {
             "type": "string",
