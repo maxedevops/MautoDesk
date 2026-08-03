@@ -1,0 +1,278 @@
+# MautoDesk — single-node deployment.
+#
+#   docker compose -f docker-compose.prod.yml --env-file .env.production up -d
+#
+# Everything a dealership pilot needs on one VPS: TLS, the two application
+# images, PostgreSQL, object storage, and the malware scanner uploads are
+# checked against. See deploy/README.md for the runbook and
+# deploy/env.production.example for what has to be set.
+#
+# This is NOT the topology docs/02-architecture.md describes for scale — that
+# one is managed PostgreSQL, Cloudflare R2, and a CDN, and lives in infra/ as
+# Terraform. This is the shape that fits on one machine, with the compromises
+# named where they are made.
+
+name: mautodesk
+
+x-logging: &logging
+  driver: json-file
+  options:
+    # A VPS disk fills quietly, and the first symptom is PostgreSQL refusing to
+    # write. Capped here rather than left to the daemon default of unbounded.
+    max-size: '10m'
+    max-file: '5'
+
+services:
+  # ---------------------------------------------------------------------------
+  # Edge: the only container publishing ports.
+  # ---------------------------------------------------------------------------
+  caddy:
+    image: caddy:2-alpine
+    container_name: mautodesk-caddy
+    restart: unless-stopped
+    logging: *logging
+    ports:
+      - '80:80'
+      - '443:443'
+    environment:
+      APP_DOMAIN: ${APP_DOMAIN:?set APP_DOMAIN, e.g. app.example.com}
+      MEDIA_DOMAIN: ${MEDIA_DOMAIN:?set MEDIA_DOMAIN, e.g. media.example.com}
+      ACME_EMAIL: ${ACME_EMAIL:?set ACME_EMAIL for certificate expiry notices}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      # Certificates and ACME account keys. Losing this volume means
+      # re-issuing every certificate, which Let's Encrypt rate-limits.
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      web:
+        condition: service_healthy
+    networks: [edge, internal]
+
+  # ---------------------------------------------------------------------------
+  # Application
+  # ---------------------------------------------------------------------------
+  web:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    image: ${IMAGE_PREFIX:-mautodesk}/web:${IMAGE_TAG:-latest}
+    container_name: mautodesk-web
+    restart: unless-stopped
+    logging: *logging
+    environment:
+      # Server-to-server, over the internal network. The browser never talks to
+      # the API — it holds one sealed cookie and nothing else (ADR §4), which is
+      # also why the API publishes no port.
+      API_BASE_URL: http://api:8080
+      SESSION_SECRET: ${SESSION_SECRET:?generate with openssl rand -base64 32}
+      MEDIA_ORIGIN: https://${MEDIA_DOMAIN}
+      NODE_ENV: production
+    depends_on:
+      api:
+        condition: service_healthy
+    networks: [internal]
+
+  api:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    image: ${IMAGE_PREFIX:-mautodesk}/api:${IMAGE_TAG:-latest}
+    container_name: mautodesk-api
+    restart: unless-stopped
+    logging: *logging
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      # The application role: no BYPASSRLS, not the table owner. Using a
+      # superuser here would disable every tenant isolation policy in the
+      # database (ADR-0002).
+      ConnectionStrings__Default: >-
+        Host=postgres;Port=5432;Database=mautodesk;Username=mautodesk_app;Password=${APP_DB_PASSWORD:?set APP_DB_PASSWORD};Maximum Pool Size=20
+      Jwt__SigningKey: ${JWT_SIGNING_KEY:?generate with openssl rand -base64 32}
+      Jwt__Issuer: https://${APP_DOMAIN}
+      Jwt__Audience: mautodesk-api
+      Encryption__MasterKey: ${ENCRYPTION_MASTER_KEY:?generate with openssl rand -base64 32}
+      Encryption__KeyId: ${ENCRYPTION_KEY_ID:-prod-1}
+
+      # The public URL, not the internal one. Presigned URLs are signed for the
+      # host in them, and the browser fetches photos directly — so this has to be
+      # the name the browser can reach. The cost is that the API's own storage
+      # calls hairpin out through Caddy; on one node that is a loopback hop, and
+      # it buys a single consistent URL for signing.
+      Storage__ServiceUrl: https://${MEDIA_DOMAIN}
+      Storage__AccessKey: ${MINIO_ROOT_USER:?set MINIO_ROOT_USER}
+      Storage__SecretKey: ${MINIO_ROOT_PASSWORD:?set MINIO_ROOT_PASSWORD}
+
+      MalwareScanning__Host: clamav
+      MalwareScanning__Port: '3310'
+      # Fail closed: an upload is refused when clamd is unreachable rather than
+      # promoted unscanned. Setting this false in production disables the
+      # control silently, which is the failure nobody notices.
+      MalwareScanning__Required: 'true'
+
+      # Caddy sits in front, on the internal network. The default trust list
+      # covers the private ranges, so X-Forwarded-For from Caddy is believed and
+      # the per-IP auth limit partitions on the real client. BEHIND CLOUDFLARE,
+      # add its published ranges here — they are public addresses and are not
+      # trusted by default (docs/06-backend.md §11).
+      Network__TrustedProxies__0: 127.0.0.1/32
+      Network__TrustedProxies__1: 172.16.0.0/12
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    networks: [internal]
+
+  # ---------------------------------------------------------------------------
+  # Data
+  # ---------------------------------------------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    container_name: mautodesk-postgres
+    restart: unless-stopped
+    logging: *logging
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_SUPERUSER_PASSWORD:?set POSTGRES_SUPERUSER_PASSWORD}
+      POSTGRES_DB: mautodesk
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d mautodesk']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    # Deliberately no `ports`. The database is reachable only from this compose
+    # network; a VPS with 5432 open to the internet is found by scanners in
+    # hours. Use `docker compose exec postgres psql` for maintenance.
+    networks: [internal]
+
+  minio:
+    image: minio/minio:latest
+    container_name: mautodesk-minio
+    restart: unless-stopped
+    logging: *logging
+    command: ['server', '/data', '--console-address', ':9001']
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?set MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?set MINIO_ROOT_PASSWORD}
+      # Presigned URLs are signed against the host the browser uses.
+      MINIO_SERVER_URL: https://${MEDIA_DOMAIN}
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ['CMD', 'mc', 'ready', 'local']
+      interval: 10s
+      timeout: 5s
+      retries: 20
+    networks: [internal]
+
+  minio-init:
+    image: minio/mc:latest
+    container_name: mautodesk-minio-init
+    restart: 'no'
+    logging: *logging
+    depends_on:
+      minio:
+        condition: service_healthy
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?set MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?set MINIO_ROOT_PASSWORD}
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 $$MINIO_ROOT_USER $$MINIO_ROOT_PASSWORD;
+      mc mb --ignore-existing local/mautodesk-uploads;
+      mc mb --ignore-existing local/mautodesk-media;
+      mc mb --ignore-existing local/mautodesk-docs;
+      mc mb --ignore-existing local/mautodesk-vault;
+      mc version enable local/mautodesk-docs;
+      mc version enable local/mautodesk-vault;
+      mc ilm rule add --expire-days 1 local/mautodesk-uploads || true;
+      echo 'Buckets ready. Every bucket stays private: photos are served through
+      presigned URLs, never by making a bucket public.';
+      "
+    networks: [internal]
+
+  clamav:
+    image: clamav/clamav:stable
+    container_name: mautodesk-clamav
+    restart: unless-stopped
+    logging: *logging
+    # The signature databases are the memory cost, and they are why the API
+    # refuses uploads while this is still starting. Three minutes on a cold
+    # boot is normal; the start_period below reflects that rather than
+    # restarting the container in a loop.
+    mem_limit: 2g
+    volumes:
+      - clamav-data:/var/lib/clamav
+    healthcheck:
+      test: ['CMD', 'clamdcheck.sh']
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 300s
+    networks: [internal]
+
+  # ---------------------------------------------------------------------------
+  # Migrations. Not started by `up` — run it, watch it, then deploy.
+  #
+  #   docker compose -f docker-compose.prod.yml --profile migrate \
+  #     run --rm migrate
+  #
+  # Idempotent: it journals applied files in public.schema_version, asserts
+  # app.rls_coverage_gaps() returns zero, and runs the cross-tenant isolation
+  # probe. A non-zero exit means DO NOT deploy.
+  # ---------------------------------------------------------------------------
+  migrate:
+    image: postgres:16-alpine
+    container_name: mautodesk-migrate
+    profiles: ['migrate']
+    restart: 'no'
+    logging: *logging
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./db:/db:ro
+    environment:
+      PGPASSWORD: ${POSTGRES_SUPERUSER_PASSWORD:?set POSTGRES_SUPERUSER_PASSWORD}
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD:?set APP_DB_PASSWORD}
+    entrypoint: >
+      /bin/sh -c "
+      set -e;
+      PSQL='psql -h postgres -U postgres -d mautodesk -v ON_ERROR_STOP=1 -q';
+      $$PSQL -c 'create table if not exists public.schema_version (filename text primary key, applied_at timestamptz not null default now())';
+      for f in /db/migrations/V*.sql; do
+        name=$$(basename \"$$f\");
+        applied=$$(psql -h postgres -U postgres -d mautodesk -t -A -c \"select count(*) from public.schema_version where filename = '$$name'\");
+        if [ \"$$applied\" = \"1\" ]; then echo \"skipping $$name (already applied)\"; continue; fi;
+        echo \"applying $$name\";
+        $$PSQL -f \"$$f\";
+        $$PSQL -c \"insert into public.schema_version (filename) values ('$$name')\";
+      done;
+      echo '--- application role password ---';
+      $$PSQL -c \"alter role mautodesk_app with password '$$APP_DB_PASSWORD'\";
+      echo '--- RLS coverage ---';
+      gaps=$$(psql -h postgres -U postgres -d mautodesk -t -A -c 'select count(*) from app.rls_coverage_gaps();');
+      if [ \"$$gaps\" != \"0\" ]; then
+        echo \"FAIL: $$gaps RLS coverage gap(s)\";
+        psql -h postgres -U postgres -d mautodesk -c 'select * from app.rls_coverage_gaps();';
+        exit 1;
+      fi;
+      echo 'RLS coverage OK';
+      psql -h postgres -U postgres -d mautodesk -v ON_ERROR_STOP=1 -f /db/tests/isolation_probe.sql;
+      "
+    networks: [internal]
+
+networks:
+  # Only Caddy is on both. Nothing else can be reached from outside the host.
+  edge:
+  internal:
+    internal: false
+
+volumes:
+  postgres-data:
+  minio-data:
+  clamav-data:
+  caddy-data:
+  caddy-config:

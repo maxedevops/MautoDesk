@@ -54,6 +54,11 @@ dotnet run --project backend/src/MautoDesk.Api
 pnpm --dir frontend dev
 ```
 
+**Deploying it**, as opposed to running it locally: `deploy/README.md` is the
+runbook for a single VPS — two container images, Caddy for TLS, and the
+migration job as a pre-deploy gate. The compromises that topology makes are
+listed there rather than left to be discovered.
+
 **Port conflicts:** every compose host port is overridable —
 `POSTGRES_PORT`, `VALKEY_PORT`, `MINIO_PORT`, and so on. Developers commonly run
 more than one project's database.

@@ -1,0 +1,61 @@
+# Caddy fronts the deployment: TLS, and the only two names the internet resolves.
+#
+# Certificates are issued and renewed automatically over ACME, which needs
+# ports 80 and 443 reachable and the DNS records already pointing here.
+{
+	email {$ACME_EMAIL}
+
+	# No `log` directive anywhere in this file, deliberately. The API already
+	# emits one redacted line per request; a second, unredacted log of the same
+	# traffic — full URLs included — is the leak docs/06-backend.md §10 exists
+	# to prevent. Enable access logging here only with a scrubbing formatter.
+}
+
+# The application. Everything a person uses goes through here.
+{$APP_DOMAIN} {
+	encode zstd gzip
+
+	# The upstream is the backend-for-frontend, not the API. The browser holds
+	# one sealed HttpOnly cookie and no token, so there is nothing here to
+	# route to the API directly (ADR §4).
+	reverse_proxy web:3000 {
+		# Photo uploads pass through this hop; the app caps them at 20 MB and
+		# Next accepts 25 MB, so the proxy must not be the narrowest point.
+		flush_interval -1
+	}
+
+	request_body {
+		max_size 30MB
+	}
+
+	header {
+		# HSTS. Set here rather than in the app because it is a property of the
+		# origin, and a header the app sets is only as good as the app being
+		# the thing that answered.
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		-Server
+	}
+}
+
+# Photos. A separate name because ADR-0005 is explicit that nothing
+# user-uploaded is ever served from the application origin — a stored file that
+# somehow survives verification still cannot run as same-origin script.
+{$MEDIA_DOMAIN} {
+	encode zstd gzip
+
+	reverse_proxy minio:9000 {
+		# MinIO signs presigned URLs against the host it was told to expect
+		# (MINIO_SERVER_URL). Rewriting Host here would invalidate every
+		# signature, and the symptom is a 403 on every photo.
+		header_up Host {upstream_hostport}
+	}
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		# The bucket is private and reached only by presigned URL, but a stored
+		# object should still never be interpreted as markup or script.
+		X-Content-Type-Options "nosniff"
+		Content-Security-Policy "default-src 'none'; sandbox"
+		-Server
+	}
+}
