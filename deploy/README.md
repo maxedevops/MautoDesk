@@ -79,7 +79,7 @@ Named here because each is a real limit, not a rough edge:
 | --- | --- |
 | **One API instance** | Rate limiter partitions are in-process. A second replica doubles every attacker's budget, so scale up rather than out until that moves to Valkey |
 | **Photos served from this host** | ADR-0005 chose R2 for zero egress fees, because photo delivery is the dominant egress cost. Here it comes out of the VPS's transfer allowance |
-| **Storage calls hairpin through Caddy** | The API signs URLs for the public media host and therefore also fetches through it. It buys one URL that both the API and the browser can use. If the host does not support hairpin NAT, the API cannot reach its own public name — add `extra_hosts: ["${MEDIA_DOMAIN}:172.17.0.1"]` to the `api` service so it resolves internally |
+| **Photos are signed for one host and fetched from another** | `Storage__ServiceUrl` is the internal endpoint the API uses; `Storage__PublicUrl` is the name the URLs it signs carry. They must both point at the same MinIO, and changing `MEDIA_DOMAIN` without updating `MINIO_SERVER_URL` produces a 403 on every photo |
 | **Photo verification is synchronous** | Decode and re-encode happen inline on confirm. A burst of uploads is the first thing that will saturate a small host |
 | **No standby, no PITR** | `postgres-data` is a Docker volume on one disk. §5 is not optional |
 

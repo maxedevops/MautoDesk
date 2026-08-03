@@ -1,6 +1,9 @@
 using System.Net;
 using FluentAssertions;
 using MautoDesk.Api;
+using MautoDesk.Infrastructure;
+using MautoDesk.SharedKernel;
+using Microsoft.Extensions.Options;
 using Xunit;
 
 namespace MautoDesk.UnitTests;
@@ -169,4 +172,52 @@ public sealed class ClientAddressResolverTests
 
         parse.Should().Throw<InvalidOperationException>().WithMessage("*not-a-network*");
     }
+}
+
+/// <summary>
+/// Which endpoint a presigned URL names.
+/// </summary>
+/// <remarks>
+/// A presigned URL is handed to a browser and its signature covers the host in
+/// it, so the name has to be decided at signing time. Getting this wrong is not
+/// subtle — every photo 403s — but it only shows up once something is deployed
+/// behind a proxy, which is exactly when it is expensive to find.
+/// </remarks>
+public sealed class ObjectStorageSigningTests
+{
+    [Fact]
+    public async Task Signs_for_the_public_endpoint_when_one_is_configured()
+    {
+        using var store = Build("http://minio:9000", "https://media.example.com");
+
+        var url = await store.CreateUploadUrlAsync(
+            StorageBucket.Media, "t/photo.jpg", "image/jpeg", 1024, TimeSpan.FromMinutes(5), default);
+
+        url.Host.Should().Be("media.example.com", "the browser cannot resolve the internal name");
+        url.Scheme.Should().Be("https");
+    }
+
+    [Fact]
+    public async Task Falls_back_to_the_service_endpoint_when_no_public_one_is_set()
+    {
+        using var store = Build("http://localhost:9000", publicUrl: string.Empty);
+
+        var url = await store.CreateDownloadUrlAsync(
+            StorageBucket.Media, "t/photo.jpg", TimeSpan.FromMinutes(5), default);
+
+        url.Host.Should().Be("localhost");
+
+        // Plain http, not the SDK's https default — a local MinIO would
+        // otherwise be handed a URL nothing can connect to.
+        url.Scheme.Should().Be("http");
+    }
+
+    private static S3ObjectStore Build(string serviceUrl, string publicUrl) =>
+        new(Options.Create(new ObjectStorageOptions
+        {
+            ServiceUrl = serviceUrl,
+            PublicUrl = publicUrl,
+            AccessKey = "key",
+            SecretKey = "secret",
+        }));
 }

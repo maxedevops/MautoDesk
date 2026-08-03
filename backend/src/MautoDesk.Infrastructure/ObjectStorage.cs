@@ -10,8 +10,36 @@ public sealed class ObjectStorageOptions
 {
     public const string SectionName = "Storage";
 
-    /// <summary>The S3 endpoint. MinIO locally, R2 in deployment.</summary>
+    /// <summary>The endpoint this process uses to talk to storage.</summary>
+    /// <remarks>
+    /// An internal name is correct here — <c>http://minio:9000</c> on a compose
+    /// network. Nothing a browser sees comes from this setting.
+    /// </remarks>
     public string ServiceUrl { get; set; } = "http://localhost:9000";
+
+    /// <summary>
+    /// The endpoint presigned URLs are signed for, when it differs from <see cref="ServiceUrl"/>.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A presigned URL is handed to a browser, so it has to carry a name the
+    /// browser can reach — and the signature covers that name, so it must be
+    /// decided at signing time rather than rewritten later.
+    /// </para>
+    /// <para>
+    /// Splitting the two is what stops the API from having to reach its own
+    /// public hostname. Signing for the public name while talking to storage
+    /// directly means no hairpin through the edge proxy, and it is the only
+    /// arrangement that works at all when the public name resolves to something
+    /// the API cannot route to — a <c>.localhost</c> name, or a split-horizon
+    /// DNS setup.
+    /// </para>
+    /// <para>
+    /// Empty means "same as <see cref="ServiceUrl"/>", which is right when
+    /// storage is directly reachable by both.
+    /// </para>
+    /// </remarks>
+    public string PublicUrl { get; set; } = string.Empty;
 
     public string AccessKey { get; set; } = string.Empty;
 
@@ -46,6 +74,17 @@ public sealed class ObjectStorageOptions
 public sealed class S3ObjectStore : IObjectStore, IDisposable
 {
     private readonly AmazonS3Client _s3;
+
+    /// <summary>
+    /// A second client that exists only to sign URLs for the public endpoint.
+    /// </summary>
+    /// <remarks>
+    /// Presigning is local computation — no request is made — so this costs a
+    /// configuration object and buys URLs that name a host the browser can
+    /// reach while the API keeps talking to storage directly.
+    /// </remarks>
+    private readonly AmazonS3Client _signer;
+
     private readonly ObjectStorageOptions _options;
 
     public S3ObjectStore(IOptions<ObjectStorageOptions> options)
@@ -53,19 +92,25 @@ public sealed class S3ObjectStore : IObjectStore, IDisposable
         ArgumentNullException.ThrowIfNull(options);
 
         _options = options.Value;
+        _s3 = CreateClient(_options, _options.ServiceUrl);
 
-        _s3 = new AmazonS3Client(
-            _options.AccessKey,
-            _options.SecretKey,
+        _signer = string.IsNullOrWhiteSpace(_options.PublicUrl)
+            || string.Equals(_options.PublicUrl, _options.ServiceUrl, StringComparison.OrdinalIgnoreCase)
+                ? _s3
+                : CreateClient(_options, _options.PublicUrl);
+    }
+
+    private static AmazonS3Client CreateClient(ObjectStorageOptions options, string serviceUrl) =>
+        new(options.AccessKey,
+            options.SecretKey,
             new AmazonS3Config
             {
-                ServiceURL = _options.ServiceUrl,
-                ForcePathStyle = _options.ForcePathStyle,
-                UseHttp = UsesPlainHttp(_options.ServiceUrl),
+                ServiceURL = serviceUrl,
+                ForcePathStyle = options.ForcePathStyle,
+                UseHttp = UsesPlainHttp(serviceUrl),
                 // R2 ignores the region but the SDK insists on one being set.
                 AuthenticationRegion = "auto",
             });
-    }
 
     public Task<Uri> CreateUploadUrlAsync(
         StorageBucket bucket,
@@ -86,7 +131,7 @@ public sealed class S3ObjectStore : IObjectStore, IDisposable
             // Presigned URLs default to https no matter what ServiceURL says,
             // which hands a local MinIO a URL nothing can connect to. R2 is
             // https and stays https; this only follows the configured endpoint.
-            Protocol = UsesPlainHttp(_options.ServiceUrl) ? Protocol.HTTP : Protocol.HTTPS,
+            Protocol = UsesPlainHttp(SigningUrl) ? Protocol.HTTP : Protocol.HTTPS,
         };
 
         // Signed into the URL, so a client that received a URL for a 2 MB JPEG
@@ -94,7 +139,7 @@ public sealed class S3ObjectStore : IObjectStore, IDisposable
         // after the fact regardless — this only stops the waste.
         request.Headers.ContentLength = byteSize;
 
-        return Task.FromResult(new Uri(_s3.GetPreSignedURL(request)));
+        return Task.FromResult(new Uri(_signer.GetPreSignedURL(request)));
     }
 
     public Task<Uri> CreateDownloadUrlAsync(
@@ -102,13 +147,13 @@ public sealed class S3ObjectStore : IObjectStore, IDisposable
         string key,
         TimeSpan lifetime,
         CancellationToken cancellationToken) =>
-        Task.FromResult(new Uri(_s3.GetPreSignedURL(new GetPreSignedUrlRequest
+        Task.FromResult(new Uri(_signer.GetPreSignedURL(new GetPreSignedUrlRequest
         {
             BucketName = Resolve(bucket),
             Key = key,
             Verb = HttpVerb.GET,
             Expires = DateTime.UtcNow.Add(lifetime),
-            Protocol = UsesPlainHttp(_options.ServiceUrl) ? Protocol.HTTP : Protocol.HTTPS,
+            Protocol = UsesPlainHttp(SigningUrl) ? Protocol.HTTP : Protocol.HTTPS,
         })));
 
     public async Task<StoredObject?> StatAsync(
@@ -167,7 +212,19 @@ public sealed class S3ObjectStore : IObjectStore, IDisposable
     public Task DeleteAsync(StorageBucket bucket, string key, CancellationToken cancellationToken) =>
         _s3.DeleteObjectAsync(Resolve(bucket), key, cancellationToken);
 
-    public void Dispose() => _s3.Dispose();
+    /// <summary>The endpoint presigned URLs name, which may be the internal one.</summary>
+    private string SigningUrl =>
+        string.IsNullOrWhiteSpace(_options.PublicUrl) ? _options.ServiceUrl : _options.PublicUrl;
+
+    public void Dispose()
+    {
+        if (!ReferenceEquals(_signer, _s3))
+        {
+            _signer.Dispose();
+        }
+
+        _s3.Dispose();
+    }
 
     /// <summary>True for a plain-http endpoint, which in practice means local MinIO.</summary>
     private static bool UsesPlainHttp(string serviceUrl) =>

@@ -1,0 +1,260 @@
+# MautoDesk — the production stack, on localhost.
+#
+#   docker compose -f docker-compose.local.yml up -d postgres minio minio-init
+#   docker compose -f docker-compose.local.yml --profile setup run --rm migrate
+#   docker compose -f docker-compose.local.yml --profile setup run --rm seed
+#   docker compose -f docker-compose.local.yml up -d --build
+#
+# In that order: the application role has no password until the migration job
+# sets one, so an API started first fails its health check and takes the web
+# container's dependency with it. Production has the same ordering for the same
+# reason (deploy/README.md §2).
+#
+# Port 8088 by default because 8080 is contended; override with LOCAL_PORT.
+# It is part of the signed storage URLs, so changing it recreates the
+# containers that carry it.
+#
+# The app is http://localhost:8088; photos are served from
+# http://localhost:9002, a separate origin, as ADR-0005 requires.
+#
+# Then http://localhost:8088 — sign in as dana@ridgeline.test with the password
+# from db/seed/e2e.sql. MFA is mandatory, so the first sign-in enrols an
+# authenticator and hands back recovery codes.
+#
+# This is docker-compose.prod.yml with the smallest possible set of changes:
+# no TLS, no ClamAV, dev-only secrets in the file, and its own container names
+# and volumes so it cannot collide with the development stack in
+# docker-compose.yml. Everything else — the two-origin split, the presigned URL
+# host, the migration gate, the trusted-proxy configuration — is identical, so a
+# mistake in any of those shows up here instead of on a real host.
+#
+# TWO PRODUCTION CONTROLS ARE OFF, and both are named where they are turned off:
+# TLS, and malware scanning of uploads.
+
+name: mautodesk-local
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: '10m'
+    max-file: '3'
+
+services:
+  caddy:
+    image: caddy:2-alpine
+    container_name: mautodesk-local-caddy
+    restart: unless-stopped
+    logging: *logging
+    ports:
+      - '${LOCAL_PORT:-8088}:${LOCAL_PORT:-8088}'
+    environment:
+      LOCAL_PORT: ${LOCAL_PORT:-8088}
+    volumes:
+      - ./deploy/Caddyfile.local:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      web:
+        condition: service_healthy
+    networks: [internal]
+
+  web:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    image: mautodesk-local/web:latest
+    container_name: mautodesk-local-web
+    restart: unless-stopped
+    logging: *logging
+    environment:
+      API_BASE_URL: http://api:8080
+      # Dev-only, and genuinely 32 bytes: the application refuses to start on a
+      # short key rather than padding one, so a placeholder that only looks
+      # right fails at the first sign-in. Never reuse these anywhere.
+      SESSION_SECRET: bWF1dG9kZXNrLWxvY2FsLWRldi1zZXNzaW9uLWtleS4=
+      MEDIA_ORIGIN: http://localhost:${LOCAL_MINIO_PORT:-9002}
+      NODE_ENV: production
+    depends_on:
+      api:
+        condition: service_healthy
+    networks: [internal]
+
+  api:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    image: mautodesk-local/api:latest
+    container_name: mautodesk-local-api
+    restart: unless-stopped
+    logging: *logging
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__Default: >-
+        Host=postgres;Port=5432;Database=mautodesk;Username=mautodesk_app;Password=devpw;Maximum Pool Size=20
+      Jwt__SigningKey: bWF1dG9kZXNrLWxvY2FsLWRldi1qd3Qtc2lnbmluZy4=
+      Jwt__Issuer: http://localhost:${LOCAL_PORT:-8088}
+      Jwt__Audience: mautodesk-api
+      Encryption__MasterKey: bWF1dG9kZXNrLWxvY2FsLWRldi1tYXN0ZXIta2V5Li4=
+      Encryption__KeyId: local-1
+
+      # Internal for the API's own calls, public for the URLs it signs and hands
+      # to a browser. Splitting them is what lets the browser reach storage at a
+      # name the API never has to resolve.
+      Storage__ServiceUrl: http://minio:9000
+      Storage__PublicUrl: http://localhost:${LOCAL_MINIO_PORT:-9002}
+      Storage__AccessKey: mautodesk
+      Storage__SecretKey: devpassword
+
+      # OFF, and this is the one line in this file with real consequences.
+      # There is no clamav service here because it wants 2 GB and three minutes
+      # of startup; production sets this true and refuses uploads when the
+      # scanner is unreachable. Do not copy this value anywhere else.
+      MalwareScanning__Required: 'false'
+
+      # Caddy is on this compose network, in the private ranges the default
+      # trust list covers — the same arrangement as production, so the per-IP
+      # limit partitions on the browser's address rather than on Caddy's.
+      Network__TrustedProxies__0: 127.0.0.1/32
+      Network__TrustedProxies__1: 172.16.0.0/12
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    networks: [internal]
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: mautodesk-local-postgres
+    restart: unless-stopped
+    logging: *logging
+    environment:
+      POSTGRES_PASSWORD: devpw
+      POSTGRES_DB: mautodesk
+    # Published, unlike production, so you can point psql at it. Nothing else
+    # about the database configuration differs.
+    ports:
+      - '${LOCAL_POSTGRES_PORT:-55433}:5432'
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d mautodesk']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks: [internal]
+
+  minio:
+    image: minio/minio:latest
+    container_name: mautodesk-local-minio
+    restart: unless-stopped
+    logging: *logging
+    command: ['server', '/data', '--console-address', ':9001']
+    environment:
+      MINIO_ROOT_USER: mautodesk
+      MINIO_ROOT_PASSWORD: devpassword
+      # The public name presigned URLs are signed against. It has to match what
+      # the browser and the API both use, or every photo returns 403.
+      MINIO_SERVER_URL: http://localhost:${LOCAL_MINIO_PORT:-9002}
+    # Published directly rather than proxied. A different port is a different
+    # origin, so ADR-0005's rule that uploads never come from the application
+    # origin still holds; production keeps Caddy in front for TLS.
+    ports:
+      - '${LOCAL_MINIO_PORT:-9002}:9000'
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ['CMD', 'mc', 'ready', 'local']
+      interval: 10s
+      timeout: 5s
+      retries: 20
+    networks: [internal]
+
+  minio-init:
+    image: minio/mc:latest
+    container_name: mautodesk-local-minio-init
+    restart: 'no'
+    logging: *logging
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 mautodesk devpassword;
+      mc mb --ignore-existing local/mautodesk-uploads;
+      mc mb --ignore-existing local/mautodesk-media;
+      mc mb --ignore-existing local/mautodesk-docs;
+      mc mb --ignore-existing local/mautodesk-vault;
+      mc ilm rule add --expire-days 1 local/mautodesk-uploads || true;
+      echo 'Buckets ready.';
+      "
+    networks: [internal]
+
+  # ---------------------------------------------------------------------------
+  # Setup, under a profile so `up` never runs them by accident.
+  # ---------------------------------------------------------------------------
+  migrate:
+    image: postgres:16-alpine
+    container_name: mautodesk-local-migrate
+    profiles: ['setup']
+    restart: 'no'
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./db:/db:ro
+    environment:
+      PGPASSWORD: devpw
+    entrypoint: >
+      /bin/sh -c "
+      set -e;
+      PSQL='psql -h postgres -U postgres -d mautodesk -v ON_ERROR_STOP=1 -q';
+      $$PSQL -c 'create table if not exists public.schema_version (filename text primary key, applied_at timestamptz not null default now())';
+      for f in /db/migrations/V*.sql; do
+        name=$$(basename \"$$f\");
+        applied=$$(psql -h postgres -U postgres -d mautodesk -t -A -c \"select count(*) from public.schema_version where filename = '$$name'\");
+        if [ \"$$applied\" = \"1\" ]; then echo \"skipping $$name (already applied)\"; continue; fi;
+        echo \"applying $$name\";
+        $$PSQL -f \"$$f\";
+        $$PSQL -c \"insert into public.schema_version (filename) values ('$$name')\";
+      done;
+      $$PSQL -c \"alter role mautodesk_app with password 'devpw'\";
+      gaps=$$(psql -h postgres -U postgres -d mautodesk -t -A -c 'select count(*) from app.rls_coverage_gaps();');
+      if [ \"$$gaps\" != \"0\" ]; then echo \"FAIL: $$gaps RLS coverage gap(s)\"; exit 1; fi;
+      echo 'RLS coverage OK';
+      psql -h postgres -U postgres -d mautodesk -v ON_ERROR_STOP=1 -f /db/tests/isolation_probe.sql;
+      "
+    networks: [internal]
+
+  # A dealership with two vehicles and one user, so there is something to sign
+  # in to. The account starts UNENROLLED — the first sign-in sets up an
+  # authenticator, which is also the path that issues recovery codes.
+  seed:
+    image: postgres:16-alpine
+    container_name: mautodesk-local-seed
+    profiles: ['setup']
+    restart: 'no'
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./db:/db:ro
+    environment:
+      PGPASSWORD: devpw
+    entrypoint: >
+      /bin/sh -c "
+      psql -h postgres -U postgres -d mautodesk -v ON_ERROR_STOP=1 -f /db/seed/e2e.sql;
+      echo '';
+      echo 'Sign in at http://localhost:${LOCAL_PORT:-8088} as dana@ridgeline.test';
+      echo 'Password is in db/seed/e2e.sql.';
+      "
+    networks: [internal]
+
+networks:
+  internal:
+
+volumes:
+  postgres-data:
+  minio-data:
+  caddy-data:
+  caddy-config:

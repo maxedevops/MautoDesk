@@ -1,0 +1,31 @@
+# The local mirror of deploy/Caddyfile.
+#
+# Same routing, same two-origin split, no TLS: `http://` prefixes turn off
+# automatic HTTPS, because ACME cannot issue a certificate for localhost and a
+# self-signed one would only teach you to click through warnings.
+#
+# Everything else is deliberately identical, so a routing mistake shows up here
+# rather than on the first real deploy.
+
+{
+	# No `log` directive, matching production. See deploy/Caddyfile.
+	auto_https off
+}
+
+# The application.
+http://localhost:{$LOCAL_PORT} {
+	encode zstd gzip
+
+	reverse_proxy web:3000 {
+		flush_interval -1
+	}
+
+	request_body {
+		max_size 30MB
+	}
+}
+
+# Photos are NOT proxied here. MinIO is published on its own host port, which is
+# a separate origin in its own right, so the two-origin rule from ADR-0005 still
+# holds without a second virtual host. Production does put Caddy in front, for
+# TLS; deploy/Caddyfile has that site.

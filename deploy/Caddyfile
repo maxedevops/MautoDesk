@@ -43,12 +43,12 @@
 {$MEDIA_DOMAIN} {
 	encode zstd gzip
 
-	reverse_proxy minio:9000 {
-		# MinIO signs presigned URLs against the host it was told to expect
-		# (MINIO_SERVER_URL). Rewriting Host here would invalidate every
-		# signature, and the symptom is a 403 on every photo.
-		header_up Host {upstream_hostport}
-	}
+	# The original Host is passed through, which is Caddy's default and is
+	# load-bearing here: a presigned URL's signature covers the host it was
+	# signed for. Rewriting Host to `minio:9000` would invalidate every
+	# signature, and the symptom is a 403 on every photo. MINIO_SERVER_URL tells
+	# MinIO the public name so the two agree.
+	reverse_proxy minio:9000
 
 	header {
 		Strict-Transport-Security "max-age=31536000; includeSubDomains"

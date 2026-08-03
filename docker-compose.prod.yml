@@ -94,12 +94,13 @@ services:
       Encryption__MasterKey: ${ENCRYPTION_MASTER_KEY:?generate with openssl rand -base64 32}
       Encryption__KeyId: ${ENCRYPTION_KEY_ID:-prod-1}
 
-      # The public URL, not the internal one. Presigned URLs are signed for the
-      # host in them, and the browser fetches photos directly — so this has to be
-      # the name the browser can reach. The cost is that the API's own storage
-      # calls hairpin out through Caddy; on one node that is a loopback hop, and
-      # it buys a single consistent URL for signing.
-      Storage__ServiceUrl: https://${MEDIA_DOMAIN}
+      # Two endpoints, deliberately. The API talks to MinIO directly over the
+      # compose network; the URLs it signs name the public host, because a
+      # presigned URL is handed to a browser and its signature covers the name
+      # in it. Without the split the API would have to reach its own public
+      # hostname, which needs hairpin NAT and fails on hosts that lack it.
+      Storage__ServiceUrl: http://minio:9000
+      Storage__PublicUrl: https://${MEDIA_DOMAIN}
       Storage__AccessKey: ${MINIO_ROOT_USER:?set MINIO_ROOT_USER}
       Storage__SecretKey: ${MINIO_ROOT_PASSWORD:?set MINIO_ROOT_PASSWORD}
 
