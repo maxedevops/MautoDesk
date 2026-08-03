@@ -39,6 +39,8 @@ builder.Services.Configure<ObjectStorageOptions>(
     builder.Configuration.GetSection(ObjectStorageOptions.SectionName));
 builder.Services.Configure<MalwareScanningOptions>(
     builder.Configuration.GetSection(MalwareScanningOptions.SectionName));
+builder.Services.Configure<TrustedProxyOptions>(
+    builder.Configuration.GetSection(TrustedProxyOptions.SectionName));
 
 var jwt = builder.Configuration.GetSection("Jwt").Get<JwtOptions>() ?? new JwtOptions();
 
@@ -175,6 +177,11 @@ var app = builder.Build();
 // Pipeline
 // ---------------------------------------------------------------------------
 app.UseExceptionHandler();
+
+// First in the pipeline: everything downstream — the rate limiter, the security
+// log, the audit ledger — reads the address this resolves, and they must all
+// read the same one.
+app.UseMiddleware<ClientAddressMiddleware>();
 
 // One line per request, with the query string scrubbed. Placed before
 // authentication so a request refused at the edge is still accounted for.

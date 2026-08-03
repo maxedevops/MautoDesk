@@ -303,28 +303,12 @@ public static class AuthEndpoints
     /// The caller's address for the security log.
     /// </summary>
     /// <remarks>
-    /// Cloudflare terminates TLS in front of the origin, so the socket address
-    /// is Cloudflare's. CF-Connecting-IP is the real client — and it is trusted
-    /// <em>only</em> because the origin is locked to Cloudflare
-    /// (docs/02-architecture.md §10). On a directly-exposed origin this header
-    /// would be attacker-controlled and must not be trusted.
+    /// Resolved at the edge rather than read from a header here, so the address
+    /// in the security log is the same one the rate limiter partitioned on. Three
+    /// separate readings of the same header meant three chances to disagree
+    /// about who the caller was.
     /// </remarks>
-    private static string? ClientIp(HttpContext context)
-    {
-        var forwarded = context.Request.Headers["CF-Connecting-IP"].FirstOrDefault();
-
-        // Parsed, not trusted verbatim. The header is caller-supplied, and the
-        // column it lands in is `inet` — an unparseable value would turn a login
-        // attempt into a 500. Falling back to the socket address is both safer
-        // and more accurate when the header is junk.
-        if (!string.IsNullOrWhiteSpace(forwarded) &&
-            System.Net.IPAddress.TryParse(forwarded, out var parsed))
-        {
-            return parsed.ToString();
-        }
-
-        return context.Connection.RemoteIpAddress?.ToString();
-    }
+    private static string? ClientIp(HttpContext context) => ClientAddress.Of(context);
 
     private static string? UserAgent(HttpContext context) =>
         context.Request.Headers.UserAgent.FirstOrDefault();

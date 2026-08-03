@@ -21,29 +21,11 @@ public sealed class HttpRequestContext : IRequestContext
 
     /// <inheritdoc />
     /// <remarks>
-    /// Trusts <c>CF-Connecting-IP</c> only because the origin is locked to
-    /// Cloudflare, and parses it rather than passing it through: the column is
-    /// <c>inet</c>, and a junk header would turn an audited action into a 500.
+    /// The same address the rate limiter and the security log used, resolved
+    /// once at the edge. An audit entry that disagrees with the security log
+    /// about where a change came from is worse than one that records neither.
     /// </remarks>
-    public string? IpAddress
-    {
-        get
-        {
-            var context = _accessor.HttpContext;
-
-            if (context is null)
-            {
-                return null;
-            }
-
-            var forwarded = context.Request.Headers["CF-Connecting-IP"].FirstOrDefault();
-
-            return !string.IsNullOrWhiteSpace(forwarded) &&
-                System.Net.IPAddress.TryParse(forwarded, out var parsed)
-                    ? parsed.ToString()
-                    : context.Connection.RemoteIpAddress?.ToString();
-        }
-    }
+    public string? IpAddress => ClientAddress.Of(_accessor.HttpContext);
 
     public string? UserAgent => _accessor.HttpContext?.Request.Headers.UserAgent.FirstOrDefault();
 

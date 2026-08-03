@@ -2,7 +2,7 @@
 
 **State:** Phases 1–10 of 13 complete, plus MFA recovery codes, wired-up
 inventory writes, photo uploads, audit-ledger writes, and PII log redaction ·
-backend green (89 unit, 89 integration, 8 architecture) and frontend unit green
+backend green (99 unit, 89 integration, 8 architecture) and frontend unit green
 (21); the e2e suite needs a running stack · zero known dependency
 vulnerabilities
 
@@ -151,6 +151,7 @@ they are the sort of thing that costs an afternoon.
 | **EF raw SQL rejects `DBNull.Value`** | Its overload takes `IEnumerable<object>`. Use `NpgsqlParameter` instances for nullable values |
 | **`SqlQueryRaw` scalars must be named `"Value"`** | EF wraps them in `select s."Value" from (…) as s` |
 | **`inet` columns need a value converter** | Npgsql maps `inet` to `IPAddress`, not `string` |
+| **A reverse proxy needs `Network__TrustedProxies` set** | A forwarded header is believed only from a listed peer. Behind Cloudflare you must add its public ranges, or every caller shares one rate-limit partition; with nothing in front, empty the list. `docs/06-backend.md` §11 |
 | **Presigned URLs ignore the endpoint's scheme** | `GetPreSignedUrlRequest.Protocol` defaults to HTTPS regardless of `ServiceURL`, so a local MinIO gets an `https://localhost:9000` URL nothing can connect to. `S3ObjectStore` sets it from the configured endpoint |
 | **Server Actions cap request bodies at 1 MB** | Which rejects essentially every photo a phone takes. `next.config.ts` raises it to 25 MB; the API's own 20 MB limit is the real one |
 | **Photo tests need MinIO, not just Postgres** | `docker compose up -d minio minio-init`. Point elsewhere with `TEST_STORAGE_URL`. The suite sets `MalwareScanning__Required=false` because clamd takes three minutes to load its signatures |

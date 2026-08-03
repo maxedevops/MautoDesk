@@ -15,6 +15,15 @@ const config: NextConfig = {
   transpilePackages: ['@mautodesk/api-client'],
   poweredByHeader: false,
 
+  /**
+   * Traces the server bundle's actual dependencies into `.next/standalone`.
+   *
+   * Without it the container image has to carry the whole pnpm workspace
+   * `node_modules` — hundreds of megabytes of build-time tooling shipped to
+   * production, most of it never loaded at runtime.
+   */
+  output: 'standalone',
+
   experimental: {
     serverActions: {
       // Photos are posted to a Server Action, and the default cap is 1 MB —

@@ -1,0 +1,43 @@
+# Build context hygiene. Without this the .NET build copies bin/ and obj/ from
+# the host into the image, which both bloats the context and — worse — can
+# shadow the container's own restore with binaries built against a different
+# runtime.
+
+.git
+.github
+
+# --- .NET ---------------------------------------------------------------------
+**/bin/
+**/obj/
+TestResults/
+coverage/
+artifacts/
+
+# --- Node ---------------------------------------------------------------------
+**/node_modules/
+**/.next/
+**/.turbo/
+frontend/e2e/test-results/
+frontend/e2e/playwright-report/
+
+# --- Secrets ------------------------------------------------------------------
+# Belt and braces. .gitignore already excludes these, but a build context is
+# assembled from the working directory, not from git — an uncommitted .env would
+# otherwise be copied into a layer and shipped.
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.pfx
+appsettings.Local.json
+appsettings.*.Local.json
+secrets.json
+
+# --- Noise --------------------------------------------------------------------
+**/.vs/
+**/.vscode/
+**/.idea/
+**/*.user
+Dockerfile
+docker-compose*.yml

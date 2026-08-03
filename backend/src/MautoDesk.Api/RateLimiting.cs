@@ -160,23 +160,15 @@ public static class RateLimiting
     /// The caller's address, as a partition key.
     /// </summary>
     /// <remarks>
-    /// <c>CF-Connecting-IP</c> is trusted only because the origin is locked to
-    /// Cloudflare (docs/02-architecture.md §10). On a directly-exposed origin an
-    /// attacker could rotate this header to get an unlimited budget, so the
-    /// origin lock is load-bearing for this control, not just for the WAF.
+    /// Resolved once at the edge by <see cref="ClientAddressMiddleware"/>, which
+    /// believes a forwarded header only from a configured trusted proxy. That
+    /// matters more here than anywhere else: a header trusted without checking
+    /// the sender lets an attacker rotate it for an unlimited budget, and a
+    /// header ignored behind a proxy collapses every caller into one bucket.
+    /// Both turn the credential-stuffing control off without failing anything.
     /// </remarks>
-    private static string ClientKey(HttpContext context)
-    {
-        var forwarded = context.Request.Headers["CF-Connecting-IP"].FirstOrDefault();
-
-        if (!string.IsNullOrWhiteSpace(forwarded) &&
-            System.Net.IPAddress.TryParse(forwarded, out var parsed))
-        {
-            return "ip:" + parsed;
-        }
-
-        return "ip:" + (context.Connection.RemoteIpAddress?.ToString() ?? "unknown");
-    }
+    private static string ClientKey(HttpContext context) =>
+        "ip:" + (ClientAddress.Of(context) ?? "unknown");
 
     private static string PrincipalKey(HttpContext context)
     {

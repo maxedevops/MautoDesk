@@ -277,3 +277,40 @@ Two mechanisms, because they fail differently:
 
 It is a net, not a proof. It does not make logging a customer object acceptable,
 and the CRM module should not treat it as permission to try.
+
+---
+
+## 11. Who the caller is, behind a proxy
+
+The per-IP auth limit is what stops credential stuffing — one password tried
+against thousands of accounts, never tripping a single account lockout. It is
+only as good as the answer to "where did this request come from", and that
+answer has two silent failure modes:
+
+- **Believe a forwarded header from anyone** and an attacker rotates it,
+  presenting a fresh address per request and never meeting the limiter.
+- **Ignore it behind a proxy** and every caller on the internet shares one
+  bucket, because they all appear to arrive from the reverse proxy.
+
+`ClientAddressMiddleware` resolves the address once, at the front of the
+pipeline, and the rate limiter, the security log, and the audit ledger all read
+that one value. Previously each read the header itself — three chances to
+disagree about who the caller was, and the rate limiter is the one where
+disagreeing is a vulnerability.
+
+A forwarded header is read **only** when the immediate peer is listed in
+`Network:TrustedProxies`. `X-Forwarded-For` is walked from the right, skipping
+hops that are themselves trusted; the first untrusted address is the furthest
+point there is any reason to believe. Everything left of it is caller-controlled.
+
+**Configuration is deployment-shaped and cannot be inferred:**
+
+| Topology | Setting |
+| --- | --- |
+| Caddy/Traefik on the same host or container network | The default (loopback + private ranges) |
+| Cloudflare in front of the origin | **Add Cloudflare's published ranges.** They are public addresses and are not trusted by default, so without this every caller shares one partition |
+| Origin directly exposed | Empty the list. No header is believed; the socket address is the only truth available |
+
+A malformed entry throws at startup rather than quietly widening who is
+believed. `ClientAddressResolverTests` covers spoofing from an untrusted peer,
+chain walking, and the empty-list case.
