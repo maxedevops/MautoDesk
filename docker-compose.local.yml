@@ -91,6 +91,11 @@ services:
       ASPNETCORE_ENVIRONMENT: Production
       ConnectionStrings__Default: >-
         Host=postgres;Port=5432;Database=mautodesk;Username=mautodesk_app;Password=devpw;Maximum Pool Size=20
+      # The outbox dispatcher's own role. Cross-tenant on app.outbox_message and
+      # nothing else; mautodesk_app cannot see that table without a tenant scope,
+      # so it cannot do this job (V0011).
+      Outbox__ConnectionString: >-
+        Host=postgres;Port=5432;Database=mautodesk;Username=mautodesk_dispatcher;Password=devpw;Maximum Pool Size=4
       Jwt__SigningKey: bWF1dG9kZXNrLWxvY2FsLWRldi1qd3Qtc2lnbmluZy4=
       Jwt__Issuer: http://localhost:${LOCAL_PORT:-8088}
       Jwt__Audience: mautodesk-api
@@ -219,10 +224,13 @@ services:
         $$PSQL -c \"insert into public.schema_version (filename) values ('$$name')\";
       done;
       $$PSQL -c \"alter role mautodesk_app with password 'devpw'\";
+      $$PSQL -c \"alter role mautodesk_dispatcher with password 'devpw'\";
       gaps=$$(psql -h postgres -U postgres -d mautodesk -t -A -c 'select count(*) from app.rls_coverage_gaps();');
       if [ \"$$gaps\" != \"0\" ]; then echo \"FAIL: $$gaps RLS coverage gap(s)\"; exit 1; fi;
       echo 'RLS coverage OK';
       psql -h postgres -U postgres -d mautodesk -v ON_ERROR_STOP=1 -f /db/tests/isolation_probe.sql;
+      psql -h postgres -U postgres -d mautodesk -v ON_ERROR_STOP=1 -f /db/tests/v0010_invariants.sql;
+      psql -h postgres -U postgres -d mautodesk -v ON_ERROR_STOP=1 -f /db/tests/rule_pack_approval.sql;
       "
     networks: [internal]
 

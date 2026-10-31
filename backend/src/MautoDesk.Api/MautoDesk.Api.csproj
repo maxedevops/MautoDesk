@@ -4,6 +4,8 @@
     <ProjectReference Include="..\MautoDesk.Infrastructure\MautoDesk.Infrastructure.csproj" />
     <ProjectReference Include="..\Modules\Inventory\MautoDesk.Inventory.Infrastructure\MautoDesk.Inventory.Infrastructure.csproj" />
     <ProjectReference Include="..\Modules\Identity\MautoDesk.Identity.Infrastructure\MautoDesk.Identity.Infrastructure.csproj" />
+    <ProjectReference Include="..\Modules\Sales\MautoDesk.Sales.Infrastructure\MautoDesk.Sales.Infrastructure.csproj" />
+    <ProjectReference Include="..\Modules\Compliance\MautoDesk.Compliance.Infrastructure\MautoDesk.Compliance.Infrastructure.csproj" />
   </ItemGroup>
 
   <ItemGroup>

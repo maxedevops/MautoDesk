@@ -88,6 +88,12 @@ services:
       # database (ADR-0002).
       ConnectionStrings__Default: >-
         Host=postgres;Port=5432;Database=mautodesk;Username=mautodesk_app;Password=${APP_DB_PASSWORD:?set APP_DB_PASSWORD};Maximum Pool Size=20
+      # A separate, least-privileged role for the outbox dispatcher (V0011).
+      # It can read across tenants on app.outbox_message and reach nothing else;
+      # mautodesk_app can reach everything a request needs and not the outbox.
+      # Neither can do the other's job, which is the point.
+      Outbox__ConnectionString: >-
+        Host=postgres;Port=5432;Database=mautodesk;Username=mautodesk_dispatcher;Password=${DISPATCHER_DB_PASSWORD:?set DISPATCHER_DB_PASSWORD};Maximum Pool Size=4
       Jwt__SigningKey: ${JWT_SIGNING_KEY:?generate with openssl rand -base64 32}
       Jwt__Issuer: https://${APP_DOMAIN}
       Jwt__Audience: mautodesk-api
@@ -238,6 +244,7 @@ services:
     environment:
       PGPASSWORD: ${POSTGRES_SUPERUSER_PASSWORD:?set POSTGRES_SUPERUSER_PASSWORD}
       APP_DB_PASSWORD: ${APP_DB_PASSWORD:?set APP_DB_PASSWORD}
+      DISPATCHER_DB_PASSWORD: ${DISPATCHER_DB_PASSWORD:?set DISPATCHER_DB_PASSWORD}
     entrypoint: >
       /bin/sh -c "
       set -e;
@@ -253,6 +260,7 @@ services:
       done;
       echo '--- application role password ---';
       $$PSQL -c \"alter role mautodesk_app with password '$$APP_DB_PASSWORD'\";
+      $$PSQL -c \"alter role mautodesk_dispatcher with password '$$DISPATCHER_DB_PASSWORD'\";
       echo '--- RLS coverage ---';
       gaps=$$(psql -h postgres -U postgres -d mautodesk -t -A -c 'select count(*) from app.rls_coverage_gaps();');
       if [ \"$$gaps\" != \"0\" ]; then

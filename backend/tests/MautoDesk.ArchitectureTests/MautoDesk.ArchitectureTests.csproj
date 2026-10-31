@@ -7,6 +7,13 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\MautoDesk.Api\MautoDesk.Api.csproj" />
+    <!-- The deterministic engines. The no-floating-point rule matters more here
+         than anywhere else in the system: these assemblies compute the numbers
+         that get printed on a retail contract. -->
+    <ProjectReference Include="..\..\src\Modules\Sales\MautoDesk.Sales.Domain\MautoDesk.Sales.Domain.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Sales\MautoDesk.Sales.Contracts\MautoDesk.Sales.Contracts.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Compliance\MautoDesk.Compliance.Domain\MautoDesk.Compliance.Domain.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Compliance\MautoDesk.Compliance.Contracts\MautoDesk.Compliance.Contracts.csproj" />
   </ItemGroup>
 
   <ItemGroup>

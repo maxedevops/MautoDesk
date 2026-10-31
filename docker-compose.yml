@@ -148,6 +148,8 @@ services:
       fi;
       echo 'RLS coverage OK';
       psql -h postgres -U postgres -d mautodesk -v ON_ERROR_STOP=1 -f /db/tests/isolation_probe.sql;
+      psql -h postgres -U postgres -d mautodesk -v ON_ERROR_STOP=1 -f /db/tests/v0010_invariants.sql;
+      psql -h postgres -U postgres -d mautodesk -v ON_ERROR_STOP=1 -f /db/tests/rule_pack_approval.sql;
       "
 
 volumes:

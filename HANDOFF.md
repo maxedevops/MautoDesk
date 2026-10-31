@@ -1,10 +1,11 @@
 # MautoDesk — Handoff
 
 **State:** Phases 1–10 of 13 complete, plus MFA recovery codes, wired-up
-inventory writes, photo uploads, audit-ledger writes, and PII log redaction ·
-backend green (99 unit, 89 integration, 8 architecture) and frontend unit green
-(21); the e2e suite needs a running stack · zero known dependency
-vulnerabilities
+inventory writes, photo uploads, audit-ledger writes, PII log redaction, the
+DealerOS compliance/lending/titling schema, API idempotency, the outbox
+dispatcher, and the deal and regulatory engines · backend green (204 unit, 101
+integration, 20 architecture) and frontend unit green (21); the e2e suite needs a
+running stack · zero known dependency vulnerabilities
 
 > **Checkpointed.** Phases 1–10 are in a single initial commit on `main`, pushed
 > to <https://github.com/maxedevops/MautoDesk>. Work from a branch off `main`
@@ -44,6 +45,12 @@ The application role has no password until you set one:
 docker exec mautodesk-postgres psql -U postgres -d mautodesk -c "alter role mautodesk_app with password 'devpw';"
 ```
 
+So does the dispatcher's role, which is separate on purpose (V0011):
+
+```bash
+docker exec mautodesk-postgres psql -U postgres -d mautodesk -c "alter role mautodesk_dispatcher with password 'devpw';"
+```
+
 Then the API and the web app, each needing configuration (see `.env.example`):
 
 ```bash
@@ -69,19 +76,45 @@ more than one project's database.
 
 | Area | State |
 | --- | --- |
-| Database | 9 migrations, RLS enabled *and forced* on every tenant table, 0 coverage gaps, hash-chained audit ledger |
-| Backend | 14 projects. SharedKernel, shared Infrastructure, Inventory module (4), Identity module (4), API host |
+| Database | 12 migrations, RLS enabled *and forced* on every tenant table, 0 coverage gaps, hash-chained audit ledger |
+| Backend | 18 projects. SharedKernel, shared Infrastructure, Inventory (4), Identity (4), Sales (Domain + Contracts), Compliance (Domain + Contracts), API host |
 | Inventory | Vehicles, VIN decode (NHTSA), photos (quarantine-first upload, verified and re-encoded), costs schema, status lifecycle, publish rules, outbox |
 | Identity | Argon2id, mandatory TOTP MFA, single-use recovery codes, JWT, refresh rotation with reuse detection, exponential lockout |
 | Frontend | Inventory grid, vehicle detail, add-vehicle form, photo upload and gallery, status changes and publish (all wired to the API), login (3-step, plus recovery-code sign-in), recovery-code settings, BFF session, generated API client, design tokens |
+| Deal engine | Pure, deterministic, 25-step pipeline; three lender payment methods; refuses an unapproved rule set |
+| Regulatory engine | Pure rule resolver and evaluator; PASS/WARNING/BLOCK/REVIEW; reproducible input and result hashes |
+| Deals | Create, read, list, status transitions; `POST /deals/{id}/calculate` writes an append-only snapshot; `POST /deals/{id}/evaluate` writes a compliance run |
+| Idempotency | `Idempotency-Key` on `POST`: replay, 409 on key reuse, release on 5xx, 24 h retention |
+| Outbox | Dispatcher drains `app.outbox_message` as a least-privileged role; lease, backoff, dead-letter |
 | Contracts | `contracts/openapi.json` **generated** from the endpoints; drift fails the build |
 | CI | 8 jobs: secrets, database, contract, design tokens, backend, frontend, e2e, CodeQL |
 
 ### Not built — designed only
 
-Costs UI · CRM · deals and the deal engine · documents · e-signature ·
-OCR · messaging · marketplace publishing · reporting · billing · the outbox
-dispatcher · Terraform.
+Costs UI · CRM · the lender matrix · the Oklahoma rule pack · titles, liens,
+tags and pre-registration · documents · e-signature · Deal Guardian · OCR ·
+messaging · marketplace publishing · reporting · billing · Terraform · every
+deal and compliance screen in the frontend.
+
+**The Oklahoma rule pack is six DRAFT rules and nothing approved — but the source bar is now met.** V0012 seeds
+`OK-PREREG-001`, `OK-TEMP-TAG-001`, `OK-PLATE-TRANSFER-001`, `OK-TITLE-TYPE-001`,
+`OK-TITLE-ETBS-001` and `OK-TITLE-VIN-INSPECTION-001` with condition trees and 23
+test cases that run in CI — all `status = 'draft'` with `approved_at IS NULL`, so
+the engine evaluates none of them. **An Oklahoma deal returns GREEN because nothing
+is approved, not because it is lawful.**
+
+`db/sources/us-ok/` holds the **primary text** — the Service Oklahoma press
+release, the 11-page dealer FAQ and the Electronic Titles page and FAQ, archived
+verbatim and hashed. `RegulatoryRuleTests` re-hashes every file on each build, so
+"this rule was written against this text" is checkable rather than asserted. Each
+rule's `approval_note` quotes the sentence it came from.
+
+What remains is **review**, not sourcing. Counsel must settle the three notes
+flagged `INTERPRETATION TO CONFIRM` (whether pre-registration really excludes
+wholesale, whether a transferred plate is a block or a warning, whether an
+outstanding VIN inspection should stop contracting as well as the title request),
+`compliance.jurisdiction_holiday` needs populating for `US-OK`, and a named
+reviewer sets `approved_by`. `db/sources/us-ok/README.md` is the checklist.
 
 The majority of remaining *risk* lives here, not in what is built.
 
@@ -123,10 +156,12 @@ state.
 
 ### Important, not urgent
 
-- **No idempotency keys.** Specified in the contract; money-adjacent endpoints are
-  coming.
-- **No outbox dispatcher.** Messages are written correctly and transactionally;
-  nothing consumes them.
+- **No endpoint yet *requires* an idempotency key.** The mechanism is in place and
+  tested; making it mandatory is a per-endpoint decision, and belongs with the
+  first endpoint that submits something to a lender or the state.
+- **Nothing consumes domain events yet.** The dispatcher drains the outbox and
+  hands each message to `IEventPublisher`; the default implementation records the
+  delivery and delivers it to nothing, because no module subscribes yet.
 
 ### Known and accepted
 
@@ -156,6 +191,21 @@ they are the sort of thing that costs an afternoon.
 | **EF raw SQL rejects `DBNull.Value`** | Its overload takes `IEnumerable<object>`. Use `NpgsqlParameter` instances for nullable values |
 | **`SqlQueryRaw` scalars must be named `"Value"`** | EF wraps them in `select s."Value" from (…) as s` |
 | **`inet` columns need a value converter** | Npgsql maps `inet` to `IPAddress`, not `string` |
+| **`superseded_at` on a calculation can never be set** | The column exists and the V0004 comment describes marking a prior row superseded, but the immutability trigger raises on *any* update and the app role's UPDATE grant is revoked — so nothing can write it. Which version is current is expressed by `sales.deal.current_calculation_id` instead |
+| **Money and rates need JSON converters to round-trip** | `Money` and `Percentage` are get-only structs with private constructors. Without the converters in `SnapshotSerialization.Options` they serialize as JSON *numbers* and deserialize to **zero** — a snapshot that stores the right figures and reads back as a deal worth nothing |
+| **EF needs the deal→calculation relationship declared** | Saving a deal and its new snapshot together emits the `current_calculation_id` UPDATE before the INSERT it points at, and the foreign key rejects it. `DealConfiguration` declares `HasOne<DealCalculationRecord>().WithMany()` purely for write ordering |
+| **`UPDATE_CONTRACT=1` used to write to the wrong repository** | `RepositoryRoot()` looked for a `.git` *directory*; in a worktree `.git` is a *file*, so it walked past and regenerated the contract into the main checkout. Fixed to accept either |
+| **Compliance evaluations were never audited** | `IAuditLog.Record` only adds to the change tracker and lands when the caller saves. `ComplianceEvaluationHandler` owned no unit of work, so every entry it recorded was silently discarded. The run and its audit entry now commit in one transaction, pinned by `Evaluating_a_deal_is_recorded_in_the_audit_ledger` |
+| **`connection.BeginTransactionAsync()` goes behind EF's back** | It starts a transaction on a connection the context owns but knows nothing about, so EF's next command runs inside a transaction it cannot roll back. Use `Database.BeginTransactionAsync()`, and `GetDbTransaction()` for raw commands |
+| **A `'\x…'` bytea literal can lose its first byte in transit** | Tooling that interprets backslashes eats the escape, and the result is a hash that is subtly wrong rather than obviously missing. `decode('…','hex')` has no backslash. The archived-source hash test is what caught it |
+| **"The latest run" is not "the run I just wrote"** | `ComplianceEvaluationHandler` used to read back the newest run for the deal, which is ambiguous when two share a timestamp and plain wrong when two people evaluate the same deal at once. It reads by id now, and `GetLatestAsync` orders by `executed_at, id` so the GET is deterministic too |
+| **A `required` member on a request DTO becomes a 500, not a 400** | The JSON deserializer throws on a missing `required` member, the exception handler clears the response, and the security headers go with it. Validate in the mapping method instead and return a 422 that names the field |
+| **The deal engine refuses every jurisdiction today** | Every seeded rule set is unapproved with `'UNVERIFIED'` placeholders, so `DealEngine.Calculate` returns `deal.rule_set_unapproved` for all of them. That is the designed behaviour and there is a test on it. Do not relax it to make a demo work |
+| **An APR is a percent, not a fraction** | `Percentage` carries the unit in the type: `FromPercent(8.99)` is 8.99%, and `AsFraction` is the only way to the 0.0899 the formula needs. There is no implicit conversion from `decimal`, so a bare number cannot become a rate by accident |
+| **A business-day calendar with no holidays is refused** | `BusinessDayCalendar.ForJurisdiction` throws on an empty set, because `compliance.jurisdiction_holiday` is seeded empty and a deadline computed against it would be wrong on every holiday, silently. Use `WithNoHolidays` to say so deliberately |
+| **The dispatcher needs its own database password** | `mautodesk_dispatcher` is created by V0011 without one, exactly as `mautodesk_app` is. `alter role mautodesk_dispatcher with password 'devpw';`. Without `Outbox__ConnectionString` the API starts, logs a warning, and publishes nothing |
+| **The app connection cannot drain the outbox** | `app.outbox_message` is under RLS and `mautodesk_app` has no tenant in scope in a background loop, so it sees zero rows — forever, silently. This is why there is a second role, and `OutboxDispatcherTests` asserts it |
+| **`response_body` is `json`, not `jsonb`** | `jsonb` reparses, so a replayed body comes back with different whitespace than the original. Byte-identical replay is the promise; V0011 changes the column type |
 | **A reverse proxy needs `Network__TrustedProxies` set** | A forwarded header is believed only from a listed peer. Behind Cloudflare you must add its public ranges, or every caller shares one rate-limit partition; with nothing in front, empty the list. `docs/06-backend.md` §11 |
 | **Presigned URLs ignore the endpoint's scheme** | `GetPreSignedUrlRequest.Protocol` defaults to HTTPS regardless of `ServiceURL`, so a local MinIO gets an `https://localhost:9000` URL nothing can connect to. `S3ObjectStore` sets it from the configured endpoint |
 | **Server Actions cap request bodies at 1 MB** | Which rejects essentially every photo a phone takes. `next.config.ts` raises it to 25 MB; the API's own 20 MB limit is the real one |
@@ -201,4 +251,6 @@ audit writes, and log redaction — which used to head this list — are done.
 | `docs/08-authentication.md` | Auth decisions, the tenant boundary at login, attack-path tests |
 | `docs/09-security-review.md` | Control coverage **with evidence**, 11 findings, FTC posture |
 | `docs/10-testing.md` | What each test layer buys, and what is still untested |
+| `docs/11-dealeros-assessment.md` | The DealerOS assessment: scoring, build/retain/replace matrix, cost model, roadmap |
+| `docs/12-dealeros-handoff.md` | **Start here on the DealerOS branch.** What it contains, what is verified, the defects it fixed, and where to pick up |
 | `CLAUDE.md` | Working agreements and hard rules for anyone changing the code |
