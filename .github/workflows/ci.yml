@@ -445,7 +445,11 @@ jobs:
         if: failure()
         with:
           name: playwright-report
-          path: frontend/e2e/playwright-report/
+          # Both: the report is the readable summary, test-results/ holds the
+          # trace, the screenshot and error-context.md — the page as it was.
+          path: |
+            frontend/e2e/playwright-report/
+            frontend/e2e/test-results/
           retention-days: 7
 
   # ---------------------------------------------------------------------------

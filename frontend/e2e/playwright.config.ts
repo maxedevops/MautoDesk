@@ -28,7 +28,14 @@ export default defineConfig({
   // because a test that only passes on retry still shows up in the report.
   retries: process.env['CI'] ? 1 : 0,
 
-  reporter: process.env['CI'] ? [['github'], ['list']] : [['list']],
+  // The html reporter exists so CI has something to upload. Without it
+  // playwright-report/ is never written, and the run's upload-artifact step
+  // produced an empty artifact every time — which is how an e2e failure stayed
+  // undiagnosable: annotations said what the assertion was, nothing said what
+  // the page actually contained.
+  reporter: process.env['CI']
+    ? [['github'], ['list'], ['html', { open: 'never' }]]
+    : [['list']],
 
   timeout: 30_000,
   expect: { timeout: 10_000 },
