@@ -347,7 +347,7 @@ jobs:
         env:
           POSTGRES_PASSWORD: devpw
           POSTGRES_DB: mautodesk
-        ports: [''5432:5432'']
+        ports: ['5432:5432']
         options: >-
           --health-cmd "pg_isready -U postgres"
           --health-interval 5s --health-timeout 5s --health-retries 20
@@ -385,7 +385,7 @@ jobs:
           for f in db/migrations/V*.sql; do
             psql -h localhost -U postgres -d mautodesk -v ON_ERROR_STOP=1 -q -f "$f"
           done
-          psql -h localhost -U postgres -d mautodesk -c "alter role mautodesk_app with password ''devpw'';"
+          psql -h localhost -U postgres -d mautodesk -c "alter role mautodesk_app with password 'devpw';"
           psql -h localhost -U postgres -d mautodesk -v ON_ERROR_STOP=1 -q -f db/seed/e2e.sql
 
       - run: pnpm install --frozen-lockfile
@@ -398,14 +398,14 @@ jobs:
       - name: Start the API
         run: |
           dotnet run --project backend/src/MautoDesk.Api -c Release &
-          timeout 90 bash -c ''until curl -sf http://localhost:5080/health/live; do sleep 2; done''
+          timeout 90 bash -c 'until curl -sf http://localhost:5080/health/live; do sleep 2; done'
 
       - name: Start the web app
         working-directory: frontend
         run: |
           pnpm --filter @mautodesk/web build
           pnpm --filter @mautodesk/web start &
-          timeout 90 bash -c ''until curl -sf http://localhost:3000/login; do sleep 2; done''
+          timeout 90 bash -c 'until curl -sf http://localhost:3000/login; do sleep 2; done'
 
       - name: Playwright
         working-directory: frontend
