@@ -54,6 +54,15 @@ public interface IRegulatoryRuleStore
         CancellationToken cancellationToken);
 
     /// <summary>The pack version in force, for the run record.</summary>
+    /// <summary>
+    /// Whether this jurisdiction is one the system knows as a law-making body.
+    /// </summary>
+    /// <param name="jurisdictionCode">The code to look for, e.g. <c>US-OK</c>.</param>
+    /// <param name="cancellationToken">Cancels the read.</param>
+    public Task<bool> JurisdictionExistsAsync(
+        string jurisdictionCode,
+        CancellationToken cancellationToken);
+
     public Task<string> ResolvePackVersionAsync(
         string jurisdictionCode,
         DateOnly onDate,
@@ -199,6 +208,24 @@ public sealed class ComplianceEvaluationHandler
         }
 
         var context = facts.Value!;
+
+        // A deal in a state we hold no law for is a refusal, not an error. Without
+        // this the first thing to notice is the foreign key on compliance_run, which
+        // surfaces as a 500 — so every dealer in a state with no rule pack would see
+        // the evaluation fail as though the system were broken, rather than be told
+        // that their jurisdiction is not covered yet.
+        var known = await _rules
+            .JurisdictionExistsAsync(context.JurisdictionCode, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (!known)
+        {
+            return Error.Validation(
+                "compliance.jurisdiction_not_covered",
+                $"{context.JurisdictionCode} is not a jurisdiction this system holds law for, so " +
+                "there is nothing to evaluate this deal against. A rule pack has to be loaded " +
+                "and approved before compliance can run here.");
+        }
 
         var rows = await _rules
             .FindApplicableAsync(context.JurisdictionCode, triggerEvent, context.DealDate, cancellationToken)

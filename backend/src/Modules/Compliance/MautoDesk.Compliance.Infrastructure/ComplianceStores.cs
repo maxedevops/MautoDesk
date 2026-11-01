@@ -103,6 +103,31 @@ public sealed class RegulatoryRuleStore : IRegulatoryRuleStore
     /// in force, so it changes exactly when the applicable set does. A hand-kept
     /// version number would be one more thing to forget to bump.
     /// </remarks>
+    /// <inheritdoc />
+    public async Task<bool> JurisdictionExistsAsync(
+        string jurisdictionCode,
+        CancellationToken cancellationToken)
+    {
+        const string Sql = """
+            select exists (
+              select 1 from compliance.regulatory_jurisdiction where code = @jurisdiction
+            )
+            """;
+
+        var connection = await OpenAsync(cancellationToken).ConfigureAwait(false);
+
+        await using var command = connection.CreateCommand();
+        command.CommandText = Sql;
+        command.Parameters.Add(new NpgsqlParameter("jurisdiction", NpgsqlDbType.Text)
+        {
+            Value = jurisdictionCode,
+        });
+
+        var result = await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
+
+        return result is true;
+    }
+
     public async Task<string> ResolvePackVersionAsync(
         string jurisdictionCode,
         DateOnly onDate,

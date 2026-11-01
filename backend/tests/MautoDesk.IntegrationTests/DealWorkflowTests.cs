@@ -447,6 +447,52 @@ public sealed class DealWorkflowTests : IAsyncLifetime
     // Helpers and fixtures. Fictional throughout.
     // -----------------------------------------------------------------------
 
+    /// <summary>
+    /// A deal in a state the system holds no law for is refused, not a 500.
+    /// </summary>
+    /// <remarks>
+    /// Before the handler checked, the first thing to object was
+    /// <c>compliance_run</c>'s foreign key on the jurisdiction, which reached the
+    /// caller as an unhandled 500. Every dealer in an uncovered state would have
+    /// seen compliance appear broken rather than be told it does not run there
+    /// yet — and 500s do not carry a reason a dealer can act on.
+    /// </remarks>
+    [Fact]
+    public async Task A_deal_in_an_uncovered_jurisdiction_is_refused_with_a_reason()
+    {
+        var uncovered = Guid.Parse("77777777-0000-4000-8000-000000000001");
+
+        await using (var connection = new NpgsqlConnection(ApiFixture.AdminConnectionString))
+        {
+            await connection.OpenAsync();
+
+            // A taxing jurisdiction with no matching regulatory jurisdiction: the
+            // state exists for tax purposes, no rule pack has been loaded for it.
+            await using var command = new NpgsqlCommand("""
+                insert into sales.tax_jurisdiction (id, state_code, level, name)
+                values (@id, 'YY', 'state', 'Uncovered Jurisdiction (fixture only)')
+                on conflict (id) do nothing
+                """, connection);
+            command.Parameters.AddWithValue("id", uncovered);
+            await command.ExecuteNonQueryAsync();
+        }
+
+        var client = _fixture.ClientFor(_fixture.UserA);
+        var deal = await CreateDealAsync(client, uncovered);
+
+        var response = await client.PostAsync(
+            new Uri($"/api/v1/deals/{deal.Id}/evaluate", UriKind.Relative), null);
+
+        response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
+
+        var body = await response.Content.ReadAsStringAsync();
+
+        body.Should().Contain(
+            "compliance.jurisdiction_not_covered",
+            "the refusal has to name its reason, or the dealer cannot tell it apart from a fault");
+        body.Should().Contain("US-YY", "the message names the jurisdiction that is not covered");
+    }
+
     private static async Task<DealDto> CreateDealAsync(HttpClient client, Guid? jurisdictionId)
     {
         var response = await client.PostAsJsonAsync(
@@ -487,10 +533,20 @@ public sealed class DealWorkflowTests : IAsyncLifetime
         await using var connection = new NpgsqlConnection(ApiFixture.AdminConnectionString);
         await connection.OpenAsync();
 
+        // The regulatory jurisdiction is seeded here, not only in
+        // SeedBlockingRuleAsync. It used to live there alone, so a test that
+        // evaluated a deal without seeding a blocking rule depended on some
+        // earlier test having created US-ZZ. On a developer machine with an
+        // accumulated database that always held; against a fresh one it failed on
+        // compliance_run's foreign key and surfaced as a 500.
         await using var jurisdiction = new NpgsqlCommand("""
             insert into sales.tax_jurisdiction (id, state_code, level, name)
             values (@id, 'ZZ', 'state', 'Test Jurisdiction (fixture only)')
-            on conflict (id) do nothing
+            on conflict (id) do nothing;
+
+            insert into compliance.regulatory_jurisdiction (code, level, name)
+            values ('US-ZZ', 'state', 'Test Jurisdiction (fixture only)')
+            on conflict (code) do nothing;
             """, connection);
         jurisdiction.Parameters.AddWithValue("id", FixtureJurisdiction);
         await jurisdiction.ExecuteNonQueryAsync();

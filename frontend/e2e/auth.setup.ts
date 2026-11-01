@@ -75,6 +75,16 @@ setup('sign in', async ({ page }) => {
     );
   }
 
+  // Enrolment does not land on the grid: it diverts to the recovery codes,
+  // because that response is the only time the server hands them over. This
+  // expected /inventory and so had never passed — the suite had simply never
+  // run in CI. Asserting the real destination keeps the divert covered; moving
+  // off it afterwards proves the session is usable, which is what the saved
+  // storage state is for.
+  await expect(page).toHaveURL('/settings/recovery-codes?issued=1');
+  await expect(page.locator('li').first()).toBeVisible();
+
+  await page.goto('/inventory');
   await expect(page).toHaveURL('/inventory');
 
   // The sealed cookie, reused by every authenticated test.
