@@ -82,7 +82,13 @@ setup('sign in', async ({ page }) => {
   // off it afterwards proves the session is usable, which is what the saved
   // storage state is for.
   await expect(page).toHaveURL('/settings/recovery-codes?issued=1');
-  await expect(page.locator('li').first()).toBeVisible();
+
+  // The heading, not the codes. takeRecoveryCodes() clears on read by design, so
+  // whether the list is still on the page depends on how many times it has been
+  // rendered — asserting on it here failed for exactly that reason. The codes
+  // are worth their own spec, one that controls the stash; shared auth setup
+  // only needs to know it landed on the right page.
+  await expect(page.getByRole('heading', { name: 'Recovery codes' })).toBeVisible();
 
   await page.goto('/inventory');
   await expect(page).toHaveURL('/inventory');
