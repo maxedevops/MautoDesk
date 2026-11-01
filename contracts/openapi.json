@@ -1312,6 +1312,526 @@
         },
         "x-permission": "inventory.photo.write"
       }
+    },
+    "/api/v1/deals": {
+      "get": {
+        "tags": [
+          "Deals"
+        ],
+        "summary": "List deals",
+        "operationId": "listDeals",
+        "parameters": [
+          {
+            "name": "Page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "PageSize",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "Status",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "CustomerId",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "VehicleId",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PagedResultOfDealSummaryDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired, or invalid credentials.",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "403": {
+            "description": "The principal lacks the required permission.",
+            "content": {
+              "application/problem+json": { }
+            }
+          }
+        },
+        "x-permission": "sales.deal.read"
+      },
+      "post": {
+        "tags": [
+          "Deals"
+        ],
+        "summary": "Open a deal",
+        "operationId": "createDeal",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateDealCommand"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DealDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired, or invalid credentials.",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "403": {
+            "description": "The principal lacks the required permission.",
+            "content": {
+              "application/problem+json": { }
+            }
+          }
+        },
+        "x-permission": "sales.deal.write"
+      }
+    },
+    "/api/v1/deals/{dealId}": {
+      "get": {
+        "tags": [
+          "Deals"
+        ],
+        "summary": "Get a deal",
+        "operationId": "getDeal",
+        "parameters": [
+          {
+            "name": "dealId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DealDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired, or invalid credentials.",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "403": {
+            "description": "The principal lacks the required permission.",
+            "content": {
+              "application/problem+json": { }
+            }
+          }
+        },
+        "x-permission": "sales.deal.read"
+      }
+    },
+    "/api/v1/deals/{dealId}/status": {
+      "post": {
+        "tags": [
+          "Deals"
+        ],
+        "summary": "Change deal status",
+        "operationId": "changeDealStatus",
+        "parameters": [
+          {
+            "name": "dealId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangeDealStatusCommand"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DealDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired, or invalid credentials.",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "403": {
+            "description": "The principal lacks the required permission.",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "404": {
+            "description": "Not found, or the resource belongs to another tenant. These cases are deliberately indistinguishable: a 403 would confirm the record exists.",
+            "content": {
+              "application/problem+json": { }
+            }
+          }
+        },
+        "x-permission": "sales.deal.write"
+      }
+    },
+    "/api/v1/deals/{dealId}/calculate": {
+      "post": {
+        "tags": [
+          "Deals"
+        ],
+        "summary": "Price the deal and append a calculation snapshot",
+        "operationId": "calculateDeal",
+        "parameters": [
+          {
+            "name": "dealId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CalculateDealRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DealCalculationDto2"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired, or invalid credentials.",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "403": {
+            "description": "The principal lacks the required permission.",
+            "content": {
+              "application/problem+json": { }
+            }
+          }
+        },
+        "x-permission": "sales.deal.write"
+      }
+    },
+    "/api/v1/deals/{dealId}/calculation": {
+      "get": {
+        "tags": [
+          "Deals"
+        ],
+        "summary": "Get the current calculation snapshot",
+        "operationId": "getDealCalculation",
+        "parameters": [
+          {
+            "name": "dealId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DealCalculationDto2"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired, or invalid credentials.",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "403": {
+            "description": "The principal lacks the required permission.",
+            "content": {
+              "application/problem+json": { }
+            }
+          }
+        },
+        "x-permission": "sales.deal.read"
+      }
+    },
+    "/api/v1/deals/{dealId}/evaluate": {
+      "post": {
+        "tags": [
+          "Deals"
+        ],
+        "summary": "Evaluate the deal against the rules in force on its date",
+        "operationId": "evaluateDealCompliance",
+        "parameters": [
+          {
+            "name": "dealId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "trigger",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ComplianceRunDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired, or invalid credentials.",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "403": {
+            "description": "The principal lacks the required permission.",
+            "content": {
+              "application/problem+json": { }
+            }
+          }
+        },
+        "x-permission": "compliance.evaluation.read"
+      }
+    },
+    "/api/v1/deals/{dealId}/compliance": {
+      "get": {
+        "tags": [
+          "Deals"
+        ],
+        "summary": "Get the most recent compliance run",
+        "operationId": "getDealCompliance",
+        "parameters": [
+          {
+            "name": "dealId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ComplianceRunDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired, or invalid credentials.",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "403": {
+            "description": "The principal lacks the required permission.",
+            "content": {
+              "application/problem+json": { }
+            }
+          }
+        },
+        "x-permission": "compliance.evaluation.read"
+      }
     }
   },
   "components": {
@@ -1358,6 +1878,90 @@
           }
         }
       },
+      "CalculateDealRequest": {
+        "type": "object",
+        "properties": {
+          "vehiclePrice": {
+            "type": "string",
+            "nullable": true
+          },
+          "vehicleCost": {
+            "type": "string",
+            "nullable": true
+          },
+          "lineItems": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DealLineItemRequest"
+            }
+          },
+          "trade": {
+            "$ref": "#/components/schemas/TradeInRequest"
+          },
+          "cashDown": {
+            "type": "string",
+            "nullable": true
+          },
+          "finance": {
+            "$ref": "#/components/schemas/FinanceRequestDto"
+          },
+          "dealDate": {
+            "type": "string",
+            "format": "date",
+            "nullable": true
+          }
+        }
+      },
+      "CalculationStepDto": {
+        "required": [
+          "order",
+          "code",
+          "label",
+          "amount",
+          "runningTotal",
+          "note"
+        ],
+        "type": "object",
+        "properties": {
+          "order": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "code": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "amount": {
+            "type": "string"
+          },
+          "runningTotal": {
+            "type": "string",
+            "nullable": true
+          },
+          "note": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "ChangeDealStatusCommand": {
+        "required": [
+          "status"
+        ],
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string",
+            "default": null,
+            "nullable": true
+          }
+        }
+      },
       "ChangePriceRequest": {
         "required": [
           "priceType",
@@ -1389,6 +1993,164 @@
             "type": "string"
           },
           "reason": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "ComplianceResultDto": {
+        "required": [
+          "ruleCode",
+          "ruleVersion",
+          "status",
+          "severity",
+          "message",
+          "requirementCode",
+          "deadline",
+          "sourceCitation",
+          "evaluationDetail"
+        ],
+        "type": "object",
+        "properties": {
+          "ruleCode": {
+            "type": "string"
+          },
+          "ruleVersion": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "severity": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "requirementCode": {
+            "type": "string",
+            "nullable": true
+          },
+          "deadline": {
+            "type": "string",
+            "format": "date",
+            "nullable": true
+          },
+          "sourceCitation": {
+            "type": "string",
+            "nullable": true
+          },
+          "evaluationDetail": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "ComplianceRunDto": {
+        "required": [
+          "id",
+          "dealId",
+          "triggerEvent",
+          "jurisdictionCode",
+          "evaluatedOn",
+          "engineVersion",
+          "rulePackVersion",
+          "overallStatus",
+          "blockingCount",
+          "warningCount",
+          "executedAt",
+          "results",
+          "inputHash",
+          "resultHash"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "dealId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "triggerEvent": {
+            "type": "string"
+          },
+          "jurisdictionCode": {
+            "type": "string"
+          },
+          "evaluatedOn": {
+            "type": "string",
+            "format": "date"
+          },
+          "engineVersion": {
+            "type": "string"
+          },
+          "rulePackVersion": {
+            "type": "string"
+          },
+          "overallStatus": {
+            "type": "string"
+          },
+          "blockingCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "warningCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "executedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "results": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ComplianceResultDto"
+            }
+          },
+          "inputHash": {
+            "type": "string"
+          },
+          "resultHash": {
+            "type": "string"
+          }
+        }
+      },
+      "CreateDealCommand": {
+        "type": "object",
+        "properties": {
+          "dealNumber": {
+            "type": "string",
+            "nullable": true
+          },
+          "type": {
+            "type": "string"
+          },
+          "vehicleId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "customerId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "jurisdictionId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "salespersonId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "notes": {
             "type": "string",
             "nullable": true
           }
@@ -1502,6 +2264,571 @@
           }
         }
       },
+      "DealCalculationDto": {
+        "required": [
+          "id",
+          "dealId",
+          "version",
+          "engineVersion",
+          "ruleSetId",
+          "ruleSetVersion",
+          "calculatedAt",
+          "sellingPrice",
+          "tradeAllowance",
+          "tradePayoff",
+          "tradeEquity",
+          "taxableAmount",
+          "taxRate",
+          "salesTax",
+          "totalFees",
+          "totalStateFees",
+          "totalProducts",
+          "rebates",
+          "cashDown",
+          "totalSalePrice",
+          "balanceDue",
+          "amountFinanced",
+          "financing",
+          "gross",
+          "loanToValue",
+          "steps",
+          "advisories",
+          "contentHash"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "dealId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "version": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "engineVersion": {
+            "type": "string"
+          },
+          "ruleSetId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "ruleSetVersion": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "calculatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "sellingPrice": {
+            "type": "string"
+          },
+          "tradeAllowance": {
+            "type": "string"
+          },
+          "tradePayoff": {
+            "type": "string"
+          },
+          "tradeEquity": {
+            "type": "string"
+          },
+          "taxableAmount": {
+            "type": "string"
+          },
+          "taxRate": {
+            "type": "string"
+          },
+          "salesTax": {
+            "type": "string"
+          },
+          "totalFees": {
+            "type": "string"
+          },
+          "totalStateFees": {
+            "type": "string"
+          },
+          "totalProducts": {
+            "type": "string"
+          },
+          "rebates": {
+            "type": "string"
+          },
+          "cashDown": {
+            "type": "string"
+          },
+          "totalSalePrice": {
+            "type": "string"
+          },
+          "balanceDue": {
+            "type": "string"
+          },
+          "amountFinanced": {
+            "type": "string"
+          },
+          "financing": {
+            "$ref": "#/components/schemas/DealFinancingDto"
+          },
+          "gross": {
+            "$ref": "#/components/schemas/DealGrossDto"
+          },
+          "loanToValue": {
+            "type": "string",
+            "nullable": true
+          },
+          "steps": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CalculationStepDto"
+            }
+          },
+          "advisories": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "contentHash": {
+            "type": "string"
+          }
+        },
+        "nullable": true
+      },
+      "DealCalculationDto2": {
+        "required": [
+          "id",
+          "dealId",
+          "version",
+          "engineVersion",
+          "ruleSetId",
+          "ruleSetVersion",
+          "calculatedAt",
+          "sellingPrice",
+          "tradeAllowance",
+          "tradePayoff",
+          "tradeEquity",
+          "taxableAmount",
+          "taxRate",
+          "salesTax",
+          "totalFees",
+          "totalStateFees",
+          "totalProducts",
+          "rebates",
+          "cashDown",
+          "totalSalePrice",
+          "balanceDue",
+          "amountFinanced",
+          "financing",
+          "gross",
+          "loanToValue",
+          "steps",
+          "advisories",
+          "contentHash"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "dealId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "version": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "engineVersion": {
+            "type": "string"
+          },
+          "ruleSetId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "ruleSetVersion": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "calculatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "sellingPrice": {
+            "type": "string"
+          },
+          "tradeAllowance": {
+            "type": "string"
+          },
+          "tradePayoff": {
+            "type": "string"
+          },
+          "tradeEquity": {
+            "type": "string"
+          },
+          "taxableAmount": {
+            "type": "string"
+          },
+          "taxRate": {
+            "type": "string"
+          },
+          "salesTax": {
+            "type": "string"
+          },
+          "totalFees": {
+            "type": "string"
+          },
+          "totalStateFees": {
+            "type": "string"
+          },
+          "totalProducts": {
+            "type": "string"
+          },
+          "rebates": {
+            "type": "string"
+          },
+          "cashDown": {
+            "type": "string"
+          },
+          "totalSalePrice": {
+            "type": "string"
+          },
+          "balanceDue": {
+            "type": "string"
+          },
+          "amountFinanced": {
+            "type": "string"
+          },
+          "financing": {
+            "$ref": "#/components/schemas/DealFinancingDto"
+          },
+          "gross": {
+            "$ref": "#/components/schemas/DealGrossDto"
+          },
+          "loanToValue": {
+            "type": "string",
+            "nullable": true
+          },
+          "steps": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CalculationStepDto"
+            }
+          },
+          "advisories": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "contentHash": {
+            "type": "string"
+          }
+        }
+      },
+      "DealDto": {
+        "required": [
+          "id",
+          "dealNumber",
+          "type",
+          "status",
+          "vehicleId",
+          "customerId",
+          "jurisdictionId",
+          "salespersonId",
+          "currentCalculationId",
+          "notes",
+          "quotedAt",
+          "approvedAt",
+          "cancelledAt",
+          "cancelReason",
+          "createdAt",
+          "updatedAt",
+          "currentCalculation"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "dealNumber": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "vehicleId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "customerId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "jurisdictionId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "salespersonId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "currentCalculationId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "notes": {
+            "type": "string",
+            "nullable": true
+          },
+          "quotedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "approvedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "cancelledAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "cancelReason": {
+            "type": "string",
+            "nullable": true
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "currentCalculation": {
+            "$ref": "#/components/schemas/DealCalculationDto"
+          }
+        }
+      },
+      "DealFinancingDto": {
+        "required": [
+          "apr",
+          "termMonths",
+          "payment",
+          "paymentCount",
+          "financeCharge",
+          "totalOfPayments",
+          "paymentMethod"
+        ],
+        "type": "object",
+        "properties": {
+          "apr": {
+            "type": "string"
+          },
+          "termMonths": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "payment": {
+            "type": "string"
+          },
+          "paymentCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "financeCharge": {
+            "type": "string"
+          },
+          "totalOfPayments": {
+            "type": "string"
+          },
+          "paymentMethod": {
+            "type": "string"
+          }
+        },
+        "nullable": true
+      },
+      "DealGrossDto": {
+        "required": [
+          "vehicleCost",
+          "frontGross",
+          "backGross",
+          "totalGross"
+        ],
+        "type": "object",
+        "properties": {
+          "vehicleCost": {
+            "type": "string",
+            "nullable": true
+          },
+          "frontGross": {
+            "type": "string"
+          },
+          "backGross": {
+            "type": "string"
+          },
+          "totalGross": {
+            "type": "string"
+          }
+        },
+        "nullable": true
+      },
+      "DealLineItemRequest": {
+        "required": [
+          "kind",
+          "code",
+          "description",
+          "amount"
+        ],
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string",
+            "nullable": true
+          },
+          "description": {
+            "type": "string"
+          },
+          "amount": {
+            "type": "string"
+          },
+          "cost": {
+            "type": "string",
+            "default": null,
+            "nullable": true
+          },
+          "isTaxable": {
+            "type": "boolean",
+            "default": false
+          },
+          "isStateFee": {
+            "type": "boolean",
+            "default": false
+          },
+          "isConditional": {
+            "type": "boolean",
+            "default": false
+          }
+        }
+      },
+      "DealSummaryDto": {
+        "required": [
+          "id",
+          "dealNumber",
+          "type",
+          "status",
+          "vehicleId",
+          "customerId",
+          "totalSalePrice",
+          "amountFinanced",
+          "payment",
+          "createdAt",
+          "updatedAt"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "dealNumber": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "vehicleId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "customerId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "totalSalePrice": {
+            "type": "string",
+            "nullable": true
+          },
+          "amountFinanced": {
+            "type": "string",
+            "nullable": true
+          },
+          "payment": {
+            "type": "string",
+            "nullable": true
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "FinanceRequestDto": {
+        "required": [
+          "apr",
+          "termMonths"
+        ],
+        "type": "object",
+        "properties": {
+          "apr": {
+            "type": "string"
+          },
+          "termMonths": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "frequency": {
+            "type": "string",
+            "default": "monthly"
+          },
+          "method": {
+            "type": "string",
+            "default": "standard_amortization"
+          },
+          "buyRate": {
+            "type": "string",
+            "default": null,
+            "nullable": true
+          },
+          "reserveAmount": {
+            "type": "string",
+            "default": null,
+            "nullable": true
+          }
+        },
+        "nullable": true
+      },
       "LoginRequest": {
         "required": [
           "email",
@@ -1517,6 +2844,39 @@
             "type": "string",
             "nullable": true,
             "x-sensitive": true
+          }
+        }
+      },
+      "PagedResultOfDealSummaryDto": {
+        "required": [
+          "items",
+          "page",
+          "pageSize",
+          "totalCount"
+        ],
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DealSummaryDto"
+            }
+          },
+          "page": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "pageSize": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "totalCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "totalPages": {
+            "type": "integer",
+            "format": "int32"
           }
         }
       },
@@ -1792,6 +3152,27 @@
             "format": "int32"
           }
         }
+      },
+      "TradeInRequest": {
+        "required": [
+          "allowance",
+          "payoff"
+        ],
+        "type": "object",
+        "properties": {
+          "allowance": {
+            "type": "string"
+          },
+          "payoff": {
+            "type": "string"
+          },
+          "actualCashValue": {
+            "type": "string",
+            "default": null,
+            "nullable": true
+          }
+        },
+        "nullable": true
       },
       "VehicleDto": {
         "required": [
@@ -2213,6 +3594,9 @@
     },
     {
       "name": "Authentication"
+    },
+    {
+      "name": "Deals"
     }
   ]
 }

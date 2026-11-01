@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\MautoDesk.SharedKernel\MautoDesk.SharedKernel.csproj" />
+  </ItemGroup>
+</Project>

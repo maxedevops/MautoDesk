@@ -11,6 +11,13 @@
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
     <PackageReference Include="Microsoft.Extensions.Options" />
+    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" />
     <PackageReference Include="AWSSDK.S3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The outbox tests drive one dispatch pass deterministically rather than
+         waiting on a poll loop, which needs OutboxDispatcher.RunOnceAsync. -->
+    <InternalsVisibleTo Include="MautoDesk.IntegrationTests" />
   </ItemGroup>
 </Project>

@@ -338,6 +338,126 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/deals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List deals */
+        get: operations["listDeals"];
+        put?: never;
+        /** Open a deal */
+        post: operations["createDeal"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/deals/{dealId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get a deal */
+        get: operations["getDeal"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/deals/{dealId}/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Change deal status */
+        post: operations["changeDealStatus"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/deals/{dealId}/calculate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Price the deal and append a calculation snapshot */
+        post: operations["calculateDeal"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/deals/{dealId}/calculation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get the current calculation snapshot */
+        get: operations["getDealCalculation"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/deals/{dealId}/evaluate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Evaluate the deal against the rules in force on its date */
+        post: operations["evaluateDealCompliance"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/deals/{dealId}/compliance": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get the most recent compliance run */
+        get: operations["getDealCompliance"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -350,6 +470,30 @@ export interface components {
             enrolmentUri: string | null;
             recoveryCodes: string[] | null;
         };
+        CalculateDealRequest: {
+            vehiclePrice?: string | null;
+            vehicleCost?: string | null;
+            lineItems?: components["schemas"]["DealLineItemRequest"][];
+            trade?: components["schemas"]["TradeInRequest"];
+            cashDown?: string | null;
+            finance?: components["schemas"]["FinanceRequestDto"];
+            /** Format: date */
+            dealDate?: string | null;
+        };
+        CalculationStepDto: {
+            /** Format: int32 */
+            order: number;
+            code: string;
+            label: string;
+            amount: string;
+            runningTotal: string | null;
+            note: string | null;
+        };
+        ChangeDealStatusCommand: {
+            status: string;
+            /** @default null */
+            reason: string | null;
+        };
         ChangePriceRequest: {
             priceType: string;
             newPrice: string;
@@ -358,6 +502,53 @@ export interface components {
         ChangeStatusRequest: {
             status: string;
             reason: string | null;
+        };
+        ComplianceResultDto: {
+            ruleCode: string;
+            ruleVersion: string;
+            status: string;
+            severity: string;
+            message: string;
+            requirementCode: string | null;
+            /** Format: date */
+            deadline: string | null;
+            sourceCitation: string | null;
+            evaluationDetail: string[];
+        };
+        ComplianceRunDto: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            dealId: string;
+            triggerEvent: string;
+            jurisdictionCode: string;
+            /** Format: date */
+            evaluatedOn: string;
+            engineVersion: string;
+            rulePackVersion: string;
+            overallStatus: string;
+            /** Format: int32 */
+            blockingCount: number;
+            /** Format: int32 */
+            warningCount: number;
+            /** Format: date-time */
+            executedAt: string;
+            results: components["schemas"]["ComplianceResultDto"][];
+            inputHash: string;
+            resultHash: string;
+        };
+        CreateDealCommand: {
+            dealNumber?: string | null;
+            type?: string;
+            /** Format: uuid */
+            vehicleId?: string | null;
+            /** Format: uuid */
+            customerId?: string | null;
+            /** Format: uuid */
+            jurisdictionId?: string | null;
+            /** Format: uuid */
+            salespersonId?: string | null;
+            notes?: string | null;
         };
         CreateVehicleCommand: {
             stockNumber?: string | null;
@@ -388,9 +579,184 @@ export interface components {
             permissions: string[];
             mfaEnrolled: boolean;
         };
+        DealCalculationDto: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            dealId: string;
+            /** Format: int32 */
+            version: number;
+            engineVersion: string;
+            /** Format: uuid */
+            ruleSetId: string | null;
+            /** Format: int32 */
+            ruleSetVersion: number | null;
+            /** Format: date-time */
+            calculatedAt: string;
+            sellingPrice: string;
+            tradeAllowance: string;
+            tradePayoff: string;
+            tradeEquity: string;
+            taxableAmount: string;
+            taxRate: string;
+            salesTax: string;
+            totalFees: string;
+            totalStateFees: string;
+            totalProducts: string;
+            rebates: string;
+            cashDown: string;
+            totalSalePrice: string;
+            balanceDue: string;
+            amountFinanced: string;
+            financing: components["schemas"]["DealFinancingDto"];
+            gross: components["schemas"]["DealGrossDto"];
+            loanToValue: string | null;
+            steps: components["schemas"]["CalculationStepDto"][];
+            advisories: string[];
+            contentHash: string;
+        } | null;
+        DealCalculationDto2: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            dealId: string;
+            /** Format: int32 */
+            version: number;
+            engineVersion: string;
+            /** Format: uuid */
+            ruleSetId: string | null;
+            /** Format: int32 */
+            ruleSetVersion: number | null;
+            /** Format: date-time */
+            calculatedAt: string;
+            sellingPrice: string;
+            tradeAllowance: string;
+            tradePayoff: string;
+            tradeEquity: string;
+            taxableAmount: string;
+            taxRate: string;
+            salesTax: string;
+            totalFees: string;
+            totalStateFees: string;
+            totalProducts: string;
+            rebates: string;
+            cashDown: string;
+            totalSalePrice: string;
+            balanceDue: string;
+            amountFinanced: string;
+            financing: components["schemas"]["DealFinancingDto"];
+            gross: components["schemas"]["DealGrossDto"];
+            loanToValue: string | null;
+            steps: components["schemas"]["CalculationStepDto"][];
+            advisories: string[];
+            contentHash: string;
+        };
+        DealDto: {
+            /** Format: uuid */
+            id: string;
+            dealNumber: string;
+            type: string;
+            status: string;
+            /** Format: uuid */
+            vehicleId: string | null;
+            /** Format: uuid */
+            customerId: string | null;
+            /** Format: uuid */
+            jurisdictionId: string | null;
+            /** Format: uuid */
+            salespersonId: string | null;
+            /** Format: uuid */
+            currentCalculationId: string | null;
+            notes: string | null;
+            /** Format: date-time */
+            quotedAt: string | null;
+            /** Format: date-time */
+            approvedAt: string | null;
+            /** Format: date-time */
+            cancelledAt: string | null;
+            cancelReason: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+            currentCalculation: components["schemas"]["DealCalculationDto"];
+        };
+        DealFinancingDto: {
+            apr: string;
+            /** Format: int32 */
+            termMonths: number;
+            payment: string;
+            /** Format: int32 */
+            paymentCount: number;
+            financeCharge: string;
+            totalOfPayments: string;
+            paymentMethod: string;
+        } | null;
+        DealGrossDto: {
+            vehicleCost: string | null;
+            frontGross: string;
+            backGross: string;
+            totalGross: string;
+        } | null;
+        DealLineItemRequest: {
+            kind: string;
+            code: string | null;
+            description: string;
+            amount: string;
+            /** @default null */
+            cost: string | null;
+            /** @default false */
+            isTaxable: boolean;
+            /** @default false */
+            isStateFee: boolean;
+            /** @default false */
+            isConditional: boolean;
+        };
+        DealSummaryDto: {
+            /** Format: uuid */
+            id: string;
+            dealNumber: string;
+            type: string;
+            status: string;
+            /** Format: uuid */
+            vehicleId: string | null;
+            /** Format: uuid */
+            customerId: string | null;
+            totalSalePrice: string | null;
+            amountFinanced: string | null;
+            payment: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        FinanceRequestDto: {
+            apr: string;
+            /** Format: int32 */
+            termMonths: number;
+            /** @default monthly */
+            frequency: string;
+            /** @default standard_amortization */
+            method: string;
+            /** @default null */
+            buyRate: string | null;
+            /** @default null */
+            reserveAmount: string | null;
+        } | null;
         LoginRequest: {
             email: string | null;
             password: string | null;
+        };
+        PagedResultOfDealSummaryDto: {
+            items: components["schemas"]["DealSummaryDto"][];
+            /** Format: int32 */
+            page: number;
+            /** Format: int32 */
+            pageSize: number;
+            /** Format: int32 */
+            totalCount: number;
+            /** Format: int32 */
+            totalPages?: number;
         };
         PagedResultOfVehicleSummaryDto: {
             items: components["schemas"]["VehicleSummaryDto"][];
@@ -470,6 +836,12 @@ export interface components {
             /** Format: int32 */
             expiresIn: number;
         };
+        TradeInRequest: {
+            allowance: string;
+            payoff: string;
+            /** @default null */
+            actualCashValue: string | null;
+        } | null;
         VehicleDto: {
             /** Format: uuid */
             id: string;
@@ -1672,6 +2044,441 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Missing, expired, or invalid credentials. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": unknown;
+                };
+            };
+            /** @description The principal lacks the required permission. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": unknown;
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    listDeals: {
+        parameters: {
+            query?: {
+                Page?: number;
+                PageSize?: number;
+                Status?: string;
+                CustomerId?: string;
+                VehicleId?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PagedResultOfDealSummaryDto"];
+                };
+            };
+            /** @description Missing, expired, or invalid credentials. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": unknown;
+                };
+            };
+            /** @description The principal lacks the required permission. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": unknown;
+                };
+            };
+        };
+    };
+    createDeal: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateDealCommand"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DealDto"];
+                };
+            };
+            /** @description Missing, expired, or invalid credentials. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": unknown;
+                };
+            };
+            /** @description The principal lacks the required permission. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": unknown;
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    getDeal: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dealId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DealDto"];
+                };
+            };
+            /** @description Missing, expired, or invalid credentials. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": unknown;
+                };
+            };
+            /** @description The principal lacks the required permission. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": unknown;
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    changeDealStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dealId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChangeDealStatusCommand"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DealDto"];
+                };
+            };
+            /** @description Missing, expired, or invalid credentials. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": unknown;
+                };
+            };
+            /** @description The principal lacks the required permission. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": unknown;
+                };
+            };
+            /** @description Not found, or the resource belongs to another tenant. These cases are deliberately indistinguishable: a 403 would confirm the record exists. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": unknown;
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    calculateDeal: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dealId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CalculateDealRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DealCalculationDto2"];
+                };
+            };
+            /** @description Missing, expired, or invalid credentials. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": unknown;
+                };
+            };
+            /** @description The principal lacks the required permission. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": unknown;
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    getDealCalculation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dealId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DealCalculationDto2"];
+                };
+            };
+            /** @description Missing, expired, or invalid credentials. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": unknown;
+                };
+            };
+            /** @description The principal lacks the required permission. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": unknown;
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    evaluateDealCompliance: {
+        parameters: {
+            query?: {
+                trigger?: string;
+            };
+            header?: never;
+            path: {
+                dealId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ComplianceRunDto"];
+                };
+            };
+            /** @description Missing, expired, or invalid credentials. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": unknown;
+                };
+            };
+            /** @description The principal lacks the required permission. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": unknown;
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    getDealCompliance: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dealId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ComplianceRunDto"];
+                };
             };
             /** @description Missing, expired, or invalid credentials. */
             401: {

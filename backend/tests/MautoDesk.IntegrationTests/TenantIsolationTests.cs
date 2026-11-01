@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using FluentAssertions;
 using MautoDesk.Inventory.Application;
 using MautoDesk.Inventory.Contracts;
+using MautoDesk.SharedKernel;
 using Npgsql;
 using Xunit;
 

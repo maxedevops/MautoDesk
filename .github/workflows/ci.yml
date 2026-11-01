@@ -69,6 +69,28 @@ jobs:
             echo "::endgroup::"
           done
 
+      # Runs BEFORE the probes below, because they seed approved fixture rules of
+      # their own — and this has to see a database containing nothing but
+      # migrations.
+      #
+      # No regulatory rule may be approved by a migration. Approval is a human act
+      # by a named reviewer against a retrieved source, so a pack that arrives
+      # pre-approved is a pack that skipped the review.
+      - name: No rule pack ships pre-approved
+        env:
+          PGPASSWORD: devpw
+        run: |
+          set -euo pipefail
+          approved=$(psql -h localhost -U postgres -d mautodesk -t -A -c \
+            "select count(*) from compliance.regulatory_rule_version where approved_at is not null;")
+          if [ "$approved" != "0" ]; then
+            echo "::error::$approved rule version(s) arrived approved. A migration cannot approve a rule."
+            psql -h localhost -U postgres -d mautodesk -c \
+              "select rule_id, version, status, approved_by from compliance.regulatory_rule_version where approved_at is not null;"
+            exit 1
+          fi
+          echo "Rule pack verified: 0 pre-approved rule versions"
+
       # A new tenant-owned table without an RLS policy fails here, before it can
       # ever reach an environment holding real customer data.
       - name: Assert zero RLS coverage gaps
@@ -91,6 +113,28 @@ jobs:
         run: |
           psql -h localhost -U postgres -d mautodesk -v ON_ERROR_STOP=1 \
                -f db/tests/isolation_probe.sql
+
+      # The guarantees V0010 claims for itself: append-only history, no
+      # overlapping approved rule or program versions, no unapproved rule
+      # reaching the evaluator, no replayed submission becoming a second one,
+      # and no application role writing the law it is judged by.
+      - name: Compliance, lending and titling invariants
+        env:
+          PGPASSWORD: devpw
+        run: |
+          psql -h localhost -U postgres -d mautodesk -v ON_ERROR_STOP=1 \
+               -f db/tests/v0010_invariants.sql
+
+      # Whatever is approved — including the fixtures the probes just seeded —
+      # must have been approved properly: a named reviewer, and a source whose
+      # document was actually archived. This one runs AFTER the probes, because
+      # what it checks is the shape of an approval rather than the absence of one.
+      - name: Approvals name a reviewer and cite an archived source
+        env:
+          PGPASSWORD: devpw
+        run: |
+          psql -h localhost -U postgres -d mautodesk -v ON_ERROR_STOP=1 \
+               -f db/tests/rule_pack_approval.sql
 
       # Migrations are forward-only and must apply cleanly to an already-migrated
       # database. Re-running catches a non-idempotent seed or a missing guard.
@@ -168,6 +212,11 @@ jobs:
         Host=localhost;Port=5432;Database=mautodesk;Username=mautodesk_app;Password=devpw;Include Error Detail=true
       TEST_ADMIN_CONNECTION: >-
         Host=localhost;Port=5432;Database=mautodesk;Username=postgres;Password=devpw
+      # The outbox dispatcher has its own least-privileged role (V0011). Pointing
+      # this at the app or the superuser connection would make the outbox tests
+      # pass without proving that role can actually do the job.
+      TEST_DISPATCHER_CONNECTION: >-
+        Host=localhost;Port=5432;Database=mautodesk;Username=mautodesk_dispatcher;Password=devpw;Include Error Detail=true
       # Deterministic test keys. Both 32 bytes, matching what the host demands in
       # production — there is no relaxed test-only path through the key checks.
       Jwt__SigningKey: dGVzdC1zaWduaW5nLWtleS0zMi1ieXRlcy1sb25nISE=
@@ -190,18 +239,25 @@ jobs:
           done
           psql -h localhost -U postgres -d mautodesk -v ON_ERROR_STOP=1 \
             -c "alter role mautodesk_app with password 'devpw';"
+          psql -h localhost -U postgres -d mautodesk -v ON_ERROR_STOP=1 \
+            -c "alter role mautodesk_dispatcher with password 'devpw';"
 
-      - name: Assert the test role cannot bypass RLS
+      # Both roles, not just the application one. The dispatcher was created to
+      # read across tenants; if it could also bypass RLS it would be reaching
+      # every table rather than the three it is granted.
+      - name: Assert neither role can bypass RLS
         env:
           PGPASSWORD: devpw
         run: |
           set -euo pipefail
-          bypass=$(psql -h localhost -U postgres -d mautodesk -t -A \
-            -c "select rolsuper or rolbypassrls from pg_roles where rolname='mautodesk_app';")
-          if [ "$bypass" != "f" ]; then
-            echo "::error::mautodesk_app can bypass RLS; the isolation tests would be meaningless"
-            exit 1
-          fi
+          for role in mautodesk_app mautodesk_dispatcher; do
+            bypass=$(psql -h localhost -U postgres -d mautodesk -t -A \
+              -c "select rolsuper or rolbypassrls from pg_roles where rolname='$role';")
+            if [ "$bypass" != "f" ]; then
+              echo "::error::$role can bypass RLS; the isolation tests would be meaningless"
+              exit 1
+            fi
+          done
 
       - run: dotnet restore backend/MautoDesk.sln
       - name: Build (warnings are errors)
@@ -226,8 +282,24 @@ jobs:
       - name: Architecture tests
         run: dotnet test backend/tests/MautoDesk.ArchitectureTests --no-build -c Release
 
-      # Cross-tenant isolation through the full HTTP stack, against real
-      # PostgreSQL. This is the suite that must never be allowed to go red.
+      # PhotoUploadTests drive the real upload pipeline — quarantine, content
+      # sniffing, re-encode — against real object storage rather than a mock, so
+      # the job needs MinIO.
+      #
+      # Not minio/minio: those images were deleted from Docker Hub in September
+      # 2026 and quay.io/minio/* refuses anonymous pulls, which is what the
+      # previous run failed on. bitnamilegacy is Bitnami's archived catalogue —
+      # still public, same Apache-2.0 MinIO, frozen at the July 2025 release.
+      # Pinned, because an archived tag that moves would be worse than one that
+      # disappears. The same image and tag as docker-compose, so CI and a
+      # developer's machine agree about what the tests ran against.
+      - name: Start object storage
+        run: |
+          set -euo pipefail
+          docker run -d --name minio -p 9000:9000 -e MINIO_ROOT_USER=mautodesk -e MINIO_ROOT_PASSWORD=devpassword -e MINIO_DEFAULT_BUCKETS=mautodesk-uploads,mautodesk-media,mautodesk-docs,mautodesk-vault bitnamilegacy/minio:2025.7.23-debian-12-r5
+          timeout 90 bash -c 'until curl -sf http://localhost:9000/minio/health/live; do sleep 2; done'
+          docker run --rm --network host -e MC_CONFIG_DIR=/tmp/.mc --entrypoint /bin/sh bitnamilegacy/minio:2025.7.23-debian-12-r5 -c 'mc alias set local http://localhost:9000 mautodesk devpassword && mc mb --ignore-existing local/mautodesk-uploads local/mautodesk-media local/mautodesk-docs local/mautodesk-vault && mc version enable local/mautodesk-docs && mc version enable local/mautodesk-vault'
+
       - name: Integration and isolation tests
         run: dotnet test backend/tests/MautoDesk.IntegrationTests --no-build -c Release
 
@@ -237,7 +309,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      # The version comes from frontend/package.json's packageManager field.
+      # There is no package.json at the repository root, so without this the
+      # action finds nothing and fails with "No pnpm version is specified".
       - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: frontend/package.json
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
@@ -284,14 +361,18 @@ jobs:
   # redirects, and what the browser can actually see are exercised.
   e2e:
     name: End-to-end
-    runs-on: ubuntu-latest
+    # Pinned, not ubuntu-latest: that label now resolves to Ubuntu 26.04, and
+    # Playwright 1.56.1 refuses to install a browser there ("does not support
+    # chromium on ubuntu26.04-x64"). Pinning keeps the browser matrix a
+    # deliberate choice rather than something a runner image change can break.
+    runs-on: ubuntu-24.04
     services:
       postgres:
         image: postgres:16-alpine
         env:
           POSTGRES_PASSWORD: devpw
           POSTGRES_DB: mautodesk
-        ports: [''5432:5432'']
+        ports: ['5432:5432']
         options: >-
           --health-cmd "pg_isready -U postgres"
           --health-interval 5s --health-timeout 5s --health-retries 20
@@ -314,7 +395,12 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
+      # The version comes from frontend/package.json's packageManager field.
+      # There is no package.json at the repository root, so without this the
+      # action finds nothing and fails with "No pnpm version is specified".
       - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: frontend/package.json
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
@@ -329,7 +415,7 @@ jobs:
           for f in db/migrations/V*.sql; do
             psql -h localhost -U postgres -d mautodesk -v ON_ERROR_STOP=1 -q -f "$f"
           done
-          psql -h localhost -U postgres -d mautodesk -c "alter role mautodesk_app with password ''devpw'';"
+          psql -h localhost -U postgres -d mautodesk -c "alter role mautodesk_app with password 'devpw';"
           psql -h localhost -U postgres -d mautodesk -v ON_ERROR_STOP=1 -q -f db/seed/e2e.sql
 
       - run: pnpm install --frozen-lockfile
@@ -342,14 +428,14 @@ jobs:
       - name: Start the API
         run: |
           dotnet run --project backend/src/MautoDesk.Api -c Release &
-          timeout 90 bash -c ''until curl -sf http://localhost:5080/health/live; do sleep 2; done''
+          timeout 90 bash -c 'until curl -sf http://localhost:5080/health/live; do sleep 2; done'
 
       - name: Start the web app
         working-directory: frontend
         run: |
           pnpm --filter @mautodesk/web build
           pnpm --filter @mautodesk/web start &
-          timeout 90 bash -c ''until curl -sf http://localhost:3000/login; do sleep 2; done''
+          timeout 90 bash -c 'until curl -sf http://localhost:3000/login; do sleep 2; done'
 
       - name: Playwright
         working-directory: frontend
@@ -359,7 +445,11 @@ jobs:
         if: failure()
         with:
           name: playwright-report
-          path: frontend/e2e/playwright-report/
+          # Both: the report is the readable summary, test-results/ holds the
+          # trace, the screenshot and error-context.md — the page as it was.
+          path: |
+            frontend/e2e/playwright-report/
+            frontend/e2e/test-results/
           retention-days: 7
 
   # ---------------------------------------------------------------------------
@@ -369,12 +459,24 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        language: [javascript-typescript]
+        # Every language actually present in this repository. Until 2026-11-01 this
+        # job passed `language` (singular), which is not an input the action has, so
+        # the value was discarded with a warning and CodeQL autodetected instead -
+        # analysing csharp, javascript and actions while the job name claimed only
+        # javascript-typescript. Declaring one language here would have been a
+        # correct-looking workflow that silently stopped analysing the backend, so
+        # the list is what autodetect found. Add a language here when one is added
+        # to the repository; nothing else detects that for us now.
+        language: [csharp, javascript-typescript, actions]
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        if: matrix.language == 'csharp'
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
       - uses: github/codeql-action/init@v3
         with:
-          language: ${{ matrix.language }}
+          languages: ${{ matrix.language }}
           queries: security-extended
       - uses: github/codeql-action/autobuild@v3
       - uses: github/codeql-action/analyze@v3
