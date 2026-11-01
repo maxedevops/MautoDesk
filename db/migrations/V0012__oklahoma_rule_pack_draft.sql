@@ -116,6 +116,13 @@ on conflict (authority_id, citation) do nothing;
 -- these documents and said so. Those are gone: the primary text is available,
 -- so citing a paraphrase of it would be a choice, not a limitation.
 --------------------------------------------------------------------------------
+-- content_hash is the sha256 of the archived file exactly as git stores it:
+-- LF line endings, pinned by the `db/sources/** -text` rule in .gitattributes.
+-- These three hashes were first recorded from a Windows working copy, where
+-- git had rewritten the line endings to CRLF, so they matched on that one
+-- machine and nowhere else. A hash of a statute that depends on who checked
+-- it out proves nothing, which is why the bytes are now pinned rather than
+-- the hashes merely corrected.
 insert into compliance.regulatory_source_version
   (id, source_id, version, retrieved_at, retrieved_by, content_hash, content_location,
    effective_from, change_summary, last_verified_at)
@@ -124,7 +131,7 @@ values
    '05000000-0000-4000-8000-000000000001', 1,
    timestamptz '2026-08-22 00:00:00+00',
    'Verbatim transcription supplied by the project owner — NOT a legal review',
-   decode('61b3bf2f20312c23e3cc5b6f02e9c7d09498b647d60d6a20b141af2b83933816', 'hex'),
+   decode('f927b8c373e7f586a43e0caed345c546604507d8d9d0dd0f3dc787062777df94', 'hex'),
    'db/sources/us-ok/service-ok-pre-registration-release.md',
    date '2024-09-01',
    'Primary text: the Service Oklahoma press release of 3 September 2024, '
@@ -136,7 +143,7 @@ values
    '05000000-0000-4000-8000-000000000002', 1,
    timestamptz '2026-08-22 00:00:00+00',
    'Verbatim transcription supplied by the project owner — NOT a legal review',
-   decode('162acb1b68b164f6358a376d26e42777e552d5e2d4dca94540dde27cc51784e9', 'hex'),
+   decode('817fa82b5be942078c650193a83a05666ae8e5075ac7ce366d1b81925adaa576', 'hex'),
    'db/sources/us-ok/service-ok-sb2035-dealer-faq.md',
    date '2024-09-01',
    'Primary text: the 11-page SB2035 FAQ for Motor Vehicle Dealers, updated '
@@ -148,7 +155,7 @@ values
    '05000000-0000-4000-8000-000000000003', 1,
    timestamptz '2026-08-22 00:00:00+00',
    'Verbatim transcription supplied by the project owner — NOT a legal review',
-   decode('9406f4b875d95d0534667e96c6e604decc197786f1c0f405764a7e6492ef4ac6', 'hex'),
+   decode('bc0257d575ce33e3bfe68f3ad16bbb6ffb1a68d3a99b95f13aeb5da32f85c999', 'hex'),
    'db/sources/us-ok/service-ok-electronic-titles.md',
    date '2025-07-01',
    'Primary text: the Service Oklahoma Electronic Titles page and its full FAQ, '

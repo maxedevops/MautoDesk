@@ -38,10 +38,14 @@ insert into compliance.regulatory_source (id, authority_id, source_type, title, 
    'statute', 'Fixture Statute', 'ZZ-TEST-FIXTURE-1')
 on conflict (authority_id, citation) do nothing;
 
+-- content_location is not decoration: the approval gate refuses any approved
+-- rule whose source was never archived, and that gate has no fixture carve-out.
+-- So the fixture archives its own one-word "statute" and cites it. The hash
+-- below is the real sha256 of that file's seven bytes, not a placeholder.
 insert into compliance.regulatory_source_version
-  (id, source_id, version, retrieved_at, retrieved_by, content_hash) values
+  (id, source_id, version, retrieved_at, retrieved_by, content_hash, content_location) values
   ('cccccccc-0000-4000-8000-000000000003', 'cccccccc-0000-4000-8000-000000000002',
-   1, now(), 'fixture', sha256('fixture'::bytea))
+   1, now(), 'fixture', sha256('fixture'::bytea), 'db/tests/fixtures/zz-test-statute.txt')
 on conflict do nothing;
 
 insert into compliance.regulatory_rule (id, rule_code, jurisdiction_code, category, title) values
