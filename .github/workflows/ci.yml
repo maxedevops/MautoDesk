@@ -459,12 +459,24 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        language: [javascript-typescript]
+        # Every language actually present in this repository. Until 2026-11-01 this
+        # job passed `language` (singular), which is not an input the action has, so
+        # the value was discarded with a warning and CodeQL autodetected instead -
+        # analysing csharp, javascript and actions while the job name claimed only
+        # javascript-typescript. Declaring one language here would have been a
+        # correct-looking workflow that silently stopped analysing the backend, so
+        # the list is what autodetect found. Add a language here when one is added
+        # to the repository; nothing else detects that for us now.
+        language: [csharp, javascript-typescript, actions]
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        if: matrix.language == 'csharp'
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
       - uses: github/codeql-action/init@v3
         with:
-          language: ${{ matrix.language }}
+          languages: ${{ matrix.language }}
           queries: security-extended
       - uses: github/codeql-action/autobuild@v3
       - uses: github/codeql-action/analyze@v3
