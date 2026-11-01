@@ -284,19 +284,22 @@ jobs:
 
       # PhotoUploadTests drive the real upload pipeline — quarantine, content
       # sniffing, re-encode — against real object storage rather than a mock, so
-      # the job needs MinIO. It runs as a step rather than a `services:` entry
-      # because a service container cannot be given a command, and minio/minio
-      # needs `server /data`. Using the same two images as docker-compose keeps
-      # CI and a developer's machine agreeing about what the tests ran against.
+      # the job needs MinIO.
+      #
+      # Not minio/minio: those images were deleted from Docker Hub in September
+      # 2026 and quay.io/minio/* refuses anonymous pulls, which is what the
+      # previous run failed on. bitnamilegacy is Bitnami's archived catalogue —
+      # still public, same Apache-2.0 MinIO, frozen at the July 2025 release.
+      # Pinned, because an archived tag that moves would be worse than one that
+      # disappears. The same image and tag as docker-compose, so CI and a
+      # developer's machine agree about what the tests ran against.
       - name: Start object storage
         run: |
           set -euo pipefail
-          docker run -d --name minio -p 9000:9000 -e MINIO_ROOT_USER=mautodesk -e MINIO_ROOT_PASSWORD=devpassword minio/minio:latest server /data
+          docker run -d --name minio -p 9000:9000 -e MINIO_ROOT_USER=mautodesk -e MINIO_ROOT_PASSWORD=devpassword -e MINIO_DEFAULT_BUCKETS=mautodesk-uploads,mautodesk-media,mautodesk-docs,mautodesk-vault bitnamilegacy/minio:2025.7.23-debian-12-r5
           timeout 90 bash -c 'until curl -sf http://localhost:9000/minio/health/live; do sleep 2; done'
-          docker run --rm --network host minio/mc:latest sh -c 'mc alias set local http://localhost:9000 mautodesk devpassword; mc mb --ignore-existing local/mautodesk-uploads local/mautodesk-media local/mautodesk-docs local/mautodesk-vault; mc version enable local/mautodesk-docs; mc version enable local/mautodesk-vault'
+          docker run --rm --network host -e MC_CONFIG_DIR=/tmp/.mc --entrypoint /bin/sh bitnamilegacy/minio:2025.7.23-debian-12-r5 -c 'mc alias set local http://localhost:9000 mautodesk devpassword && mc mb --ignore-existing local/mautodesk-uploads local/mautodesk-media local/mautodesk-docs local/mautodesk-vault && mc version enable local/mautodesk-docs && mc version enable local/mautodesk-vault'
 
-      # Cross-tenant isolation through the full HTTP stack, against real
-      # PostgreSQL. This is the suite that must never be allowed to go red.
       - name: Integration and isolation tests
         run: dotnet test backend/tests/MautoDesk.IntegrationTests --no-build -c Release
 
@@ -358,7 +361,11 @@ jobs:
   # redirects, and what the browser can actually see are exercised.
   e2e:
     name: End-to-end
-    runs-on: ubuntu-latest
+    # Pinned, not ubuntu-latest: that label now resolves to Ubuntu 26.04, and
+    # Playwright 1.56.1 refuses to install a browser there ("does not support
+    # chromium on ubuntu26.04-x64"). Pinning keeps the browser matrix a
+    # deliberate choice rather than something a runner image change can break.
+    runs-on: ubuntu-24.04
     services:
       postgres:
         image: postgres:16-alpine
