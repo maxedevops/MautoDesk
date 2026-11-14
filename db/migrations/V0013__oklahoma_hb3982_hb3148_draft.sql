@@ -454,3 +454,40 @@ values
    'An interstate-commerce commercial truck is excepted', 'pass',
    '{"title.isOutOfState":"true","vehicle.registrationType":"automobile","vehicle.isInterstateCommerceRegistered":"true"}'::jsonb)
 on conflict do nothing;
+
+--------------------------------------------------------------------------------
+-- Say what was seeded, the way V0012 does, so a CI log shows it rather than
+-- leaving a silent migration to be inferred from arithmetic elsewhere.
+--------------------------------------------------------------------------------
+do $$
+declare
+  drafts   int;
+  cases    int;
+  holidays int;
+  approved int;
+begin
+  select count(*) into drafts
+    from compliance.regulatory_rule_version
+   where source_version_id in ('05100000-0000-4000-8000-000000000004',
+                               '05100000-0000-4000-8000-000000000005');
+
+  select count(*) into cases
+    from compliance.regulatory_rule_test t
+    join compliance.regulatory_rule_version v on v.id = t.rule_version_id
+   where v.source_version_id in ('05100000-0000-4000-8000-000000000004',
+                                 '05100000-0000-4000-8000-000000000005');
+
+  select count(*) into holidays
+    from compliance.jurisdiction_holiday where jurisdiction_code = 'US-OK';
+
+  select count(*) into approved
+    from compliance.regulatory_rule_version
+   where approved_at is not null;
+
+  raise notice
+    'HB 3982 / HB 3148 seeded: % DRAFT rule versions, % test cases, % US-OK '
+    'holidays, % approved anywhere. The 2024 pack is untouched; these are new '
+    'effective-dated rows and the engine evaluates none of them.',
+    drafts, cases, holidays, approved;
+end
+$$;
