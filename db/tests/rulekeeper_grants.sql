@@ -146,6 +146,7 @@ begin
      entity_schema, entity_type, entity_id, metadata)
   values
     (null, 'platform_admin', 'Grant probe', 'Proving the chain links',
+     'compliance.rule_version.approved',
      'compliance', 'regulatory_rule_version', probe_id,
      '{"probe":true}'::jsonb)
   returning hash into v_prev;
@@ -155,6 +156,7 @@ begin
      entity_schema, entity_type, entity_id, metadata)
   values
     (null, 'platform_admin', 'Grant probe', 'Proving the chain links',
+     'compliance.rule_version.approved',
      'compliance', 'regulatory_rule_version', probe_id,
      '{"probe":true,"second":true}'::jsonb)
   returning hash into v_new;
