@@ -33,6 +33,11 @@ text — page furniture, amendatory strike-through artefacts and all. Those
 artefacts ("without unless an inspection has been conducted") are what enrolled
 amendatory text looks like and are deliberately not tidied.
 
+The two tax statutes were retrieved from the Oklahoma State Courts Network, which
+publishes the statutes as currently in force. Each file is the section plus its
+Historical Data block, so the amendment chain is visible; OSCN's own navigation
+and its Citationizer tables are omitted.
+
 The holiday file is a **transcription** of two published HTML tables rather than a
 capture of the page, which is a copy of evidence rather than the evidence.
 
@@ -87,6 +92,8 @@ actually bears a notarisation. Both need machinery that does not exist yet.
 | `ok-hb3982-2026-enrolled.txt` | Enrolled H.B. 3982 — temporary license plates | Effective 1 November 2026 |
 | `ok-hb3148-2026-enrolled.txt` | Enrolled H.B. 3148 — VIN inspections | Effective 1 November 2026 |
 | `ok-sos-state-holidays-2026-2027.md` | Secretary of State *State Holidays*, 2026 and 2027 | Page modified 24 September 2026 |
+| `ok-68-os-2103-excise-tax.txt` | 68 O.S. § 2103, *Tax for Transfer of Vehicle Ownership* | Amended eff. 1 July 2025 |
+| `ok-68-os-2104-vehicle-value.txt` | 68 O.S. § 2104, *Value of Vehicles* | Amended eff. 1 July 2026 |
 
 ## Verifying a hash
 

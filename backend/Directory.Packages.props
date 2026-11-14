@@ -19,7 +19,13 @@
     <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.0.4" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="9.0.11" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Relational" Version="9.0.11" />
-    <PackageVersion Include="Dapper" Version="2.1.66" />
+    <PackageVersion Include="Dapper" Version="2.1.66" />
+    <!-- The bare driver, for MautoDesk.Compliance.RuleKeeper: an operator tool
+         that opens one connection as mautodesk_rulekeeper and runs raw SQL. It
+         has no entities and wants no change tracker, so it takes Npgsql
+         without the EF provider. Pinned to the version the provider above
+         already resolves, so the solution holds one driver. -->
+    <PackageVersion Include="Npgsql" Version="9.0.3" />
   </ItemGroup>
 
   <ItemGroup Label="Application">

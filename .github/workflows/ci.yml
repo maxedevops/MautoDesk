@@ -136,6 +136,19 @@ jobs:
           psql -h localhost -U postgres -d mautodesk -v ON_ERROR_STOP=1 \
                -f db/tests/rule_pack_approval.sql
 
+      # The rule-keeper is the one role in this database that may write the law.
+      # Its boundaries are asserted rather than described: it can approve, it
+      # cannot edit history, it cannot author a rule, it cannot read a deal, and
+      # the audit entry it writes actually links to the previous one. That last
+      # assertion exists because the failure is silent — INSERT without SELECT
+      # gets zero rows instead of an error and forks the hash chain.
+      - name: The rule-keeper can approve and nothing else
+        env:
+          PGPASSWORD: devpw
+        run: |
+          psql -h localhost -U postgres -d mautodesk -v ON_ERROR_STOP=1 \
+               -f db/tests/rulekeeper_grants.sql
+
       # Migrations are forward-only and must apply cleanly to an already-migrated
       # database. Re-running catches a non-idempotent seed or a missing guard.
       - name: Re-apply migrations (idempotency)

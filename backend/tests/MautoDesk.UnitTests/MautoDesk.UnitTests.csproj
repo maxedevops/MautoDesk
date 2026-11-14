@@ -16,6 +16,10 @@
          reference: no database, no host, no fixture. -->
     <ProjectReference Include="..\..\src\Modules\Sales\MautoDesk.Sales.Domain\MautoDesk.Sales.Domain.csproj" />
     <ProjectReference Include="..\..\src\Modules\Compliance\MautoDesk.Compliance.Domain\MautoDesk.Compliance.Domain.csproj" />
+    <!-- The approval preconditions. The tool is an executable, but what is
+         worth testing in it is a pure function of a draft, its corpus and the
+         dates being requested — no database, no console. -->
+    <ProjectReference Include="..\..\src\Modules\Compliance\MautoDesk.Compliance.RuleKeeper\MautoDesk.Compliance.RuleKeeper.csproj" />
   </ItemGroup>
 
   <ItemGroup>
