@@ -32,9 +32,13 @@
 -- standing between these drafts and an active pack:
 --
 --   1. Have dealer-compliance counsel read each rule against the archived text
---      and confirm the reading — particularly the three interpretations flagged
---      in the approval notes, where the source is silent or broader than the
---      rule.
+--      and confirm the reading. Three readings need an answer and a developer
+--      must not settle any of them: the wholesale narrowing on OK-PREREG-001 and
+--      the warning severity on OK-PLATE-TRANSFER-001, both marked INTERPRETATION
+--      TO CONFIRM in their approval notes, and whether an outstanding VIN
+--      inspection should also stop contracting, left open in
+--      OK-TITLE-VIN-INSPECTION-001. They are written out as Q1–Q3 in
+--      docs/13-oklahoma-counsel-review.md, which is the review packet.
 --   2. Populate compliance.jurisdiction_holiday for US-OK from a cited source.
 --      OK-PREREG-001 carries a business-day deadline, and until the calendar
 --      exists the engine refuses to compute one rather than guessing.

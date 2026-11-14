@@ -5,8 +5,20 @@ ADRs and is the answer to most "why is it done this way" questions.
 
 ## Current phase
 
-Phases 1–4 are complete. The schema is applied and verified; there is no application code yet.
-Phase 5 is UI/UX, Phase 6 is the backend.
+Phases 0–4 of the roadmap in `docs/11-dealeros-assessment.md` §M are complete: schema and RLS, the
+pure deal engine, and the regulatory engine. Phase 2 is partial — idempotency middleware and the
+outbox dispatcher exist, but no endpoint requires a key and `LoggingEventPublisher` delivers to
+nothing. Auth, inventory and the deal/compliance endpoints are implemented; customers, leads,
+documents, signatures, uploads, jobs and reports are designed in the contract and not built.
+
+**The system computes no deal today, by design.** Every seeded rule set is unapproved, so the deal
+engine refuses and the regulatory engine reports GREEN meaning "nothing is approved" rather than
+"this deal is lawful". Phase 5 — counsel review and approval of the Oklahoma pack — is the gate,
+and it blocks phases 7, 9 and 10. The review packet is `docs/13-oklahoma-counsel-review.md`.
+
+Not built: lender matrix and titling (schema only, no C#), documents and e-signature, Deal
+Guardian, most of the frontend, deployment and observability. `RISK-SEC-001` (no managed KMS) is
+open.
 
 ## Hard rules
 
@@ -47,7 +59,11 @@ docker compose run --rm migrate
 - JSON: `camelCase`. Paths: lowercase plural nouns. Non-CRUD actions are a `POST` to a verb
   sub-path (`/deals/{id}/calculate`).
 - Timestamps are `timestamptz` and UTC everywhere. There is no local-time column in this system.
-- Every operation in `contracts/openapi.yaml` carries `x-permission`. Sensitive fields carry
+- There are two contracts. `contracts/openapi.design.yaml` is the hand-written Phase-4 design and
+  still describes endpoints nobody has built. `contracts/openapi.json` is generated from the
+  running API and is what the TypeScript client comes from; `ContractGenerationTests` fails on
+  drift (ADR-0010). Regenerate it rather than editing it.
+- Every operation in `contracts/openapi.design.yaml` carries `x-permission`. Sensitive fields carry
   `x-sensitive: true`, which the log-redaction policy consumes.
 
 ## What not to do
@@ -75,5 +91,5 @@ docker compose run --rm migrate
 ```
 
 ```bash
-npx --yes @redocly/cli@latest lint contracts/openapi.yaml --config contracts/redocly.yaml
+npx --yes @redocly/cli@latest lint contracts/openapi.design.yaml --config contracts/redocly.yaml
 ```
