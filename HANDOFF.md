@@ -3,13 +3,22 @@
 **State:** Phases 1–10 of 13 complete, plus MFA recovery codes, wired-up
 inventory writes, photo uploads, audit-ledger writes, PII log redaction, the
 DealerOS compliance/lending/titling schema, API idempotency, the outbox
-dispatcher, and the deal and regulatory engines · backend green (204 unit, 101
-integration, 20 architecture) and frontend unit green (21); the e2e suite needs a
-running stack · zero known dependency vulnerabilities
+dispatcher, and the deal and regulatory engines · backend green (204 unit, 120
+integration, 20 architecture), frontend unit green (95), Playwright end-to-end
+green in CI · all 10 CI jobs green · zero known dependency vulnerabilities
 
-> **Checkpointed.** Phases 1–10 are in a single initial commit on `main`, pushed
-> to <https://github.com/maxedevops/MautoDesk>. Work from a branch off `main`
-> from here.
+> **Read this first if you are looking at `main`.** `main` stops at `V0009`. The
+> DealerOS schema, both engines, the Oklahoma rule packs and the entire working
+> CI workflow live on `claude/dealeros-architecture-eval-c07dce`, open as
+> [maxedevops/MautoDesk#1](https://github.com/maxedevops/MautoDesk/pull/1) and
+> mergeable. The state line above describes that branch, not `main`. Until it
+> merges, [`docs/12-dealeros-handoff.md`](docs/12-dealeros-handoff.md) is the
+> document that is current, and this one covers the base it was built on.
+>
+> Note also that CI had **never executed** before that branch — a quoting
+> corruption meant the workflow did not parse, so an unbroken row of
+> green-looking runs was the absence of any run at all. It is fixed there, and
+> the fix applies to `main` too.
 
 ---
 
@@ -147,6 +156,14 @@ shape everything:
 
 ### Blocking for real users
 
+**No regulatory rule can be approved, and no rule is.** Two Oklahoma packs are
+drafted and nothing in either is active, so a deal reports GREEN because nothing
+has been approved rather than because it is lawful. That needs a retained
+Oklahoma-licensed attorney *and* an approval path that does not exist yet:
+`compliance.regulatory_rule_version` forbids UPDATE, so an approval must be
+inserted as a new version row, and no endpoint, screen or store method does that.
+See [`docs/14-oklahoma-review-disposition-2026-11-13.md`](docs/14-oklahoma-review-disposition-2026-11-13.md).
+
 **Tax rule sets are unapproved skeletons.** OK/KS/TX are seeded with
 `'UNVERIFIED'` placeholders and `approved_at IS NULL`, so the deal engine will
 refuse to price a deal. This is deliberate — shipping plausible-looking tax
@@ -253,4 +270,6 @@ audit writes, and log redaction — which used to head this list — are done.
 | `docs/10-testing.md` | What each test layer buys, and what is still untested |
 | `docs/11-dealeros-assessment.md` | The DealerOS assessment: scoring, build/retain/replace matrix, cost model, roadmap |
 | `docs/12-dealeros-handoff.md` | **Start here on the DealerOS branch.** What it contains, what is verified, the defects it fixed, and where to pick up |
+| `docs/13-oklahoma-counsel-review.md` | The counsel review packet: the drafted rules in English, their quoted sources, and what the approval gate enforces |
+| `docs/14-oklahoma-review-disposition-2026-11-13.md` | What the first review returned, the two 2026 statutes it surfaced, and what is still blocked on whom |
 | `CLAUDE.md` | Working agreements and hard rules for anyone changing the code |

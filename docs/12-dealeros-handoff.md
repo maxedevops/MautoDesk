@@ -2,9 +2,12 @@
 
 **Branch:** `claude/dealeros-architecture-eval-c07dce`, in a git worktree at
 `.claude/worktrees/dealeros-architecture-eval-c07dce`.
-**Base:** `main` @ `942f142`. **Nothing is committed** — 48 changed paths, 26 of
-them new, all in the working tree.
-**Written:** 2026-08-22.
+**Base:** `main` @ `942f142`, which stops at `V0009` — every DealerOS migration,
+both engines and all of this document's subject matter exist only on this branch.
+**State:** 15 commits, pushed, open as
+[maxedevops/MautoDesk#1](https://github.com/maxedevops/MautoDesk/pull/1),
+`MERGEABLE`/`CLEAN`, **all 10 CI jobs green** at `9414a9b`.
+**Written:** 2026-08-22. **Revised:** 2026-11-14.
 
 Read [`docs/11-dealeros-assessment.md`](11-dealeros-assessment.md) first if you
 have not: it is the evaluation this branch acts on, and it explains *why* the
@@ -28,8 +31,11 @@ Four increments, in order:
 | **Phases 3–4** | The two pure engines: `Sales.Domain` (deal) and `Compliance.Domain` (regulatory) |
 | **Wiring** | Application + Infrastructure layers, 7 deal/compliance endpoints |
 | **Phase 5** | `V0012` — Oklahoma pack, 6 DRAFT rules, primary text archived and hashed |
+| **CI repair** | The workflow had **never once executed** in this repository's history — a quoting corruption meant it did not parse. Fixed, then driven to green across eight runs (§6) |
+| **Review** | `docs/13` the counsel packet, `docs/14` the 13 November disposition: conditional, **nothing approved** |
+| **Phase 5, second pass** | `V0013` — HB 3982 and HB 3148 archived from the enrolled bills; 4 further DRAFT rules; the `US-OK` holiday calendar seeded |
 
-19 backend projects (was 14). 25 API paths (was 18). 12 migrations (was 9).
+19 backend projects (was 14). 25 API paths (was 18). 13 migrations (was 9).
 
 ---
 
@@ -48,6 +54,14 @@ one is new and the dispatcher will not start without it:
 ```bash
 docker exec mautodesk-postgres psql -U postgres -d mautodesk -c "alter role mautodesk_app with password 'devpw'; alter role mautodesk_dispatcher with password 'devpw';"
 ```
+
+**MinIO images moved.** `minio/minio` and `minio/mc` were deleted from Docker
+Hub, so every compose file and the CI job now use
+`bitnamilegacy/minio:2025.7.23-debian-12-r5` and
+`bitnamilegacy/minio-client:2025.7.21-debian-12-r3`. The data path is
+`/bitnami/minio/data`, the entrypoint starts the server (so there is no
+`command:`), and `minio-init` needs `MC_CONFIG_DIR` because the client runs as a
+non-root user with no writable home.
 
 **Running the tests.** The integration suite needs PostgreSQL on `55432` and
 MinIO. If port 9000 is taken by another project — it was on this machine —
@@ -71,22 +85,33 @@ UPDATE_CONTRACT=1 dotnet test backend/tests/MautoDesk.IntegrationTests --filter 
 
 ## 3. Verified state
 
-Everything below was run from a **fresh** database on 2026-08-22, in the order CI
-uses.
+Everything below is from CI run
+[43563996207](https://github.com/maxedevops/MautoDesk/actions/runs/43563996207)
+on `9414a9b`, against a fresh database. It is no longer one machine's word for it.
 
 | Check | Result |
 | --- | --- |
-| Migrations `V0001`–`V0012` | apply clean |
+| Migrations `V0001`–`V0013` | apply clean |
 | `app.rls_coverage_gaps()` | **0** |
 | Pre-approved rule versions in a fresh database | **0** |
 | `db/tests/isolation_probe.sql` | 14 PASS |
 | `db/tests/v0010_invariants.sql` | 23 PASS |
-| `V0012` re-applied | idempotent |
+| `V0007` / `V0012` / `V0013` re-applied | idempotent |
 | Release build, warnings-as-errors | 0 warnings, 0 errors |
-| Architecture / unit / integration tests | **20 / 204 / 119** |
+| Architecture / unit / integration tests | **20 / 204 / 120** |
+| Frontend unit tests | **95** (74 contrast, 14 api-client, 7 web) |
+| Playwright end-to-end | **green — and this is the first time the job has ever run** |
+| CodeQL | csharp, javascript-typescript and actions, each its own job |
+| Dependency advisories | 0 |
 
-The full solution suite was run **ten consecutive times** while chasing an
-intermittent failure (§6). The last four runs after the final fix were clean.
+**Read the e2e result carefully.** Until this branch, the workflow never parsed,
+so no job had ever executed: the suite was not passing, it was absent. Its first
+real run found a server exception on the recovery-codes page (§6), which is what
+the suite exists for.
+
+Docker was not running on the machine this session worked from, so the migrations,
+the database gates and both integration suites were verified **in CI rather than
+locally**. Every claim in this table has a run id behind it.
 
 ---
 
@@ -132,29 +157,55 @@ These are additions to `HANDOFF.md` §4, not replacements.
 
 ## 5. The Oklahoma pack — read this before touching it
 
-**6 DRAFT rules, 0 approved, 23 test cases green.** The engine evaluates none of
+**10 DRAFT rule versions across 9 rules, 0 approved, 41 test cases green.** The engine evaluates none of
 them, so **an Oklahoma deal reports GREEN because nothing is approved, not because
 it is lawful.**
 
+`V0012`, drafted against 2024–25 Service Oklahoma guidance:
 `OK-PREREG-001` · `OK-TEMP-TAG-001` · `OK-PLATE-TRANSFER-001` ·
 `OK-TITLE-TYPE-001` · `OK-TITLE-ETBS-001` · `OK-TITLE-VIN-INSPECTION-001`
 
-`db/sources/us-ok/` holds the **primary text** as published by Service Oklahoma —
-press release, 11-page dealer FAQ, Electronic Titles page and FAQ — archived
-verbatim and hashed, re-hashed by CI on every build. Each rule's `approval_note`
-quotes the sentence it came from.
+`V0013`, drafted against the enrolled 2026 bills:
+`OK-TEMP-TAG-FLEET-001` · `OK-TEMP-TAG-DEALER-60-001` · `OK-REG-DEADLINE-001` ·
+`OK-TITLE-VIN-INSPECTION-001` `0.3.0-draft`
 
-**The source bar is met. The review bar is not**, and that is the only thing left:
+`db/sources/us-ok/` holds the primary text, hashed and re-hashed by CI on every
+build; each rule's `approval_note` quotes the sentence it came from. **Two
+custodies live there** and the README distinguishes them: the three Service
+Oklahoma documents were transcribed and supplied by the project owner, while the
+two enrolled bills were retrieved from `oklegislature.gov` and are the bills' own
+text, amendatory artefacts included.
 
-1. Counsel settles the three notes flagged `INTERPRETATION TO CONFIRM` — whether
-   pre-registration really excludes wholesale (the text says "all vehicles…" with
-   no carve-out), whether a transferred plate is a block or a warning (the text
-   says the dealer "should"), and whether an outstanding VIN inspection should stop
-   contracting as well as the title request (the text only holds the request).
-2. `compliance.jurisdiction_holiday` needs populating for `US-OK` from a cited
-   source. `OK-PREREG-001` carries a business-day deadline and the engine
-   **refuses** to compute one without a calendar — that is intended, not a bug.
-3. A named reviewer sets `status`, `approved_at`, `approved_by`.
+### It was reviewed, and it did not pass
+
+[`docs/14-oklahoma-review-disposition-2026-11-13.md`](14-oklahoma-review-disposition-2026-11-13.md)
+is the record. Conditional: three rules withheld or rejected as drafted, three
+approved subject to change, **nothing activated and `approved_by` still empty.**
+The reviewer was explicitly not an Oklahoma-licensed attorney and declined to
+authorise anything, so it is review input rather than the human act the gate
+needs.
+
+Its headline finding was that the pack was stale before it was ever read. **HB
+3982** (temporary plates) and **HB 3148** (VIN inspections) both took effect on
+**1 November 2026**, after the drafting. `V0013` is the response: `V0012` is not
+edited, and the new law arrives as new effective-dated rows. That is the
+append-only design doing its job for the first time.
+
+### What is left
+
+1. **A retained Oklahoma-licensed attorney.** Nothing can be approved without a
+   name to record. This is procurement, not engineering, and it is the critical
+   path.
+2. **Seven flagged readings** — three in `V0012`, four in `V0013` — plus two
+   questions `V0013` deliberately leaves open because the statute does not answer
+   them: what a *dealer* sale between 1 November and 31 December 2026 requires,
+   and whether `OK-PLATE-TRANSFER-001` has a successor at all.
+3. **An approval mechanism that exists.** See §7 — there isn't one.
+
+`compliance.jurisdiction_holiday` is **done**: 22 `US-OK` rows for 2026 and 2027,
+seeded by `V0013` from the archived Secretary of State calendar, each citing its
+source version. 2028 is absent on purpose, so a deadline falling there still
+fails closed.
 
 [`db/sources/us-ok/README.md`](../db/sources/us-ok/README.md) is the checklist.
 CI fails if a migration ever ships an approved rule.
@@ -182,6 +233,12 @@ thing that would have been expensive later.
 | **`UPDATE_CONTRACT=1` wrote to the wrong repository** | `RepositoryRoot()` looked for a `.git` *directory*; a worktree's `.git` is a *file*, so it walked past and regenerated the contract into the main checkout. Fixed to accept either — **and the main checkout was restored** |
 | **`EndpointCoverageTests` silently skipped new routes** | It substituted named path parameters only, so `{dealId}` routes were never probed. Any `{…Id}` now gets a GUID |
 | **`V0012` doubled its test corpus on re-apply** | No conflict clause on the rule-test insert. Unique index on `(rule_version_id, name)` |
+| **The workflow had never parsed, so CI had never run** | `ports: [''5432:5432'']` — doubled single quotes in four places in the `e2e` job. Every run back to August was a startup failure: 0 jobs, 0 seconds, and a green-looking absence of failures. Also present on `main` |
+| **An archived statute's hash depended on the checkout platform** | The recorded digests were of CRLF working copies; CI checks out LF, so the provenance test would pass on Windows and fail everywhere else — for the wrong reason either way. Fixed by pinning the bytes with `.gitattributes -text`, not by patching the digests |
+| **The recovery-codes page threw a server exception** | `takeRecoveryCodes()` deleted the stash cookie *while rendering*, which Next.js forbids outside a Server Action or Route Handler. A user enrolling in MFA got an error page instead of the only display of their codes — and the delete consumed the stash on the way out. Split into read and discard, behind an explicit acknowledgement |
+| **CodeQL was passed `language`, not `languages`** | Not an input the action has, so it was discarded with a warning and autodetect ran instead — analysing csharp, javascript *and* actions while the job name claimed only javascript-typescript. Renaming the input alone would have *narrowed* coverage to one language and silenced the warning; the matrix now declares all three |
+| **A compliance run could 500 on a foreign key** | `US-ZZ` was seeded only by one test, so others passed only if that test had run first. It worked on an accumulated local database and never on a fresh one. Fixed the fixture *and* the product: an uncovered jurisdiction is now a 422 that says so |
+| **An unbounded `pnpm.overrides` range crossed a major** | `"js-yaml": ">=4.3.2"` resolved to 5.5.0, which no longer exports `types.merge`; `@redocly/openapi-core` threw and client generation died. My own bug, fixed by bounding every override to its major |
 
 ---
 
@@ -196,6 +253,9 @@ On top of `HANDOFF.md` §6.
 | **An APR is a percent, not a fraction** | `Percentage` carries the unit in the type. `FromPercent(8.99)` is 8.99%; `AsFraction` is the only route to 0.0899, and there is no implicit conversion from `decimal` |
 | **A business-day calendar with no holidays is refused** | `BusinessDayCalendar.ForJurisdiction` throws on an empty set. Use `WithNoHolidays` to say so deliberately |
 | **The rule-test harness approves rules in memory** | The evaluator ignores unapproved rules, which would make every draft's tests vacuously pass. The harness copies the rule with `IsApproved = true`; the database row is untouched |
+| **Approving a rule is currently impossible** | `compliance.regulatory_rule_version` carries `app.deny_mutation()` on UPDATE and DELETE, so `approved_at` can never be set on a row that already exists — not by a developer, an operator, or a superuser. The intent is visible in the invariant tests, which insert rows *already approved*: an approval is a **new version row**. But no endpoint, screen or store method performs that insert, and CI forbids migrations from it. `V0012`'s header, `docs/13` and the sources README all told a reviewer to "set the three columns"; all three are corrected |
+| **A missing fact reads as compliance** | Every operator except `exists`/`not_exists` returns false on an absent fact (`RuleDefinition.cs:163`), so a condition over a fact nobody captured makes the rule *not fire*, which produces no result, which reads as GREEN. Structural rather than per-rule: an incompletely entered deal is indistinguishable from a compliant one. The strongest argument for the GRAY/UNKNOWN state `docs/14` §6 asks for |
+| **The e2e suite is not idempotent against a persistent database** | A retry fails with "The E2E account is already enrolled, so its TOTP secret is unknown." Fine on CI's fresh database, a trap locally. `db/tests/reset-e2e-account.sql` is the workaround |
 
 ---
 
@@ -205,14 +265,40 @@ Nothing consumes domain events yet — `LoggingEventPublisher` records a deliver
 and delivers to nothing. No endpoint *requires* an idempotency key; the mechanism
 is in place and enforcing it is a per-endpoint decision. `lending.*` and
 `titling.*` have schema and no code. No frontend screen for deals, desking or
-compliance. Deal Guardian does not exist. Terraform, OCR, messaging, documents,
-e-signature, accounting: unchanged from `main`.
+compliance — the UI is six pages: login, inventory list/new/detail, recovery
+codes and the root. 25 paths are implemented against the 40 in the design
+contract, and the two sets are not the same shape. Deal Guardian does not
+exist. Terraform, OCR, messaging, documents, e-signature and accounting are
+unchanged from `main`.
+
+Two gaps that are easy to mistake for coverage:
+
+- **There are no federal rules at all.** The `US` jurisdiction row exists and
+  holds nothing. No TILA/Reg Z, Reg B, FTC Used Car Rule, GLBA, OFAC or Form
+  8300. Approving the Oklahoma pack would not make the product a compliance
+  system.
+- **The tax rule set is an empty skeleton, not a draft.** `sales.rule_set` for
+  OK/KS/TX carries `taxBasis: 'UNVERIFIED'`, null rates, no fees and a
+  `PLACEHOLDER` citation. Nobody has researched Oklahoma's tax basis, trade-in
+  credit policy or doc-fee cap, so the deal engine prices nothing — and counsel
+  approving the compliance rules does not change that. It is a separate approval,
+  by a CPA, against sources that do not exist yet.
 
 ---
 
 ## 9. Where to pick up
 
-Dependency order from the roadmap in `docs/11-dealeros-assessment.md` §M:
+Dependency order from the roadmap in `docs/11-dealeros-assessment.md` §M. **Phase
+5 is still open and is the critical path** — it now needs two things that are not
+code:
+
+0. **Finish Phase 5.** Retain an Oklahoma-licensed attorney (§5), and build an
+   approval path that can actually insert an approved rule version with an audit
+   entry (§7). Everything regulatory downstream waits on both. While that is in
+   flight, the two unanswered statutory questions in `V0013` and any Service
+   Oklahoma implementation guidance on HB 3982 are the research to chase.
+
+Then, unchanged:
 
 1. **Phase 6 — lender matrix.** Schema exists (`V0010`); needs the eligibility
    engine, scoring and the optimizer. The optimizer must never return a structure
@@ -238,7 +324,8 @@ do not invent an API.
 
 ## 10. Honest limitations
 
-- **Nothing is committed.** 48 changed paths in a worktree. Review before merging.
+- **Committed, pushed, reviewed by CI, not reviewed by a human.** 15 commits,
+  106 files, open as PR #1 and mergeable. No person has read the diff.
 - **The intermittent test is fixed, not proven.** `Two_evaluations_of_an_unchanged_deal_agree`
   failed three times across many runs. The cause was identified (§6, rows 3–4) and
   it has not recurred in ten consecutive solution runs — but it failed rarely
@@ -246,10 +333,19 @@ do not invent an API.
   status before reading the body, so a recurrence will say what happened.
 - **Nothing is deployed and nothing is measured.** No Terraform, no APM data, no
   load profile. Phase-1's p95 and LCP budgets remain unverified assertions.
-- **The archived Oklahoma text was supplied by the project owner**, transcribed
-  from the Service Oklahoma page and PDF rather than fetched by this repository's
-  tooling. It reads as verbatim and agrees with an independent web search, but a
+- **The three Service Oklahoma documents were supplied by the project owner**,
+  transcribed from the page and PDF rather than fetched by this repository's
+  tooling. They read as verbatim and agree with an independent search, but a
   reviewer should open the URLs on the `regulatory_source` rows and confirm the
   published text has not changed — the Electronic Titles page in particular is
-  living.
+  living. The two enrolled bills in `V0013` have stronger provenance: they are the
+  official PDFs' own text. The holiday file is a transcription of two published
+  tables, which the source row says.
+- **HB 3148 is cited from its enrolled text; its *effect* is not fully modelled.**
+  `V0013` carries the authorised-inspector and certification changes. The
+  four-dollar fee, the notification naming an inspector, and the NAICS
+  rental-establishment exemption are all recorded as `NOT CHECKED BY THIS RULE`.
+- **CodeQL Action v3 is deprecated in December 2026.** The v3→v4 bump changes
+  default build-mode behaviour, so it wants its own change rather than riding
+  along with something else.
 - **`RISK-SEC-001` is still open.** No managed KMS.
