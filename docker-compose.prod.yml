@@ -88,6 +88,12 @@ services:
       # database (ADR-0002).
       ConnectionStrings__Default: >-
         Host=postgres;Port=5432;Database=mautodesk;Username=mautodesk_app;Password=${APP_DB_PASSWORD:?set APP_DB_PASSWORD};Maximum Pool Size=20
+      # A separate, least-privileged role for the outbox dispatcher (V0011).
+      # It can read across tenants on app.outbox_message and reach nothing else;
+      # mautodesk_app can reach everything a request needs and not the outbox.
+      # Neither can do the other's job, which is the point.
+      Outbox__ConnectionString: >-
+        Host=postgres;Port=5432;Database=mautodesk;Username=mautodesk_dispatcher;Password=${DISPATCHER_DB_PASSWORD:?set DISPATCHER_DB_PASSWORD};Maximum Pool Size=4
       Jwt__SigningKey: ${JWT_SIGNING_KEY:?generate with openssl rand -base64 32}
       Jwt__Issuer: https://${APP_DOMAIN}
       Jwt__Audience: mautodesk-api
@@ -149,18 +155,20 @@ services:
     networks: [internal]
 
   minio:
-    image: minio/minio:latest
+    # bitnamilegacy, not minio/minio: the official images were deleted from
+    # Docker Hub in September 2026. See docker-compose.yml for the full note.
+    image: bitnamilegacy/minio:2025.7.23-debian-12-r5
     container_name: mautodesk-minio
     restart: unless-stopped
     logging: *logging
-    command: ['server', '/data', '--console-address', ':9001']
+    # No command: the bitnami entrypoint starts the server itself.
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:?set MINIO_ROOT_USER}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?set MINIO_ROOT_PASSWORD}
       # Presigned URLs are signed against the host the browser uses.
       MINIO_SERVER_URL: https://${MEDIA_DOMAIN}
     volumes:
-      - minio-data:/data
+      - minio-data:/bitnami/minio/data
     healthcheck:
       test: ['CMD', 'mc', 'ready', 'local']
       interval: 10s
@@ -169,14 +177,17 @@ services:
     networks: [internal]
 
   minio-init:
-    image: minio/mc:latest
+    image: bitnamilegacy/minio-client:2025.7.21-debian-12-r3
     container_name: mautodesk-minio-init
     restart: 'no'
     logging: *logging
     depends_on:
       minio:
         condition: service_healthy
+    # mc writes its alias config under $HOME, which is / and not writable for
+    # the bitnami image's UID 1001. Without this every mc call fails.
     environment:
+      MC_CONFIG_DIR: /tmp/.mc
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:?set MINIO_ROOT_USER}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?set MINIO_ROOT_PASSWORD}
     entrypoint: >
@@ -238,6 +249,7 @@ services:
     environment:
       PGPASSWORD: ${POSTGRES_SUPERUSER_PASSWORD:?set POSTGRES_SUPERUSER_PASSWORD}
       APP_DB_PASSWORD: ${APP_DB_PASSWORD:?set APP_DB_PASSWORD}
+      DISPATCHER_DB_PASSWORD: ${DISPATCHER_DB_PASSWORD:?set DISPATCHER_DB_PASSWORD}
     entrypoint: >
       /bin/sh -c "
       set -e;
@@ -253,6 +265,7 @@ services:
       done;
       echo '--- application role password ---';
       $$PSQL -c \"alter role mautodesk_app with password '$$APP_DB_PASSWORD'\";
+      $$PSQL -c \"alter role mautodesk_dispatcher with password '$$DISPATCHER_DB_PASSWORD'\";
       echo '--- RLS coverage ---';
       gaps=$$(psql -h postgres -U postgres -d mautodesk -t -A -c 'select count(*) from app.rls_coverage_gaps();');
       if [ \"$$gaps\" != \"0\" ]; then

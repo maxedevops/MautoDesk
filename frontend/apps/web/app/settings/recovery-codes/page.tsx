@@ -1,7 +1,7 @@
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { apiClient } from '@/lib/api';
-import { stashRecoveryCodes, takeRecoveryCodes } from '@/lib/session';
+import { discardRecoveryCodes, readRecoveryCodes, stashRecoveryCodes } from '@/lib/session';
 import { Note } from '@/components/primitives';
 
 export const dynamic = 'force-dynamic';
@@ -12,19 +12,32 @@ export const dynamic = 'force-dynamic';
  * Reached in two ways: straight after enrolment, carrying a freshly issued set,
  * or later from account settings to check how many are left and replace them.
  *
- * The codes are shown once and never again — they are stored hashed, so there
+ * The codes are shown until acknowledged and never again — they are stored
+ * hashed, so there
  * is nothing to come back to. That is why this page interrupts the sign-in flow
  * rather than waiting to be discovered: a user who never learns the codes exist
  * has no way back in when their phone goes missing, which is the exact failure
  * this feature was built to prevent.
  */
 export default async function RecoveryCodesPage() {
-  // Reading clears them, so a refresh does not leave credentials sitting in a
-  // cookie, and a shared screen does not keep showing them.
-  const issued = await takeRecoveryCodes();
+  // Read only. Clearing happens in the acknowledge action below, because a page
+  // render may not mutate a cookie — doing it here threw, and the user saw an
+  // error boundary instead of the codes.
+  const issued = await readRecoveryCodes();
 
   const client = await apiClient();
   const status = await client.recoveryCodeStatus();
+
+  // The acknowledgement. A Server Action is the only place the cookie may be
+  // cleared, and making the user say "saved" is better than clearing on sight:
+  // until they do, a refresh still shows the codes rather than destroying the
+  // one copy they were given.
+  async function acknowledge() {
+    'use server';
+
+    await discardRecoveryCodes();
+    redirect('/inventory');
+  }
 
   async function regenerate() {
     'use server';
@@ -61,6 +74,16 @@ export default async function RecoveryCodesPage() {
               </li>
             ))}
           </ul>
+
+          <form action={acknowledge}>
+            <button
+              type="submit"
+              className="min-h-11 rounded-md px-4 text-base font-semibold"
+              style={{ background: 'var(--accent-bg)', color: 'var(--text-on-accent)' }}
+            >
+              I have saved these codes
+            </button>
+          </form>
         </>
       ) : (
         <>

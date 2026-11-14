@@ -1,0 +1,8 @@
+# Archived regulatory sources are evidence, not text files. A rule records the
+# sha256 of the document it was drafted against, so these bytes must be
+# identical in every checkout on every platform. Without this, git translates
+# line endings on a Windows checkout and the recorded hash stops matching —
+# which is precisely how it happened once: the hashes in V0012 were the CRLF
+# working-copy hashes and CI, checking out LF, read three mismatches.
+db/sources/** -text
+db/tests/fixtures/** -text

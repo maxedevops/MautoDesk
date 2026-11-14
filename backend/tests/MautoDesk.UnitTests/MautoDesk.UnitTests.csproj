@@ -12,6 +12,10 @@
     <!-- The log-redaction policy lives in the host, because it is wired into
          the host's logging pipeline. -->
     <ProjectReference Include="..\..\src\MautoDesk.Api\MautoDesk.Api.csproj" />
+    <!-- The two deterministic engines. Pure, so they need nothing but a
+         reference: no database, no host, no fixture. -->
+    <ProjectReference Include="..\..\src\Modules\Sales\MautoDesk.Sales.Domain\MautoDesk.Sales.Domain.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Compliance\MautoDesk.Compliance.Domain\MautoDesk.Compliance.Domain.csproj" />
   </ItemGroup>
 
   <ItemGroup>

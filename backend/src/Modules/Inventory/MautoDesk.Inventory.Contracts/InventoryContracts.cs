@@ -1,3 +1,5 @@
+using MautoDesk.SharedKernel;
+
 namespace MautoDesk.Inventory.Contracts;
 
 /// <summary>
@@ -131,13 +133,3 @@ public sealed record VinDecodeDto(
     string? Transmission,
     string? Manufacturer,
     string? ErrorText);
-
-/// <summary>One page of results.</summary>
-public sealed record PagedResult<T>(
-    IReadOnlyList<T> Items,
-    int Page,
-    int PageSize,
-    int TotalCount)
-{
-    public int TotalPages => PageSize == 0 ? 0 : (int)Math.Ceiling(TotalCount / (double)PageSize);
-}

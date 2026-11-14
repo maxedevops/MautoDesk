@@ -75,6 +75,20 @@ setup('sign in', async ({ page }) => {
     );
   }
 
+  // Enrolment does not land on the grid: it diverts to the recovery codes,
+  // because that response is the only time the server hands them over.
+  //
+  // This asserted /inventory and had therefore never passed; the suite had
+  // simply never run in CI. Once it did, the page turned out to serve an error
+  // boundary — it cleared the stash cookie during render, which Next refuses —
+  // so a real user saw a server error instead of their codes. The codes are now
+  // read-only here and cleared by the acknowledgement, which is also what makes
+  // this setup deterministic: it leaves the page by the route a user takes.
+  await expect(page).toHaveURL('/settings/recovery-codes?issued=1');
+  await expect(page.getByRole('heading', { name: 'Recovery codes' })).toBeVisible();
+  await expect(page.locator('li')).not.toHaveCount(0);
+
+  await page.getByRole('button', { name: 'I have saved these codes' }).click();
   await expect(page).toHaveURL('/inventory');
 
   // The sealed cookie, reused by every authenticated test.

@@ -30,6 +30,9 @@
     <PackageVersion Include="Microsoft.Extensions.Options" Version="9.0.11" />
     <PackageVersion Include="Microsoft.Extensions.Http" Version="9.0.11" />
     <PackageVersion Include="Microsoft.Extensions.Http.Resilience" Version="9.10.0" />
+    <!-- BackgroundService, for the outbox dispatcher. The hosted-service
+         abstraction only; no scheduler, no job storage, no new infrastructure. -->
+    <PackageVersion Include="Microsoft.Extensions.Hosting.Abstractions" Version="9.0.11" />
   </ItemGroup>
 
   <ItemGroup Label="Security">

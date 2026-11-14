@@ -109,15 +109,37 @@ export async function stashRecoveryCodes(codes: readonly string[]): Promise<void
   });
 }
 
-/** Reads the stashed codes and clears them, so a refresh does not show them again. */
-export async function takeRecoveryCodes(): Promise<readonly string[] | null> {
+/**
+ * Reads the stashed codes without clearing them.
+ *
+ * This used to delete the cookie as it read, which is a cookie mutation — and a
+ * page render is not allowed to make one. Next threw, the route served an error
+ * boundary, and a user who had just enrolled saw a server error in place of the
+ * only display of their recovery codes. Clearing is now
+ * {@link discardRecoveryCodes}, called from the Server Action behind the
+ * acknowledgement on the page, which is somewhere a mutation belongs.
+ */
+export async function readRecoveryCodes(): Promise<readonly string[] | null> {
   const store = await cookies();
   const raw = store.get(RECOVERY_COOKIE_NAME)?.value;
 
   if (!raw) return null;
 
-  store.delete(RECOVERY_COOKIE_NAME);
   return unseal<readonly string[]>(raw);
+}
+
+/**
+ * Clears the stashed codes. Only legal from a Server Action or Route Handler.
+ *
+ * Until this is called the sealed cookie survives, so a refresh still shows the
+ * codes rather than losing them — which is the safer failure for a credential a
+ * user is in the middle of writing down. The cookie carries a ten-minute
+ * maxAge, so it does not outlive that regardless.
+ */
+export async function discardRecoveryCodes(): Promise<void> {
+  const store = await cookies();
+
+  store.delete(RECOVERY_COOKIE_NAME);
 }
 
 export async function writeSession(data: SessionData): Promise<void> {

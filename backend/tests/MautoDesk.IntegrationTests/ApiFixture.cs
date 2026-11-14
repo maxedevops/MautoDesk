@@ -59,6 +59,19 @@ public sealed class ApiFixture : WebApplicationFactory<Program>, IAsyncLifetime
 
     internal static string AdminConnectionString => SuperuserConnectionString;
 
+    /// <summary>
+    /// The dispatcher's connection, as <c>mautodesk_dispatcher</c>.
+    /// </summary>
+    /// <remarks>
+    /// A separate role on purpose (V0011). Pointing the dispatcher at the
+    /// superuser connection would make the outbox tests pass while proving
+    /// nothing about whether the least-privileged role can actually do the job.
+    /// </remarks>
+    public static readonly string DispatcherConnectionString =
+        Environment.GetEnvironmentVariable("TEST_DISPATCHER_CONNECTION")
+        ?? "Host=localhost;Port=55432;Database=mautodesk;Username=mautodesk_dispatcher;" +
+           "Password=devpw;Include Error Detail=true";
+
     /// <summary>32 bytes, base64. Test-only, and never used outside the suite.</summary>
     public const string TestSigningKey = "dGVzdC1zaWduaW5nLWtleS0zMi1ieXRlcy1sb25nISE=";
 
@@ -123,6 +136,15 @@ public sealed class ApiFixture : WebApplicationFactory<Program>, IAsyncLifetime
         Environment.SetEnvironmentVariable("RateLimits__ReadTokensPerPeriod", "100000");
         Environment.SetEnvironmentVariable("RateLimits__WriteTokenLimit", "100000");
         Environment.SetEnvironmentVariable("RateLimits__WriteTokensPerPeriod", "100000");
+
+        // The dispatcher's background loop is off, and the tests drive
+        // RunOnceAsync directly. A loop polling every five seconds underneath a
+        // suite that asserts on outbox state would dispatch messages out from
+        // under the assertions and fail intermittently — the worst kind of test.
+        // The claim/publish/record path itself is fully exercised; only the
+        // `while` loop around it is not.
+        Environment.SetEnvironmentVariable("Outbox__Enabled", "false");
+        Environment.SetEnvironmentVariable("Outbox__ConnectionString", DispatcherConnectionString);
     }
 
     public Guid TenantAVehicleId { get; private set; }
@@ -156,6 +178,12 @@ public sealed class ApiFixture : WebApplicationFactory<Program>, IAsyncLifetime
         await using var connection = new NpgsqlConnection(SuperuserConnectionString);
         await connection.OpenAsync().ConfigureAwait(false);
 
+        // V0011 creates mautodesk_dispatcher without a password, exactly as
+        // V0001 does for mautodesk_app, so that no migration file contains a
+        // credential. Development and CI set one; here the fixture does.
+        await ExecuteAsync(connection,
+            "alter role mautodesk_dispatcher with password 'devpw'").ConfigureAwait(false);
+
         // Seeded as superuser, which bypasses RLS — that is the point. Creating
         // two tenants' data is exactly what the application role must not be
         // able to do, so the fixture cannot use it.
@@ -178,6 +206,12 @@ public sealed class ApiFixture : WebApplicationFactory<Program>, IAsyncLifetime
         {
             "inventory.vehicle.read", "inventory.vehicle.write", "inventory.vehicle.delete",
             "inventory.price.write", "inventory.publish", "inventory.photo.write",
+
+            // Sales and compliance. Gross is deliberately included here and
+            // deliberately excluded from the user DealWorkflowTests builds for the
+            // permission test, so both halves of that gate are exercised.
+            "sales.deal.read", "sales.deal.write", "sales.deal.approve", "sales.deal.void",
+            "sales.gross.read", "compliance.evaluation.read",
         };
 
         UserA = await AuthFlow.CreateUserAsync(
@@ -203,6 +237,53 @@ public sealed class ApiFixture : WebApplicationFactory<Program>, IAsyncLifetime
         await ExecuteAsync(connection,
             "delete from app.outbox_message where tenant_id in (@a, @b)",
             ("a", TenantA), ("b", TenantB)).ConfigureAwait(false);
+        await ExecuteAsync(connection,
+            "delete from app.idempotency_key where tenant_id in (@a, @b)",
+            ("a", TenantA), ("b", TenantB)).ConfigureAwait(false);
+        // Deals, calculations and compliance runs.
+        //
+        // These tables are append-only: a trigger blocks DELETE, and it blocks it
+        // for the superuser too, because a trigger does not care who you are. So
+        // the fixture disables them for the duration of the teardown and puts them
+        // back — which is exactly the kind of privilege a test fixture is allowed
+        // and the application role is not. Getting this wrong is not subtle: the
+        // delete throws, teardown aborts before it reaches the vehicles, and the
+        // NEXT run fails on a duplicate stock number a long way from the cause.
+        await ExecuteAsync(connection, """
+            alter table sales.deal_calculation disable trigger deal_calculation_immutable;
+            alter table compliance.compliance_run disable trigger compliance_run_immutable;
+            alter table compliance.compliance_result disable trigger compliance_result_immutable;
+            """).ConfigureAwait(false);
+
+        try
+        {
+            await ExecuteAsync(connection,
+                "delete from compliance.compliance_result where tenant_id in (@a, @b)",
+                ("a", TenantA), ("b", TenantB)).ConfigureAwait(false);
+            await ExecuteAsync(connection,
+                "delete from compliance.compliance_run where tenant_id in (@a, @b)",
+                ("a", TenantA), ("b", TenantB)).ConfigureAwait(false);
+
+            // The deal points at its current calculation and the calculation
+            // points back at the deal, so the pointer is cleared first.
+            await ExecuteAsync(connection,
+                "update sales.deal set current_calculation_id = null where tenant_id in (@a, @b)",
+                ("a", TenantA), ("b", TenantB)).ConfigureAwait(false);
+            await ExecuteAsync(connection,
+                "delete from sales.deal_calculation where tenant_id in (@a, @b)",
+                ("a", TenantA), ("b", TenantB)).ConfigureAwait(false);
+            await ExecuteAsync(connection,
+                "delete from sales.deal where tenant_id in (@a, @b)",
+                ("a", TenantA), ("b", TenantB)).ConfigureAwait(false);
+        }
+        finally
+        {
+            await ExecuteAsync(connection, """
+                alter table sales.deal_calculation enable trigger deal_calculation_immutable;
+                alter table compliance.compliance_run enable trigger compliance_run_immutable;
+                alter table compliance.compliance_result enable trigger compliance_result_immutable;
+                """).ConfigureAwait(false);
+        }
         await ExecuteAsync(connection,
             "delete from inventory.vehicle where tenant_id in (@a, @b)",
             ("a", TenantA), ("b", TenantB)).ConfigureAwait(false);

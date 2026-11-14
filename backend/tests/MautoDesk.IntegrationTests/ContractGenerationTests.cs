@@ -141,18 +141,37 @@ public sealed class ContractGenerationTests
     }
 
     /// <summary>Walks up from the test binary to the repository root.</summary>
+    /// <summary>
+    /// Walks up to the repository root.
+    /// </summary>
+    /// <remarks>
+    /// <b>In a git worktree, <c>.git</c> is a file, not a directory.</b> Checking
+    /// only for a directory walked straight past the worktree and found the main
+    /// checkout above it — so running with <c>UPDATE_CONTRACT=1</c> from a
+    /// worktree wrote the regenerated contract into somebody else's working tree
+    /// and left this one untouched, which then read as "no drift".
+    /// </remarks>
     private static string RepositoryRoot()
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);
 
-        while (directory is not null && !Directory.Exists(Path.Combine(directory.FullName, ".git")))
+        while (directory is not null && !IsRepositoryRoot(directory))
         {
             directory = directory.Parent;
         }
 
         return directory?.FullName
             ?? throw new InvalidOperationException(
-                "Could not locate the repository root (no .git directory found above " +
-                $"{AppContext.BaseDirectory}).");
+                "Could not locate the repository root (no .git directory or worktree file found " +
+                $"above {AppContext.BaseDirectory}).");
+    }
+
+    private static bool IsRepositoryRoot(DirectoryInfo directory)
+    {
+        var git = Path.Combine(directory.FullName, ".git");
+
+        // A normal checkout has a .git directory; a worktree has a .git file
+        // pointing at the real one. Either marks the root of a working tree.
+        return Directory.Exists(git) || File.Exists(git);
     }
 }

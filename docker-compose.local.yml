@@ -91,6 +91,11 @@ services:
       ASPNETCORE_ENVIRONMENT: Production
       ConnectionStrings__Default: >-
         Host=postgres;Port=5432;Database=mautodesk;Username=mautodesk_app;Password=devpw;Maximum Pool Size=20
+      # The outbox dispatcher's own role. Cross-tenant on app.outbox_message and
+      # nothing else; mautodesk_app cannot see that table without a tenant scope,
+      # so it cannot do this job (V0011).
+      Outbox__ConnectionString: >-
+        Host=postgres;Port=5432;Database=mautodesk;Username=mautodesk_dispatcher;Password=devpw;Maximum Pool Size=4
       Jwt__SigningKey: bWF1dG9kZXNrLWxvY2FsLWRldi1qd3Qtc2lnbmluZy4=
       Jwt__Issuer: http://localhost:${LOCAL_PORT:-8088}
       Jwt__Audience: mautodesk-api
@@ -145,11 +150,13 @@ services:
     networks: [internal]
 
   minio:
-    image: minio/minio:latest
+    # bitnamilegacy, not minio/minio: the official images were deleted from
+    # Docker Hub in September 2026. See docker-compose.yml for the full note.
+    image: bitnamilegacy/minio:2025.7.23-debian-12-r5
     container_name: mautodesk-local-minio
     restart: unless-stopped
     logging: *logging
-    command: ['server', '/data', '--console-address', ':9001']
+    # No command: the bitnami entrypoint starts the server itself.
     environment:
       MINIO_ROOT_USER: mautodesk
       MINIO_ROOT_PASSWORD: devpassword
@@ -162,7 +169,7 @@ services:
     ports:
       - '${LOCAL_MINIO_PORT:-9002}:9000'
     volumes:
-      - minio-data:/data
+      - minio-data:/bitnami/minio/data
     healthcheck:
       test: ['CMD', 'mc', 'ready', 'local']
       interval: 10s
@@ -171,13 +178,17 @@ services:
     networks: [internal]
 
   minio-init:
-    image: minio/mc:latest
+    image: bitnamilegacy/minio-client:2025.7.21-debian-12-r3
     container_name: mautodesk-local-minio-init
     restart: 'no'
     logging: *logging
     depends_on:
       minio:
         condition: service_healthy
+    # mc writes its alias config under $HOME, which is / and not writable for
+    # the bitnami image's UID 1001. Without this every mc call fails.
+    environment:
+      MC_CONFIG_DIR: /tmp/.mc
     entrypoint: >
       /bin/sh -c "
       mc alias set local http://minio:9000 mautodesk devpassword;
@@ -219,10 +230,13 @@ services:
         $$PSQL -c \"insert into public.schema_version (filename) values ('$$name')\";
       done;
       $$PSQL -c \"alter role mautodesk_app with password 'devpw'\";
+      $$PSQL -c \"alter role mautodesk_dispatcher with password 'devpw'\";
       gaps=$$(psql -h postgres -U postgres -d mautodesk -t -A -c 'select count(*) from app.rls_coverage_gaps();');
       if [ \"$$gaps\" != \"0\" ]; then echo \"FAIL: $$gaps RLS coverage gap(s)\"; exit 1; fi;
       echo 'RLS coverage OK';
       psql -h postgres -U postgres -d mautodesk -v ON_ERROR_STOP=1 -f /db/tests/isolation_probe.sql;
+      psql -h postgres -U postgres -d mautodesk -v ON_ERROR_STOP=1 -f /db/tests/v0010_invariants.sql;
+      psql -h postgres -U postgres -d mautodesk -v ON_ERROR_STOP=1 -f /db/tests/rule_pack_approval.sql;
       "
     networks: [internal]
 

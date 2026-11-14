@@ -23,7 +23,7 @@ namespace MautoDesk.IntegrationTests;
 /// </para>
 /// </remarks>
 [Collection(nameof(ApiCollection))]
-public sealed class EndpointCoverageTests
+public sealed partial class EndpointCoverageTests
 {
     /// <summary>
     /// Routes that are anonymous by design.
@@ -258,14 +258,30 @@ public sealed class EndpointCoverageTests
         return routes;
     }
 
-    /// <summary>Substitutes plausible values for path parameters.</summary>
-    private static string Concretize(string template) => template
-        .Replace("{vehicleId}", Guid.CreateVersion7().ToString(), StringComparison.Ordinal)
-        // A parameter left un-substituted fails the :guid route constraint, so
-        // the route never matches and the probe reads a 404 as "unauthenticated
-        // access was refused" when nothing of the sort was tested.
-        .Replace("{photoId}", Guid.CreateVersion7().ToString(), StringComparison.Ordinal)
-        .Replace("{vin}", "1FTFW1ET5MFA48219", StringComparison.Ordinal);
+    /// <summary>
+    /// Substitutes plausible values for path parameters.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A parameter left un-substituted fails the <c>:guid</c> route constraint, so
+    /// the route never matches and the probe reads the resulting 404 as
+    /// "unauthenticated access was refused" when nothing of the sort was tested.
+    /// </para>
+    /// <para>
+    /// This used to be a list of named parameters, which meant every new
+    /// <c>{somethingId}</c> route silently stopped being probed until somebody
+    /// added it here. Anything ending in <c>Id</c> now gets a GUID, so a new
+    /// module's routes are covered the moment they exist rather than the moment
+    /// this method is remembered.
+    /// </para>
+    /// </remarks>
+    private static string Concretize(string template) =>
+        IdParameter()
+            .Replace(template, _ => Guid.CreateVersion7().ToString())
+            .Replace("{vin}", "1FTFW1ET5MFA48219", StringComparison.Ordinal);
+
+    [System.Text.RegularExpressions.GeneratedRegex(@"\{[A-Za-z][A-Za-z0-9]*Id\}")]
+    private static partial System.Text.RegularExpressions.Regex IdParameter();
 
     private static Task<HttpResponseMessage> SendAsync(HttpClient client, HttpMethod method, string path)
     {

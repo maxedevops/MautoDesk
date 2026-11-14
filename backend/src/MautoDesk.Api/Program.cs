@@ -1,13 +1,17 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Text;
 using MautoDesk.Api;
+using MautoDesk.Compliance.Application;
+using MautoDesk.Compliance.Infrastructure;
 using MautoDesk.Identity.Application;
 using MautoDesk.Identity.Infrastructure;
 using MautoDesk.Infrastructure;
+using MautoDesk.Infrastructure.Outbox;
 using MautoDesk.Infrastructure.Persistence;
 using MautoDesk.Infrastructure.Tenancy;
 using MautoDesk.Inventory.Application;
 using MautoDesk.Inventory.Infrastructure;
+using MautoDesk.Sales.Infrastructure;
 using MautoDesk.SharedKernel;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
@@ -41,6 +45,8 @@ builder.Services.Configure<MalwareScanningOptions>(
     builder.Configuration.GetSection(MalwareScanningOptions.SectionName));
 builder.Services.Configure<TrustedProxyOptions>(
     builder.Configuration.GetSection(TrustedProxyOptions.SectionName));
+builder.Services.Configure<OutboxOptions>(
+    builder.Configuration.GetSection(OutboxOptions.SectionName));
 
 var jwt = builder.Configuration.GetSection("Jwt").Get<JwtOptions>() ?? new JwtOptions();
 
@@ -66,6 +72,7 @@ builder.Services.AddScoped<ITenantScopeSetter>(sp => sp.GetRequiredService<Tenan
 builder.Services.AddScoped<TenantConnectionInterceptor>();
 builder.Services.AddSingleton<IModuleSchema, InventorySchema>();
 builder.Services.AddSingleton<IModuleSchema, IdentitySchema>();
+builder.Services.AddSingleton<IModuleSchema, SalesSchema>();
 
 builder.Services.AddDbContext<MautoDeskDbContext>((sp, options) =>
 {
@@ -78,6 +85,17 @@ builder.Services.AddDbContext<MautoDeskDbContext>((sp, options) =>
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IRequestContext, HttpRequestContext>();
 builder.Services.AddScoped<IAuditLog, AuditLog>();
+
+// API-level idempotency. Scoped, because the ledger write joins the request's
+// connection — which is the connection carrying the tenant scope RLS reads.
+builder.Services.AddScoped<IIdempotencyStore, IdempotencyStore>();
+
+// The outbox dispatcher. A singleton hosted service with its own database
+// identity (ADR-0006, V0011): mautodesk_app cannot see the outbox across
+// tenants, and giving it that ability to make a background loop work would
+// weaken every request in the system.
+builder.Services.AddSingleton<IEventPublisher, LoggingEventPublisher>();
+builder.Services.AddHostedService<OutboxDispatcher>();
 
 // Inventory
 builder.Services.AddScoped<MautoDesk.Inventory.Application.IUnitOfWork, UnitOfWork>();
@@ -95,6 +113,24 @@ builder.Services.AddSingleton<IImageProcessor, SkiaImageProcessor>();
 // configuration, neither holds request state.
 builder.Services.AddSingleton<IObjectStore, S3ObjectStore>();
 builder.Services.AddSingleton<IMalwareScanner, ClamAvScanner>();
+
+// Sales: the deal engine's seam to the database. The engine itself is static and
+// pure, so there is nothing to register for it — only the ports it reads through.
+builder.Services.AddScoped<MautoDesk.Sales.Application.IUnitOfWork, SalesUnitOfWork>();
+builder.Services.AddScoped<MautoDesk.Sales.Application.IDealRepository, DealRepository>();
+builder.Services.AddScoped<MautoDesk.Sales.Application.IDealReadStore, DealReadStore>();
+builder.Services.AddScoped<MautoDesk.Sales.Application.ICalculationStore, CalculationStore>();
+builder.Services.AddScoped<MautoDesk.Sales.Application.ITaxRuleSetStore, TaxRuleSetStore>();
+builder.Services.AddScoped<MautoDesk.Sales.Application.DealCommandHandler>();
+builder.Services.AddScoped<MautoDesk.Sales.Application.DealCalculationHandler>();
+
+// Compliance. DealFactBuilder lives in this project because assembling the facts
+// crosses module boundaries, and the host is the only layer entitled to do that.
+builder.Services.AddScoped<IRegulatoryRuleStore, RegulatoryRuleStore>();
+builder.Services.AddScoped<IHolidayCalendarStore, HolidayCalendarStore>();
+builder.Services.AddScoped<IComplianceRunStore, ComplianceRunStore>();
+builder.Services.AddScoped<IRegulatoryContextBuilder, DealFactBuilder>();
+builder.Services.AddScoped<ComplianceEvaluationHandler>();
 
 // Identity
 builder.Services.AddSingleton<IPasswordHasher, Argon2PasswordHasher>();
@@ -163,6 +199,7 @@ builder.Services.AddHealthChecks()
 
 builder.Services.AddProblemDetails();
 builder.Services.AddMautoDeskRateLimiting(builder.Configuration);
+builder.Services.AddMautoDeskIdempotency(builder.Configuration);
 
 builder.Services.AddOpenApi(options =>
 {
@@ -217,6 +254,10 @@ app.UseMiddleware<TenantClaimMiddleware>();
 app.UseAuthorization();
 app.UseRateLimiter();
 
+// After the tenant claim, because the ledger is keyed by tenant; after the
+// limiter, so replaying a stored response is still rate limited.
+app.UseMautoDeskIdempotency();
+
 app.MapOpenApi();
 
 app.MapHealthChecks("/health/live");
@@ -225,6 +266,7 @@ app.MapHealthChecks("/health/ready");
 app.MapAuthEndpoints();
 app.MapInventoryEndpoints();
 app.MapPhotoEndpoints();
+app.MapDealEndpoints();
 
 await app.RunAsync().ConfigureAwait(false);
 

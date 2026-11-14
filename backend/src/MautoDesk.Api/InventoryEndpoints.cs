@@ -1,4 +1,5 @@
 using MautoDesk.Inventory.Application;
+using MautoDesk.SharedKernel;
 using MautoDesk.Inventory.Contracts;
 using MautoDesk.Inventory.Domain;
 using Microsoft.AspNetCore.Mvc;

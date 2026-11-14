@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\MautoDesk.Sales.Domain\MautoDesk.Sales.Domain.csproj" />
+    <ProjectReference Include="..\MautoDesk.Sales.Contracts\MautoDesk.Sales.Contracts.csproj" />
+  </ItemGroup>
+</Project>
