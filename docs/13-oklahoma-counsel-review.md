@@ -1,6 +1,10 @@
 # Oklahoma rule pack — counsel review packet
 
-**Status: awaiting review. Nothing in this pack is active.**
+**Status: reviewed 13 November 2026 — conditional, nothing approved, nothing active.** The
+disposition is `docs/14-oklahoma-review-disposition-2026-11-13.md`: three rules came back withheld
+or rejected as drafted, three approved subject to change, and two 2026 statutes (HB 3982, HB 3148)
+that post-date the drafted sources must be reconciled first. The questions and sources below stand;
+read the disposition alongside them.
 
 This is the sign-off point for Phase 5 of the roadmap in `docs/11-dealeros-assessment.md` §M. Six
 Oklahoma rules have been drafted against archived primary text. They are invisible to the software

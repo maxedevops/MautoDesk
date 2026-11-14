@@ -14,7 +14,10 @@ documents, signatures, uploads, jobs and reports are designed in the contract an
 **The system computes no deal today, by design.** Every seeded rule set is unapproved, so the deal
 engine refuses and the regulatory engine reports GREEN meaning "nothing is approved" rather than
 "this deal is lawful". Phase 5 — counsel review and approval of the Oklahoma pack — is the gate,
-and it blocks phases 7, 9 and 10. The review packet is `docs/13-oklahoma-counsel-review.md`.
+and it blocks phases 7, 9 and 10. The review packet is `docs/13-oklahoma-counsel-review.md`; the
+first review came back conditional with nothing approved — see
+`docs/14-oklahoma-review-disposition-2026-11-13.md`, which also records that HB 3982 and HB 3148
+(both effective 2026-11-01) post-date the drafted rules and must be reconciled before approval.
 
 Not built: lender matrix and titling (schema only, no C#), documents and e-signature, Deal
 Guardian, most of the frontend, deployment and observability. `RISK-SEC-001` (no managed KMS) is
