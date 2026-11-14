@@ -110,15 +110,22 @@ record of what the system believed on a 2024 deal.
 The review identifies the right authority: the Oklahoma Secretary of State's
 [State Holidays](https://oklahoma.gov/sos/about/state-holidays.html) publication.
 
-**The table of dates in the review document must not be loaded.** It is internally inconsistent: the
-2026 list gives two entries both labelled "Christmas" (24 and 25 December), and the 2027 table is
-misaligned, with dates and holiday names offset against one another and twelve dates under a heading
-of eleven holidays. Transcribing it would put wrong dates behind a business-day deadline.
+**Correction to an earlier reading of this document.** I first recorded that the review's table of
+dates was corrupt, citing two entries both labelled "Christmas" on 24 and 25 December 2026 and a
+misaligned 2027 table. That was wrong, and the error was mine. I have since retrieved the Secretary
+of State page: it genuinely publishes two days each as "Thanksgiving" and two as "Christmas", so the
+duplicate labels are faithful to the source, and the 2027 misalignment was an artefact of how I
+extracted the PDF rather than anything the reviewer did. **Every one of the twenty-two dates in the
+review matches the published calendar.**
 
-The correct path is the one the project already uses for law: retrieve the Secretary of State page,
-archive it under `db/sources/us-ok/` with its hash, and seed `compliance.jurisdiction_holiday` from
-the archived file with a source citation. Until then `BusinessDays` keeps refusing to compute, which
-is the right failure.
+The process point survives the correction, and it is why the dates were not simply copied across:
+law enters this system as an archived, hashed, cited source, not as a table transcribed out of a
+review document. So the page itself is now archived at
+`db/sources/us-ok/ok-sos-state-holidays-2026-2027.md`, hashed in
+`compliance.regulatory_source_version`, and `compliance.jurisdiction_holiday` is seeded from it in
+`V0013` with every row citing that source version. 2028 is deliberately absent: the Secretary of
+State has not published it, and `BusinessDays` must fail closed rather than extrapolate last year's
+dates.
 
 Implementation conditions carried over from the review, all of which match the existing design:
 store the actual date rather than the name, keep the calendar per year, never extrapolate next
@@ -150,12 +157,44 @@ preserve the rule versions, source versions, transaction date and unresolved che
 
 1. **A retained Oklahoma-licensed attorney.** Nothing can be approved without a name to record. This
    is a procurement task, not an engineering one, and it is the critical path.
-2. **Primary-source research, before that attorney is useful:** enrolled HB 3982 (retrieved — archive
-   it), enrolled HB 3148 (not retrieved), any Service Oklahoma implementation guidance, and the
-   Secretary of State holiday pages for 2026 and 2027. Each archived and hashed the way
-   `db/sources/us-ok/` already does it.
-3. **Then** new effective-dated rule versions for the temporary-tag and plate-transfer rules, and
-   revisions to the three title rules.
+2. ~~Primary-source research~~ — **done for three of four.** Enrolled HB 3982, enrolled HB 3148 and
+   the Secretary of State holiday calendar are archived, hashed and cited in `V0013`. Still
+   outstanding: any Service Oklahoma *implementation guidance* on HB 3982, which is what would
+   settle the November–December 2026 window below.
+3. ~~New effective-dated rule versions~~ — **drafted in `V0013`**, all unapproved: a ninety-day
+   commercial fleet tag (in force now), a sixty-day dealer tag (from 1 January 2027), a
+   registration-deadline rule the pack was missing, and a new version of the VIN-inspection rule
+   carrying HB 3148's authorised-inspector and certification requirements. Four readings are flagged
+   `INTERPRETATION TO CONFIRM`, and two questions are deliberately left unanswered because the
+   statute does not answer them: what a **dealer** sale between 1 November and 31 December 2026
+   requires, and whether `OK-PLATE-TRANSFER-001` has a successor at all once subdivision (a) says no
+   plate is issued on a dealer sale while subdivision (3) still speaks of a decal on a transferred
+   plate.
+4. **Then** the attorney reads `V0013` alongside `V0012`, and the revisions to the three title rules
+   follow from their answers.
+
+### Two findings from drafting the replacements
+
+**Approving a rule is currently impossible, and the documentation said otherwise.**
+`compliance.regulatory_rule_version` carries `app.deny_mutation()` on UPDATE and DELETE, so no row's
+`approved_at` can ever be set after the row exists — not by a developer, not by an operator, not by
+a superuser. The procedure written in V0012's header and in an earlier revision of `docs/13`
+("set `status`, `approved_at` and `approved_by`") cannot be carried out. The design intent is sound
+and visible in the invariant tests, which insert rows *already approved*: an approval is a **new
+version row**, and the exclusion constraint then keeps approved versions from overlapping in time.
+But nothing in the codebase performs that insert — there is no endpoint, no screen, no store method
+— and migrations are forbidden from approving anything by CI. So the gate is not only waiting on an
+attorney; it is waiting on a mechanism. Both documents are corrected, and `V0013` states the real
+procedure.
+
+**A missing fact reads as compliance.** Every operator except `exists`/`not_exists` returns false
+when the fact is absent (`RuleDefinition.cs:163`), so a condition over a fact nobody captured makes
+the rule *not fire*, which produces no result, which reads as GREEN. This is the same hole the
+review names when it insists that "a transaction whose applicability has not yet been established"
+must never silently become GREEN — and it is structural rather than per-rule: an incompletely
+entered deal is indistinguishable from a compliant one. It is the strongest argument for the
+GRAY/UNKNOWN state in §6, and it should be fixed at the evaluator rather than by hand-writing
+`exists` guards into every rule.
 
 Unchanged and unaffected by this review: there are still no federal rules in the system, and the tax
 rule set is still an empty skeleton, so the deal engine still prices nothing. The review agrees

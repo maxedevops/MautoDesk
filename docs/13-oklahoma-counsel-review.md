@@ -144,8 +144,13 @@ review of these six rules makes the product compliant.
 
 ## 7. How an approval is recorded
 
-Approval sets three columns on `compliance.regulatory_rule_version`: `status`, `approved_at`, and
-`approved_by` — the reviewer's real name.
+**Approval inserts a new version row.** It does not update the draft. The table carries
+`app.deny_mutation()` on UPDATE and DELETE, so the approval columns on an existing row can never be
+changed by anyone, including a superuser — an earlier revision of this document wrongly described
+approval as setting three columns in place. The approved reading arrives as a further
+`compliance.regulatory_rule_version` row, inserted already carrying `status`, `approved_at` and
+`approved_by` — the reviewer's real name — and its own `effective_from`/`effective_to`. The draft
+stays where it is, as the record of what was proposed.
 
 **What the system enforces, so that an approval cannot be faked or drift into existence:**
 
@@ -165,10 +170,12 @@ Approval sets three columns on `compliance.regulatory_rule_version`: `status`, `
 A developer must not perform the approval. The intended path is an operator action taken on the
 reviewer's written instruction, recorded with their name — not a migration, and not a code change.
 
-> **Note on the mechanism.** There is no approval *endpoint* or admin screen yet; the columns are
-> currently set by hand, by someone with database access, against the reviewer's written sign-off.
-> That is adequate for a first pack reviewed once, and it should become a permissioned endpoint with
-> an audit entry before a second jurisdiction is loaded.
+> **Note on the mechanism.** There is no approval *endpoint*, admin screen, or any code path at
+> all that inserts an approved rule version — the only writers today are migrations, which CI
+> forbids from approving anything. So the approval insert would currently be performed by hand by
+> someone with database access, against the reviewer's written sign-off. That is the narrowest part
+> of this whole gate and it should become a permissioned endpoint with an audit entry before a
+> second jurisdiction is loaded.
 
 ---
 

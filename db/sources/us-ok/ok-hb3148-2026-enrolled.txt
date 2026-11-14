@@ -1,0 +1,729 @@
+ENROLLED HOUSE              An Act
+BILL NO. 3148
+                                        By: Gise of the House
+                                                             and
+
+                                                Rosino of the Senate
+
+An Act relating to motor vehicles; amending 47 O.S.
+2021, Section 1105, as last amended by Section 1,
+Chapter 148, O.S.L. 2025 (47 O.S. Supp. 2025, Section
+1105), which relates to definitions; defining term;
+requiring inspection by certain individuals; removing
+certain inspection requirement; requiring inspection
+at certain sales; modifying certain inspection
+requirement; authorizing certain inspections;
+requiring certain collected fee be remitted;
+requiring deposit of fee; authorizing certain
+punitive actions; amending 47 O.S. 2021, Section
+1105.3, which relates to necessity of vehicle
+identification number; including salvage pools as
+entities having certain authorization; and providing
+an effective date.
+
+SUBJECT: Motor vehicles
+
+BE IT ENACTED BY THE PEOPLE OF THE STATE OF OKLAHOMA:
+
+SECTION 1.      AMENDATORY  47 O.S. 2021, Section 1105, as
+
+last amended by Section 1, Chapter 148, O.S.L. 2025 (47 O.S. Supp.
+
+2025, Section 1105), is amended to read as follows:
+
+       Section 1105. A. As used in the Oklahoma Vehicle License and
+Registration Act:
+
+       1. "Salvage vehicle" means any vehicle which is within the last
+ten (10) model years and which has been damaged by collision or
+other occurrence to the extent that the cost of repairing the
+vehicle for safe operation on the highway exceeds sixty percent
+(60%) of its fair market value, as defined by Section 1111 of this
+title, immediately prior to the damage. For purposes of this
+section, actual repair costs shall only include labor and parts for
+actual damage to the suspension, motor, transmission, frame or
+unibody and designated structural components;
+
+       2. "Rebuilt vehicle" means any salvage vehicle which has been
+rebuilt and inspected for the purpose of registration and title;
+
+       3. "Flood-damaged vehicle" means a salvage or rebuilt vehicle
+which was damaged by flooding or a vehicle which was submerged at a
+level to or above the dashboard of the vehicle and on which an
+amount of loss was paid by the insurer;
+
+       4. "Unidentifiable" means that the uniqueness of a motor
+vehicle or motor vehicle part cannot be established by either expert
+law enforcement investigative personnel specially trained and
+experienced in motor vehicle theft investigative procedures and
+motor vehicle identification examination techniques, or by expert
+employees of not-for-profit motor vehicle theft prevention agencies
+specially trained and experienced in motor vehicle theft
+investigative procedures and motor vehicle identification
+examination techniques;
+
+       5. "Unrecovered-theft vehicle" means a vehicle which has been
+stolen and not yet recovered;
+
+       5. 6. "Recovered-theft vehicle" means a vehicle, including a
+salvage or rebuilt vehicle, which was recovered from a theft; and
+
+       6. 7. "Junked vehicle" means any vehicle which is incapable of
+operation or use on the highway, has no resale value except as a
+source of parts or scrap and has an eighty percent (80%) loss in
+fair market value.
+
+       B. The owner of every vehicle in this state shall possess a
+certificate of title as proof of ownership of such vehicle, except
+those vehicles registered pursuant to Section 1120 of this title and
+trailers registered pursuant to Section 1133 of this title,
+previously titled by anyone in another state and engaged in
+interstate commerce, and except as provided in subsection M of this
+section. Except for owners that possess an agricultural exemption
+permit pursuant to Section 1358.1 of Title 68 of the Oklahoma
+Statutes, the owner of an all-terrain vehicle or a motorcycle used
+exclusively off roads or highways in this state which is purchased
+
+ENR. H. B. NO. 3148  Page 2
+or the ownership of which is transferred on or after July 1, 2005,
+and the owner of a utility vehicle used exclusively off roads and
+highways in this state which is purchased or the ownership of which
+is transferred on or after July 1, 2008, shall possess a certificate
+of title as proof of ownership. Any person possessing an
+agricultural exemption permit and owning an all-terrain vehicle or a
+motorcycle used exclusively off roads or highways in this state
+which is purchased or the ownership of which is transferred on or
+after July 1, 2008, shall possess a certificate of title as proof of
+ownership. Upon receipt of proper application information by such
+owner, Service Oklahoma shall issue an original or transfer
+certificate of title. Until July 1, 2008, any security interest in
+an all-terrain vehicle that attached and was perfected before July
+1, 2005, and that has not otherwise terminated shall remain
+perfected, and shall take priority over any subsequently perfected
+security interest in the same all-terrain vehicle, notwithstanding
+that a certificate of title may have been issued with respect to the
+same all-terrain vehicle on or after July 1, 2005, and that a lien
+may have been recorded on said certificate of title. There shall be
+eight types of certificates of title:
+
+       1. Original title for any motor vehicle which is not a
+remanufactured, salvage, unrecovered-theft, rebuilt, rebodied or
+junked vehicle;
+
+       2. Salvage title for any motor vehicle which is a salvage
+vehicle or is specified as a salvage vehicle or the equivalent
+thereof on a certificate of title from another state;
+
+       3. Rebuilt title for any motor vehicle which is a rebuilt
+vehicle;
+
+       4. Junked title for any motor vehicle which is a junked vehicle
+or is specified as a junked vehicle or the equivalent thereof on a
+certificate of title from another state;
+
+       5. Classic title for any motor vehicle, except a junked
+vehicle, which is twenty-five (25) model years or older;
+
+       6. Remanufactured title for any vehicle which is a
+remanufactured vehicle;
+
+       7. Unrecovered-theft title for any motor vehicle which has been
+stolen and not recovered; and
+
+ENR. H. B. NO. 3148  Page 3
+       8. Rebodied title for any motor vehicle which is a rebodied
+vehicle.
+
+       Application for a certificate of title, whether the initial
+certificate of title or a duplicate, may be made to Service Oklahoma
+or any licensed operator. When application is made with a licensed
+operator, the application information shall be transmitted either
+electronically or by mail to Service Oklahoma by the licensed
+operator. If the application information is transmitted
+electronically, the licensed operator shall forward the required
+application along with evidence of ownership, where required, by
+mail. Where the transmission of application information cannot be
+performed electronically, Service Oklahoma is authorized to provide
+postage paid envelopes to licensed operators for the purpose of
+mailing the application along with evidence of ownership, where
+required. Service Oklahoma shall upon receipt of proper application
+information issue an Oklahoma certificate of title. The
+certificates may be mailed to the applicant. Upon issuance of a
+certificate of title, Service Oklahoma shall provide the appropriate
+licensed operator with confirmation of such issuance.
+
+       C. 1. The application for certificate of title shall be upon a
+blank form furnished by Service Oklahoma, containing:
+
+                a. a full description of the vehicle,
+
+                b. the manufacturer's serial or other identification
+                         number,
+
+                c. the motor number and the date on which first sold by
+                         the manufacturer or dealer to the owner,
+
+                d. any distinguishing marks,
+
+                e. a statement of the applicant's source of title,
+
+                f. any security interest upon the vehicle, and
+
+                g. such other information as Service Oklahoma may
+                         require.
+
+       2. The application for a certificate of title for a vehicle
+which is within the last seven (7) model years shall require a
+declaration as to whether the vehicle has been damaged by collision
+or other occurrence and whether the vehicle has been recovered from
+
+ENR. H. B. NO. 3148  Page 4
+theft and the extent of the damage to the vehicle. The declaration
+shall be made by the owner of a vehicle if:
+
+                a. the vehicle has been damaged or stolen,
+
+                b. the owner did or did not receive any payment for the
+                         loss from an insurer, or
+
+                c. the vehicle is titled or registered in a state that
+                         does not classify the vehicle or brand the title
+                         because of damage to or loss of the vehicle similar to
+                         the classifications or brands utilized by this state.
+
+       The declaration shall be based upon the best information and
+knowledge of the owner and shall be in addition to the requirements
+specified in paragraph 1 of this subsection. Service Oklahoma shall
+not issue a certificate of title for a vehicle which is subject to
+the provisions of this paragraph without the required declaration,
+completed and signed by the owner of the vehicle. Upon receipt of
+an application without the properly completed declaration, Service
+Oklahoma shall return the application to the applicant with notice
+that the title may not be issued without the required declaration.
+Nothing in this paragraph shall prohibit Service Oklahoma from
+recognizing the type of or brand on a title or other ownership
+document issued by another state or the inspection conducted in
+another state and issuing the appropriate certificate of title for
+the vehicle.
+
+       3. The certificate of title shall have the following security
+features:
+
+                a. intaglio printing or security thread, with or without
+                         watermark,
+
+                b. latent images,
+
+                c. fluorescent inks,
+
+                d. micro print,
+
+                e. void background, and
+
+                f. color coding.
+
+ENR. H. B. NO. 3148  Page 5
+       4. Each title issued pursuant to the provisions of the Oklahoma
+Vehicle License and Registration Act shall be color coded as
+determined by Service Oklahoma.
+
+       5. The certificate of title shall be of such size and design
+and color as Service Oklahoma may direct pursuant to the provisions
+of this section. The title shall be on colored paper or other
+material as designated by Service Oklahoma and be of such intensity
+or hue as will allow easy identification as to whether the title is
+an original title, a salvage title, a rebuilt title, remanufactured
+title, rebodied title or a junked title. The type of title shall be
+identified on the front of the certificate of title. The original
+title, rebuilt title, remanufactured title, an unrecovered-theft
+title, rebodied title or classic title shall be identified by the
+word "Original", "Rebuilt", "Remanufactured", "Unrecovered Theft",
+"Rebodied" or "Classic" printed in the upper right quadrant of the
+certificate of title, in the space which is currently captioned
+"type of title". A rebodied title shall also identify on the front
+of the title the year, make and model of the originally manufactured
+vehicle which has been rebodied and display a notation that reads as
+follows: "This vehicle has been assembled with new major components
+licensed by the original manufacturer."
+
+       D. 1. To obtain an original certificate of title for a vehicle
+that is being registered for the first time in this state which has
+not been previously registered in any other state, the applicant
+shall be required to deliver, as evidence of ownership, a
+manufacturer's certificate of origin properly assigned by the
+manufacturer, distributor, or dealer licensed in this or any other
+state shown thereon to be the last transferee to the applicant upon
+a form to be prescribed and approved by Service Oklahoma. A
+manufacturer's certificate of origin shall contain:
+
+                a. the manufacturer's serial or other identification
+                         number,
+
+                b. date on which first sold by the manufacturer to the
+                         dealer,
+
+                c. any distinguishing marks including model and the year
+                         same was made,
+
+                d. a statement of any security interests upon the
+                         vehicle, and
+
+ENR. H. B. NO. 3148  Page 6
+                e. such other information as Service Oklahoma may
+                         require.
+
+       2. The manufacturer's certificate of origin shall have the
+following security features:
+
+                a. intaglio printing or security thread, with or without
+                         watermark,
+
+                b. latent images,
+
+                c. fluorescent inks,
+
+                d. micro print, and
+
+                e. void background.
+
+       E. In the absence of a dealer's or manufacturer's number,
+Service Oklahoma may assign such identifying number to the vehicle,
+which shall be permanently stamped, burned or pressed or attached
+into the vehicle, and a certificate of title shall be delivered to
+the applicant upon payment of all fees and taxes, and the remaining
+copies shall be permanently filed and indexed by Service Oklahoma.
+Service Oklahoma shall assign an identifying number to any rebuilt
+vehicle if the vehicle identification number displayed on the
+rebuilt vehicle does not accurately describe the vehicle as rebuilt.
+The licensed operator, at the time of inspection of the rebuilt
+vehicle pursuant to Section 1111 of this title, shall identify the
+make, model, and year for the body to accurately describe the
+rebuilt vehicle. At the time of the inspection, an appropriate
+identifying number shall be permanently stamped, burned, pressed, or
+attached on the rebuilt vehicle. The assigned identifying number
+shall be recorded on the certificate of title for the rebuilt
+vehicle. The dealer's or manufacturer's vehicle identification
+number on the rebuilt vehicle shall be preserved in the computer
+files of Service Oklahoma for at least five (5) years.
+
+       F. When registering for the first time in this state a vehicle
+which was not originally manufactured for sale in the United States,
+to obtain a certificate of title, Service Oklahoma shall require the
+applicant to deliver:
+
+       1. As evidence of ownership, if the vehicle has not previously
+been titled in the United States, the documents constituting valid
+proof of ownership in the country in which the vehicle was
+
+ENR. H. B. NO. 3148  Page 7
+originally purchased, together with a notarized translation of any
+such documents; and
+
+       2. As evidence of compliance with federal law, copies of the
+bond release letters for the vehicle issued by the United States
+Environmental Protection Agency and the United States Department of
+Transportation, together with a receipt issued by the Internal
+Revenue Service indicating that the applicable federal gas guzzler
+tax has been paid.
+
+       Service Oklahoma shall not issue a certificate of title for a
+vehicle which is subject to the provisions of this paragraph without
+the required documentation from agencies of the United States and
+evidence of ownership. Upon receipt of an application without the
+required documentation, Service Oklahoma shall return the
+application to the applicant with notice that the certificate of
+title may not be issued without the required documentation. Nothing
+in this paragraph shall prohibit Service Oklahoma from issuing
+certificates of title for antique or classic vehicles not driven
+upon the public streets, roads, or highways, for mini-trucks
+registered pursuant to Section 1151.3 of this title, or for medium-
+speed electric vehicles.
+
+       G. When registering in this state a vehicle which was titled in
+another state and which title contains the name of a secured party
+on the face of the other state certificate of title, or such state
+certificate is being held by the secured party in that state or any
+other state, Service Oklahoma or the licensed operator shall
+complete a lien entry form as prescribed by Service Oklahoma. The
+owner of such vehicle shall file an affidavit with Service Oklahoma
+or the licensed operator stating that title to the vehicle is being
+held by a secured party, has not been issued pursuant to the laws of
+the state where titled, and that there is an existing lien or
+encumbrance on the vehicle. The current name and address of the
+secured party or lienholder shall also be stated in the affidavit.
+The form of the affidavit shall be prescribed by Service Oklahoma
+and contain any other information deemed necessary by Service
+Oklahoma. A statement of the lien or encumbrance shall be included
+on the Oklahoma certificate of title and the lien or encumbrance
+shall be deemed continuously perfected as though it had been
+perfected pursuant to Section 1110 of this title. For completing
+the lien entry form and recording the security interest on the
+certificate of title, Service Oklahoma or the licensed operator
+shall collect a fee of Three Dollars ($3.00) which shall be in
+addition to other fees provided by the Oklahoma Vehicle License and
+
+ENR. H. B. NO. 3148  Page 8
+Registration Act. The fee, if collected by the licensed operator
+pursuant to this subsection, shall be retained by the licensed
+operator.
+
+       H. The charge for each certificate of title issued, except for
+junked titles as defined in paragraph 4 of subsection B of this
+section, shall be Eleven Dollars ($11.00), which charge shall be in
+addition to any other fees or taxes imposed by law for such vehicle.
+One Dollar ($1.00) of each such charge shall be deposited in the
+Oklahoma Tax Commission Reimbursement Fund through December 31,
+2022, and beginning January 1, 2023, it shall be deposited in the
+Service Oklahoma Reimbursement Fund. However, the charge shall not
+apply to any vehicle which is to be registered in this state
+pursuant to the provisions of Section 1120 or 1133 of this title and
+which was registered in another state at least sixty (60) days prior
+to the time it is required to be registered in this state. When an
+insurer requests a salvage or junk title in the name of the insurer
+resulting from the settlement of a total loss claim and upon
+presentation of appropriate proof of loss documentation as required
+by Service Oklahoma, such transfer may be processed as one title
+transaction, without first requiring issuance of a replacement
+certificate of title in the name of the vehicle owner. The fee
+shall be Twenty-two Dollars ($22.00). Two Dollars ($2.00) of this
+fee shall be deposited in the Oklahoma Tax Commission Reimbursement
+Fund.
+
+       I. The vehicle identification number of a junked vehicle shall
+be preserved in the computer files of Service Oklahoma for a period
+of not less than five (5) years. The charge of junked titles as
+defined in paragraph 4 of subsection B of this section shall be Four
+Dollars ($4.00). The fee remitted to the Tax Commission shall be
+deposited in the Oklahoma Tax Commission Reimbursement Fund through
+December 31, 2022, and beginning January 1, 2023, this fee shall be
+deposited in the Service Oklahoma Reimbursement Fund.
+
+       J. If a vehicle is sold to a resident of another state
+destroyed, dismantled, or ceases to be used as a vehicle, the owner
+shall immediately notify Service Oklahoma. Absent evidence to the
+contrary, failure to notify Service Oklahoma shall be prima facie
+evidence that the vehicle has been in continuous operation in this
+state.
+
+       K. If a vehicle is stolen, the owner shall immediately notify
+the appropriate law enforcement agency. Immediately after receiving
+
+ENR. H. B. NO. 3148  Page 9
+such notification, the law enforcement agency shall notify Service
+Oklahoma.
+
+       L. Except for all-terrain vehicles, utility vehicles and
+motorcycles used exclusively for off-road use, no title for an out-
+of-state vehicle, except any commercial truck or truck-tractor
+registered pursuant to Section 1120 of this title which is engaged
+in interstate commerce or any trailer or semitrailer registered
+pursuant to Section 1133 of this title which is engaged in
+interstate commerce, shall be issued without an inspection of such
+vehicle and payment of a fee of Four Dollars ($4.00) for such
+inspection; provided, Service Oklahoma may enter into reciprocal
+agreements with other states for such inspections to be performed at
+locations outside the boundaries of this state for vehicles which:
+
+       1. Are offered for sale at auction;
+
+       2. Have been solely used as vehicles for rent under the
+ownership of a licensed motor vehicle dealer or a person engaged in
+the business of renting motor vehicles; or
+
+       3. Have not been registered in this or any other state for more
+than one (1) year.
+
+The inspection shall include a comparison of the vehicle
+identification number on the vehicle with the number recorded on the
+ownership records and the recording of the actual odometer reading
+on the vehicle. An establishment engaged in vehicle rentals or
+leasing as defined or classified in the NAICS Manual under Industry
+No. 532111 or 532112, shall be exempt from the inspection required
+pursuant to this subsection; provided, the establishment shall be
+required to submit payment of any fees required pursuant to this
+subsection when the title is issued. The four-dollar fee shall be
+collected by the licensed operator or Service Oklahoma when the
+title is issued. The licensed operator shall retain Two Dollars
+($2.00). The remaining Two Dollars ($2.00) shall be deposited in
+the Service Oklahoma Reimbursement Fund.
+
+       Service Oklahoma may allow the inspection to be performed at a
+location out-of-state by another state's department of motor
+vehicles or state police.
+
+       M. No title for any out-of-state vehicle offered for sale at
+salvage pools, salvage disposal sales, or an auction, or by a
+licensed dealer or a licensed automotive dismantler and parts
+
+ENR. H. B. NO. 3148  Page 10
+recycler, shall be issued without unless an inspection has been
+conducted to compare the vehicle identification number on the
+vehicle with the number recorded on the ownership record and to
+record the actual odometer reading on the vehicle. Upon request of
+the seller, person or entity conducting an auction, dealer or
+licensed dismantler, the inspection shall be conducted at the
+location or place of business of the sale, auction, dealer, or the
+dismantler. The inspection shall be conducted by any licensed
+operator or a duly authorized employee thereof; provided, if Such an
+inspection may be completed by an employee of the salvage pool,
+salvage disposal sale, auction, licensed dealer, licensed automotive
+dismantler and parts recycler, or a licensed operator. If the
+vehicle identification number on the vehicle offered for sale at
+salvage pools, salvage disposal sales or a classic or antique or
+auction does not match the number recorded on the ownership record,
+the an inspection may shall be conducted at the location of or place
+of business of such sale or auction by any state, county or city law
+enforcement officer or an agent of the National Insurance Crime
+Bureau at the location of or place of business of such sale or
+auction or as specified by the state, county, or city law
+enforcement officer or agent of the National Insurance Crime Bureau.
+Service Oklahoma may enter into reciprocal agreements with other
+states for authorize such inspections to be performed at locations
+outside the boundaries of this state for vehicles which:
+
+       1. Are offered for sale at auction;
+
+       2. Have been solely used as vehicles for rent under the
+ownership of a licensed motor vehicle dealer or a person engaged in
+the business of renting motor vehicles; or
+
+       3. Have not been registered in this or any other state for more
+than one (1) year.
+
+The inspection shall be certified upon forms prescribed by Service
+Oklahoma. The name and other identification of the authorized
+person conducting the inspection shall be legibly printed or typed
+on the form. Prior to any inspection by any employee of a licensed
+operator, the licensed operator salvage pool, salvage disposal sale,
+auction, licensed dealer, licensed automotive dismantler and parts
+recycler, the employing entity shall notify Service Oklahoma of the
+name and any other identification information requested by Service
+Oklahoma of the authorized person. A signature specimen of the
+authorized person shall be submitted to Service Oklahoma by the
+employing licensed operator entity. If the authorization to inspect
+
+ENR. H. B. NO. 3148  Page 11
+vehicles is withdrawn or the employer-employee relationship is
+terminated, the licensed operator employing entity, immediately,
+shall notify Service Oklahoma and return any remaining inspection
+forms to Service Oklahoma. The fee for the inspection performed by
+a licensed operator shall be Four Dollars ($4.00). The licensed
+operator shall retain Three Dollars ($3.00) of the fee. The fee for
+an inspection performed by employees of salvage pools, salvage
+disposal sales, auctions, licensed dealers, or licensed automotive
+dismantler and parts recyclers shall be One Dollar ($1.00) and shall
+not be retained but remitted to Service Oklahoma for deposit into
+the Service Oklahoma Reimbursement Fund pursuant to Section 3-106 of
+this title. Fees received by a licensed operator or an authorized
+employee thereof shall be handled and accounted for in the manner as
+prescribed by law for any other fees paid to or received by a
+licensed operator. Out-of-state vehicles brought into this state by
+a person licensed in another state to sell new or used vehicles to
+be sold within this state at a motor vehicle auction which is
+limited to dealer-to-dealer transactions shall not be required to be
+inspected, unless the vehicle is purchased by an Oklahoma licensed
+dealer. Any person licensed in another state to sell new or used
+motor vehicles, who offers a motor vehicle for sale within this
+state at a motor vehicle auction which is limited to dealer-to-
+dealer transactions, shall not be within the definition of "owner"
+in Section 1102 of this title, for purposes of Section 1101 et seq.
+of this title. If Service Oklahoma, the Oklahoma New Motor Vehicle
+Commission, or the Oklahoma Used Motor Vehicle, Dismantler, and
+Manufactured Housing Commission finds that a person under its
+jurisdiction has not complied with this section or falsified an
+inspection form, the person's authority to perform an inspection
+under this section may be suspended or revoked; and Service
+Oklahoma, the Oklahoma New Motor Vehicle Commission, or the Oklahoma
+Used Motor Vehicle, Dismantler, and Manufactured Housing Commission
+may take further punitive action, including, but not limited to,
+fines, suspension or revocation of the person's license to conduct
+business.
+
+       N. A licensed motor vehicle dealer, upon payment of a fee of
+Fifteen Dollars ($15.00), may reassign an out-of-state certificate
+of title to a used motor vehicle provided such licensed dealer
+obtains the appropriate inspection form required by either
+subsection L or M of this section and attaches the form to the out-
+of-state certificate of title. Licensed operators shall be allowed
+to retain Two Dollars and twenty-five cents ($2.25) of the fee plus
+an additional Two Dollars ($2.00) or Three Dollars ($3.00) as
+provided in subsections L and M of this section for performance of
+
+ENR. H. B. NO. 3148  Page 12
+the inspection. Two Dollars ($2.00) of the fee shall be deposited
+in the Service Oklahoma Reimbursement Fund. An out-of-state vehicle
+which has been rebuilt shall be inspected pursuant to the provisions
+of Section 1111 of this title. Service Oklahoma shall train
+licensed operators in interpreting vehicle identification numbers to
+assure that it accurately describes the vehicle and to detect
+rollback or alteration of the odometer. Failure of a licensed
+operator to inspect the vehicle and make the required notations
+shall be a misdemeanor punishable by a fine of not more than One
+Thousand Dollars ($1,000.00) for the first offense and Five Thousand
+Dollars ($5,000.00) for the second offense or subsequent offense, or
+by imprisonment in the county jail for not more than six (6) months,
+or by both such fine and imprisonment.
+
+       O. The ownership of any unrecovered vehicle which has been
+declared a total loss by an insurer because of theft shall be
+transferred to the insurer by an unrecovered-theft vehicle title;
+provided, the ownership of any such vehicle which has been declared
+a total loss by an insurer licensed by the Insurance Department of
+the State of Oklahoma and maintaining a multi-state motor vehicle
+salvage processing center in this state shall be transferred to the
+insurer by a salvage or an unrecovered-theft title without the
+requirement of a visual inspection of the vehicle identification
+number by the insurer. Upon recovery of the vehicle, the ownership
+shall be transferred by an original title, salvage title, or junked
+title, as may be appropriate based upon an estimate of the amount of
+loss submitted by the insurer.
+
+       P. When an insurance company makes a total loss settlement on a
+total loss vehicle and the insurance company or a salvage pool
+authorized by the insurance company is unable to obtain the properly
+endorsed certificate of ownership or other evidence of ownership
+acceptable to Service Oklahoma within thirty (30) days following
+acceptance by the owner of an offer of an amount in settlement of a
+total loss, that insurance company or salvage pool, on a form
+provided by Service Oklahoma and signed under penalty of perjury,
+may request Service Oklahoma to issue the applicable salvage title
+for the vehicle. The request shall include information declaring
+that the requester has made at least two written attempts to obtain
+the certificate of ownership or other acceptable evidence of title.
+
+       Q. The owner of any vehicle which is incapable of operation or
+use on the public roads and has no resale value, except as parts,
+scrap, or junk, may deliver the certificate of title to the vehicle
+to Service Oklahoma for cancellation. Upon verification that any
+
+ENR. H. B. NO. 3148  Page 13
+perfected lien against the vehicle has been released, the
+certificate of title shall be canceled without any fee, charge, or
+cost required from the owner. The vehicle identification numbers on
+the certificates of title shall be preserved in the computer files
+of Service Oklahoma for at least five (5) years from the date of
+cancellation of the certificate of title. Service Oklahoma shall
+prescribe and provide an affidavit form to be completed by the owner
+of any vehicle for which the certificate of title is canceled. No
+title or registration shall subsequently be issued for a vehicle for
+which the certificate of title has been surrendered pursuant to this
+subsection. Service Oklahoma shall prescribe a form for the
+transfer of ownership of a vehicle for which the certificate of
+title has been canceled.
+
+       R. The owner of a vehicle which is not within the last ten (10)
+model years, not roadworthy and not capable of repair for operation
+or use on the roads and highways, or a vehicle which is being sold
+to a scrap metal dealer pursuant to Section 11-92 of Title 2 of the
+Oklahoma Statutes, shall transfer the vehicle only upon a
+certificate of ownership prescribed by Service Oklahoma, if the
+certificate of title to the vehicle is lost, has been canceled, or
+otherwise not available. The prescribed ownership form shall
+include the names and addresses of the buyer and seller, the driver
+license number or Social Security number of the seller, the make and
+model of the vehicle, and the public vehicle identification number.
+If there is no public vehicle identification number, the vehicle
+shall be inspected by a law enforcement officer to verify the
+absence of the number on the vehicle and the prescribed ownership
+form shall include a signed statement, by such officer, verifying
+the absence of the number.
+
+       The certificate of ownership shall be completed in triplicate.
+The buyer and seller shall each retain a copy. Within thirty (30)
+days of the transaction, the seller shall submit one copy to Service
+Oklahoma or a licensed operator accompanied with a fee of Four
+Dollars ($4.00). One Dollar ($1.00) shall be retained by the
+licensed operator and Three Dollars ($3.00) shall be deposited in
+the Oklahoma Tax Commission Reimbursement Fund in the State Treasury
+through December 31, 2022, and beginning January 1, 2023, this fee
+shall be deposited in the Service Oklahoma Reimbursement Fund.
+
+       Upon receipt of the certificate, Service Oklahoma shall verify
+that any perfected lien upon the vehicle has been released. If the
+lien is not released, Service Oklahoma shall mail notice of the
+transfer to the lienholder at the lienholder's last-known address.
+
+ENR. H. B. NO. 3148  Page 14
+If a certificate of title has been issued, it shall be canceled and
+the vehicle identification number shall be preserved in the computer
+of Service Oklahoma for at least five (5) years. The buyer of the
+vehicle may not be sued and shall not be liable for monetary damages
+to the lienholder, however, the vehicle shall be subject to a valid
+repossession by a lienholder.
+
+       S. Service Oklahoma shall notify the chief administrative
+officer of the agency or department responsible for issuing motor
+vehicle certificates of title in each state in the United States of
+the types of motor vehicle certificate of title effective in
+Oklahoma on and after January 1, 1989.
+
+       T. When registering for the first time in this state a
+remanufactured vehicle which has not been registered in any other
+state since its remanufacture, before issuing a certificate of
+title, Service Oklahoma shall require the applicant to deliver a
+statement of origin from the remanufacturer.
+
+       U. If a vehicle is sold to a foreign buyer pursuant to the
+provisions of the Automotive Dismantlers and Parts Recycler Act, the
+licensed seller shall stamp the title with: "EXPORT ONLY.
+NONTRANSFERABLE IN THE UNITED STATES." The licensed seller shall
+supply Service Oklahoma the title number, the vehicle identification
+number and the foreign buyer's bid identification number on a form
+prescribed by Service Oklahoma. Service Oklahoma shall cancel the
+title, and the vehicle identification number shall be preserved in
+the computer files of Service Oklahoma for a period of not less than
+five (5) years.
+
+       V. Service Oklahoma shall not be considered a necessary party
+to any lawsuit which is instigated for the purpose of determining
+ownership of a vehicle, wherein Service Oklahoma's only involvement
+would be to issue title, and the court shall issue an order
+dismissing Service Oklahoma from the pending action. In the event
+no other party or lienholder can be identified as to ownership or
+claim, Service Oklahoma shall accept an affidavit of ownership from
+the party claiming ownership and issue proper title thereon.
+
+SECTION 2.  AMENDATORY       47 O.S. 2021, Section 1105.3, is
+
+amended to read as follows:
+
+       Section 1105.3. Every vehicle shall have and contain a vehicle
+identification number, which number shall not be obliterated,
+erased, mutilated, removed, or missing. This section shall not
+
+ENR. H. B. NO. 3148          Page 15
+affect those persons authorized by law to have in their possession a
+motor vehicle on which the manufacturer's number or numbers have
+been obliterated, erased, mutilated, removed, or missing. For the
+purposes of this section, "persons authorized by law" shall include
+salvage pools authorized to store vehicles for insurance companies
+which are requiring inspection.
+
+       SECTION 3. This act shall become effective November 1, 2026.
+
+ENR. H. B. NO. 3148  Page 16
+Passed the House of Representatives the 5th day of March, 2026.
+
+                                                           Presiding Officer of the House
+                                                                                 of Representatives
+
+Passed the Senate the 5th day of May, 2026.
+
+                                                                 Presiding Officer of the Senate
+
+                                          OFFICE OF THE GOVERNOR
+       Received by the Office of the Governor this ____________________
+day of ___________________, 20_______, at _______ o'clock _______ M.
+By: _________________________________
+       Approved by the Governor of the State of Oklahoma this _________
+day of ___________________, 20_______, at _______ o'clock _______ M.
+
+                                                               _________________________________
+                                                               Governor of the State of Oklahoma
+
+                                 OFFICE OF THE SECRETARY OF STATE
+       Received by the Office of the Secretary of State this __________
+day of ___________________, 20_______, at _______ o'clock _______ M.
+By: _________________________________
+
+ENR. H. B. NO. 3148  Page 17

@@ -1,0 +1,857 @@
+ENROLLED HOUSE           An Act
+BILL NO. 3982
+                                     By: Turner and Hill of the
+                                             House
+                                                          and
+                                             Hall of the Senate
+
+An Act relating to motor vehicles; amending 47 O.S.
+2021, Section 1102, as last amended by Section 5,
+Chapter 236, O.S.L. 2024 (47 O.S. Supp. 2025, Section
+1102), which relates to definitions; defining term;
+amending 47 O.S. 2021, Section 1112.2, as last
+amended by Section 6, Chapter 236, O.S.L. 2024 (47
+O.S. Supp. 2025, Section 1112.2), which relates to
+transferability of license plates; requiring and
+providing for issuance of a sixty-day temporary
+license plate after certain date; requiring and
+providing for issuance commercial fleet temporary
+license plate; requiring certain information be
+provided; amending 47 O.S. 2021, Section 1137.1, as
+last amended by Section 19, Chapter 330, O.S.L. 2025
+(47 O.S. Supp. 2025, Section 1137.1), which relates
+to used dealer temporary license plate; requiring and
+providing for issuance of a sixty-day temporary
+license plate after certain date; amending 47 O.S.
+2021, Section 1137.3, as last amended by Section 13,
+Chapter 236, O.S.L. 2024 (47 O.S. Supp. 2025, Section
+1137.3), which relates to registration and licensing
+of new motor vehicle, trailer, or powersports
+vehicle; requiring and providing for issuance of a
+sixty-day temporary license plate after certain date;
+requiring and providing for issuance of a commercial
+fleet temporary license plate; requiring certain
+information be provided; and providing an effective
+date.
+
+SUBJECT: Motor vehicles
+BE IT ENACTED BY THE PEOPLE OF THE STATE OF OKLAHOMA:
+
+SECTION 1.  AMENDATORY  47 O.S. 2021, Section 1102, as
+
+last amended by Section 5, Chapter 236, O.S.L. 2024 (47 O.S. Supp.
+
+2025, Section 1102), is amended to read as follows:
+
+       Section 1102. As used in the Oklahoma Vehicle License and
+Registration Act:
+
+       1. "All-terrain vehicle" means a vehicle manufactured and used
+exclusively for off-highway use traveling on four or more non-
+highway tires, and being fifty (50) inches or less in width;
+
+       2. "Carrying capacity" means the carrying capacity of a vehicle
+as determined or declared in tons of cargo or payload by the owner;
+provided, that such declared capacity shall not be less than the
+minimum tonnage capacity fixed, listed or advertised by the
+manufacturer of any vehicle;
+
+       3. "Certificate of title" means a document which is proof of
+legal ownership of a motor vehicle as described and provided for in
+Section 1105 of this title;
+
+       4. "Chips and oil" or the term "road oil and crushed rock"
+means, with respect to materials authorized for use in the surfacing
+of roads or highways as provided for in this title or in any
+equivalent statute pertaining to road or highway surfacing in this
+state, any asphaltic materials. Wherever chips and oil or road oil
+and crushed rock are authorized for use in the surfacing of roads or
+highways in this state, whether by the Department of Transportation,
+or by the county commissioners, or other road building authority
+subject to the Oklahoma Vehicle License and Registration Act,
+asphaltic materials are also authorized for use in such surfacing
+and construction;
+
+       5. "Combined laden weight" means the weight of a truck or
+station wagon and its cargo or payload transported thereon, or the
+weight of a truck or truck-tractor plus the weight of any trailers
+or semitrailers together with the cargo or payload transported
+thereon;
+
+       6. "Commercial trailer" means any trailer, as defined in
+Section 1-180 of this title, or semitrailer, as defined in Section
+1-162 of this title, when such trailer or semitrailer is used
+primarily for business or commercial purposes;
+
+ENR. H. B. NO. 3982                                               Page 2
+       7. "Commercial trailer dealer" means any person, firm or
+corporation engaged in the business of selling any new and unused,
+or used, or both new and used commercial trailers;
+
+       8. "Commercial vehicle" means any vehicle over eight thousand
+(8,000) pounds combined laden weight used primarily for business or
+commercial purposes. Each motor vehicle being registered pursuant
+to the provisions of this section shall have the name of the
+commercial establishment or the words "Commercial Vehicle"
+permanently and prominently displayed upon the outside of the
+vehicle in letters not less than two (2) inches high. Such letters
+shall be in sharp contrast to the background and shall be of
+sufficient shape and color as to be readily legible during daylight
+hours, from a distance of fifty (50) feet while the vehicle is not
+in motion;
+
+       9. "Commission" or "Tax Commission" means the Oklahoma Tax
+Commission;
+
+       10. "Construction machinery" means machines or devices drawn as
+trailers which are designed and used for construction, tree trimming
+and waste maintenance projects, which derive no revenue from the
+transportation of persons or property, whose use of the highway is
+only incidental and which are not mounted or affixed to another
+vehicle; provided, construction machinery shall not include
+implements of husbandry as defined in Section 1-125 of this title;
+
+       11. "Dealer" means any person, firm, association, corporation
+or trust that sells, solicits or advertises the sale of new and
+unused motor vehicles and holds a bona fide contract or franchise in
+effect with a manufacturer or distributor of a particular make of
+new or unused motor vehicle or vehicles for the sale of same;
+
+       12. "Dealer seller" means a new motor vehicle dealer as defined
+in Section 562 of this title, a powersports vehicle dealer as
+defined in Section 562 of this title, and used motor vehicle dealer
+as defined in Section 581 of this title. This definition shall not
+include individuals involved in a private sale as defined in this
+section;
+
+       13. "Mini-truck" means a foreign-manufactured import or
+domestic-manufactured vehicle powered by an internal combustion
+engine with a piston or rotor displacement of one thousand cubic
+centimeters (1,000 cc) or less, which is sixty-seven (67) inches or
+
+ENR. H. B. NO. 3982  Page 3
+less in width, with an unladen dry weight of three thousand four
+hundred (3,400) pounds or less, traveling on four or more tires,
+having a top speed of approximately fifty-five (55) miles per hour,
+equipped with a bed or compartment for hauling, and having an
+enclosed passenger cab;
+
+       14. "Interstate commerce" means any commerce moving between any
+place in a state and any place in another state or between places in
+the same state through another state;
+
+       15. "Laden weight" means the combined weight of a vehicle when
+fully equipped for use and the cargo or payload transported thereon;
+provided, that in no event shall the laden weight be less than the
+unladen weight of the vehicle fully equipped for use, plus the
+manufacturer's rated carrying capacity;
+
+       16. "Local authorities" means every county, municipality or
+local board or body having authority to adopt police regulations
+under the Constitution and laws of this state;
+
+       17. "Low-speed electrical vehicle" means any four-wheeled
+electrical vehicle that is powered by an electric motor that draws
+current from rechargeable storage batteries or other sources of
+electrical current and whose top speed is greater than twenty (20)
+miles per hour but not greater than twenty-five (25) miles per hour
+and is manufactured in compliance with the National Highway Traffic
+Safety Administration standards for low-speed vehicles in 49 C.F.R.,
+Section 571.500;
+
+       18. "Manufactured home" means a residential dwelling built in
+accordance with the National Manufactured Housing Construction and
+Safety Standards Act of 1974, 42 U.S.C., Section 5401 et seq., and
+rules promulgated pursuant thereto and the rules promulgated by the
+Oklahoma Used Motor Vehicle, Dismantler, and Manufactured Housing
+Commission pursuant to Section 582 of this title. Manufactured home
+shall not mean a park model recreational vehicle as defined in this
+section;
+
+       19. "Manufactured home dealer" means any person, firm or
+corporation engaged in the business of selling any new and unused,
+or used, or both new and used manufactured homes. Such information
+and a valid franchise letter as proof of authorization to sell any
+such new manufactured home product line or lines shall be attached
+to the application for a dealer license to sell manufactured homes.
+Manufactured home dealer shall not include any person, firm or
+
+ENR. H. B. NO. 3982  Page 4
+corporation who sells or contracts for the sale of the dealer's own
+personally titled manufactured home or homes. No person, firm or
+corporation shall be considered a manufactured home dealer as to any
+manufactured home purchased or acquired by such person, firm or
+corporation for purposes other than resale; provided, that the
+restriction set forth in this sentence shall not prevent an
+otherwise qualified person, firm or corporation from utilizing a
+single manufactured home as a sales office;
+
+       20. "Medium-speed electrical vehicle" means any self-propelled,
+electrically powered four-wheeled motor vehicle, equipped with a
+roll cage or crush-proof body design, whose speed attainable in one
+(1) mile is more than thirty (30) miles per hour but not greater
+than thirty-five (35) miles per hour;
+
+       21. "Licensed operator" means any person licensed by the
+Service Oklahoma Operator Board or designated or authorized to
+collect the fees and enforce the provisions related to the
+fulfillment of designated services to be rendered by Service
+Oklahoma;
+
+       22. "New vehicle" or "unused vehicle" means a vehicle which has
+been in the possession of the manufacturer, distributor or
+wholesaler or has been sold only by the manufacturer, distributor or
+wholesaler to a dealer;
+
+       23. "Nonresident" means any person who is not a resident of
+this state;
+
+       24. "Off-road motorcycle" means any motorcycle, as defined in
+Section 1-135 of this title, when such motorcycle has been
+manufactured for and used exclusively off roads, highways and any
+other paved surfaces;
+
+       25. "Owner" means any person owning, operating or possessing
+any vehicle herein defined;
+
+       26. "Park model recreational vehicle" means a vehicle that is:
+
+                a. designed and marketed as temporary living quarters for
+                         camping, recreational, seasonal or travel use,
+
+                b. not permanently affixed to real property for use as a
+                         permanent dwelling,
+
+ENR. H. B. NO. 3982  Page 5
+                c. built on a single chassis mounted on wheels with a
+                         gross trailer area not exceeding four hundred (400)
+                         square feet in the setup mode, and
+
+                d. certified by the manufacturer as complying with
+                         standard A119.5 of the American National Standards
+                         Institute, Inc.;
+
+       27. "Person" means any individual, copartner, joint venture,
+association, corporation, limited liability company, estate, trust,
+business trust, syndicate, the State of Oklahoma, Service Oklahoma,
+or any county, city, municipality, school district or other
+political subdivision thereof, or any group or combination acting as
+a unit, or any receiver appointed by the state or federal court;
+
+       28. "Pre-registration" means the submission of requisite
+information and documentation to Service Oklahoma or a licensed
+operator within two (2) business days following the sale or transfer
+of a motor vehicle, as required by Section 1112.2 of this title;
+
+       29. "Private sale" means the sale or transfer of a motor
+vehicle where neither the seller nor the purchaser is a dealer
+seller as defined in this section;
+
+       30. "Rebodied vehicle" means a vehicle:
+
+                a. which has been assembled using a new body or new major
+                         component which is of the identical type as the
+                         original vehicle and is licensed by the manufacturer
+                         of the original vehicle and other original, new or
+                         reconditioned parts. For purposes of this paragraph,
+                         "new body or new major component" means a new body,
+                         cab, frame, front end clip or rear end clip,
+
+                b. which is not a salvage, rebuilt, or junked vehicle as
+                         defined by paragraph 1, 2, or 6 of subsection A of
+                         Section 1105 of this title, and
+
+                c. for which Service Oklahoma has assigned or will assign
+                         a new identifying number;
+
+       31. "Recreational off-highway vehicle" means a vehicle
+manufactured and used exclusively for off-highway use, traveling on
+four or more non-highway tires, and being sixty-five (65) inches or
+less in width;
+
+ENR. H. B. NO. 3982  Page 6
+       32. "Recreational vehicle" means every vehicle which is built
+on or permanently attached to a self-propelled motor chassis or
+chassis cab which becomes an integral part of the completed vehicle
+and is capable of being operated on the highways. In order to
+qualify as a recreational vehicle pursuant to this paragraph such
+vehicle shall be permanently constructed and equipped for human
+habitation, having its own sleeping and kitchen facilities,
+including permanently affixed cooking facilities, water tanks and
+holding tank with permanent toilet facilities. Recreational vehicle
+shall not include manufactured homes or any vehicle with portable
+sleeping, toilet and kitchen facilities which are designed to be
+removed from such vehicle. Recreational vehicle shall include park
+model recreational vehicles as defined in this section;
+
+       33. "Remanufactured vehicle" means a vehicle which has been
+assembled by a vehicle remanufacturer using a new body and which may
+include original, reconditioned, or remanufactured parts, and which
+is not a salvage, rebuilt, or junked vehicle as defined by
+paragraphs 1, 2, and 6, respectively, of subsection A of Section
+1105 of this title;
+
+       34. "Rental trailer" means all small or utility trailers or
+semitrailers constructed and suitable for towing by a passenger
+automobile and designed only for carrying property, when the
+trailers or semitrailers are owned by, or are in the possession of,
+any person engaged in renting or leasing such trailers or
+semitrailers for intrastate or interstate use or combined intrastate
+and interstate use;
+
+       35. "Special mobilized machinery" means special purpose
+machines or devices, either self-propelled or drawn as trailers or
+semitrailers, which derive no revenue from the transportation of
+persons or property, whose use of the highway is only incidental,
+and whose useful revenue producing service is performed at
+destinations in an area away from the traveled surface of an
+established open highway;
+
+       36. "State" means the State of Oklahoma;
+
+       37. "Station wagon" means any passenger vehicle which does not
+have a separate luggage compartment or trunk and which does not have
+open beds, and has one or more rear seats readily lifted out or
+folded, whether same is called a station wagon or ranch wagon;
+
+ENR. H. B. NO. 3982  Page 7
+       38. "Street-legal utility vehicle" means a vehicle meeting the
+description and specifications of Section 1-171.1 of this title;
+
+       39. "Temporary decal" means the decal issued by Service
+Oklahoma or a licensed operator to be affixed to a license plate and
+valid for the period of time between the pre-registration of a motor
+vehicle, pursuant to the requirements of Section 1112.2 of this
+title, and the registration thereof;
+
+       40. "Temporary license plate" means the temporary license plate
+placed on the motor vehicle, travel trailer, or commercial trailer
+by the licensed dealer pursuant to Sections 1137.1 and 1137.3 of
+this title. This definition includes the temporary license plate
+valid for ten (10) days for private sales, the sixty-day dealer
+seller issued temporary license plate of which issuance begins
+January 1, 2027, and the ninety-day commercial fleet temporary
+license plate;
+
+       41. "Travel trailer" means any vehicular portable structure
+built on a chassis, used as a temporary dwelling for travel,
+recreational or vacational use, and, when factory-equipped for the
+road, it shall have a body width not exceeding eight (8) feet and an
+overall length not exceeding forty (40) feet, including the hitch or
+coupling;
+
+       41. 42. "Travel trailer dealer" means any person, firm or
+corporation engaged in the business of selling any new and unused,
+or used, or both new and used travel trailers. Such information and
+a valid franchise letter as proof of authorization to sell any such
+new travel trailer product line or lines shall be attached to the
+application for a dealer license to sell travel trailers. Travel
+trailer dealer shall not include any person, firm or corporation who
+sells or contracts for the sale of his or her own personally titled
+travel trailer or trailers. No person, firm or corporation shall be
+considered as a travel trailer dealer as to any travel trailer
+purchased or acquired by such person, firm or corporation for
+purposes other than resale;
+
+       42. 43. "Used motor vehicle dealer" means a used motor vehicle
+dealer as defined in Section 581 of this title;
+
+       43. 44. "Used vehicle" means any vehicle which has been sold,
+bargained, exchanged or given away, or used to the extent that it
+has become what is commonly known, and generally recognized, as a
+"secondhand" vehicle. This shall also include any vehicle other
+
+ENR. H. B. NO. 3982  Page 8
+than a remanufactured vehicle, regardless of age, owned by any
+person who is not a dealer;
+
+       44. 45. "Utility vehicle" means a vehicle powered by an
+internal combustion engine, manufactured and used exclusively for
+off-highway use, equipped with seating for two or more people and a
+steering wheel, traveling on four or more wheels;
+
+       45. 46. "Vehicle" means any type of conveyance or device in,
+upon or by which a person or property is or may be transported from
+one location to another upon the avenues of public access within the
+state. Vehicle does not include bicycles, trailers except travel
+trailers and rental trailers, or implements of husbandry as defined
+in Section 1-125 of this title. All implements of husbandry used as
+conveyances shall be required to display the owner's driver license
+number or license plate number of any vehicle owned by the owner of
+the implement of husbandry on the rear of the implement in numbers
+not less than two (2) inches in height. The use of the owner's
+Social Security number on the rear of the implement of husbandry
+shall not be required; and
+
+       46. 47. "Vehicle remanufacturer" means a commercial entity
+which assembles remanufactured vehicles.
+
+SECTION 2.  AMENDATORY  47 O.S. 2021, Section 1112.2, as
+
+last amended by Section 6, Chapter 236, O.S.L. 2024 (47 O.S. Supp.
+
+2025, Section 1112.2), is amended to read as follows:
+
+       Section 1112.2. A. The license plate and certificate of
+registration shall be issued to, and remain in the name of, the
+owner of the vehicle registered and the license plates shall not be
+transferable between motor vehicle owners. When a vehicle is sold
+or transferred in the state, the following registration procedures
+shall apply:
+
+       1. When a current and valid Oklahoma motor vehicle license
+plate has been obtained for use on a motor vehicle and the vehicle
+has been sold or otherwise transferred to a new owner, the license
+plate shall be removed from the vehicle and retained by the original
+plate owner;
+
+       2. In the event an owner purchases, trades, exchanges, or
+otherwise acquires another vehicle of the same license registration
+classification, Service Oklahoma shall authorize the transfer of the
+current and valid license plate previously obtained by the owner to
+
+ENR. H. B. NO. 3982                                             Page 9
+the replacement vehicle for the remainder of the current
+registration period. In the event the owner acquires a vehicle
+requiring payment of additional registration fees, the owner shall
+request a transfer of the license plate to the newly acquired
+vehicle and pay the difference in registration fees. The fee shall
+be calculated on a monthly prorated basis. The owner shall not be
+entitled to a refund:
+
+                a. when the registration fee for the vehicle to which the
+                         plate(s) is to be assigned is less than the
+                         registration fee for that vehicle to which the license
+                         plate(s) was last assigned, or
+
+                b. if the owner does not have or does not acquire another
+                         vehicle to which the license plate may be transferred;
+
+       3. Except as provided in paragraph 4 of this subsection, in the
+event the owner of a license plate or a dealer seller purchases,
+trades, exchanges, or otherwise acquires a vehicle for which a
+license plate has been issued during the current registration
+period, and the license plate has not been removed by the previous
+owner in accordance with this section, the new owner of the vehicle
+shall remove and destroy or otherwise discard the license plate.
+However, if the license plate has expired, the new owner shall not
+be required to destroy or otherwise discard the license plate;
+
+       4. When a lender or lender's agent repossesses a vehicle and
+the license plate has not been removed in accordance with this
+section, the lender or lender's agent shall not be subject to the
+provisions of this section and the license plate shall be considered
+removable personal property and may be reclaimed from the
+repossessed vehicle;
+
+       5. If a person purchases a motor vehicle through a private sale
+from which the number plates have been removed pursuant to this
+section, the person may operate the motor vehicle for five (5)
+calendar days from the date of purchase without number plates if a
+dated, notarized bill of sale is carried in the motor vehicle. If
+the vehicle is subject to a lien, the person may obtain a ten-day
+temporary plate issued either from the dealer seller or by a
+licensed operator pursuant to the promulgation of rules by Service
+Oklahoma; and
+
+       6. a. Within two (2) business days of the date of sale or
+                         transfer of the motor vehicle, either the seller or
+
+ENR. H. B. NO. 3982  Page 10
+the purchaser of the motor vehicle shall complete the
+pre-registration of the vehicle by submitting
+documentation to Service Oklahoma or a licensed
+operator identifying the motor vehicle subject to the
+sale or transfer, purchaser information, and any
+associated state-issued license plate on the vehicle.
+Pre-registration may be accomplished either in person
+at Service Oklahoma or a licensed operator location or
+by means of an electronic transaction or online system
+established by Service Oklahoma in accordance with
+Section 1132B of this title. Service Oklahoma or the
+licensed operator shall:
+
+(1) provide information and instructions to the
+         purchaser to complete the registration
+         transaction as required by the Oklahoma Vehicle
+         License and Registration Act,
+
+(2) if no license plate was transferred to the motor
+         vehicle as a result of the purchase or transfer,
+         issue a license plate with a temporary decal to
+         the purchaser, unless:
+
+         (a) the vehicle is purchased from a licensed
+                  Oklahoma dealer seller, in such a case, no
+                  license plate shall be issued and instead
+                  the dealer seller shall issue a sixty-day
+                  temporary license plate at the time of
+                  purchase. This subdivision shall become
+                  effective January 1, 2027, or
+
+         (b) the purchaser attests that such commercial
+                  vehicle is to be titled or registered in a
+                  state other than Oklahoma and has a valid
+                  Manufacturer Fleet Number, in such case, no
+                  license plate shall be issued and instead a
+                  ninety-day commercial fleet temporary
+                  license plate shall be issued by the dealer
+                  seller at the time of purchase upon
+                  presentation of the valid Manufacturer Fleet
+                  Number to the dealer, and
+
+(3) if there was an existing license plate
+         transferred to the motor vehicle, issue a
+
+ENR. H. B. NO. 3982  Page 11
+                                  temporary decal to the existing license plate,
+                                  and
+
+                b. upon the effective date of this act, Service Oklahoma
+                         is authorized to set the licensed operator
+                         compensation pursuant to Section 3-103 of this title
+                         for processing the documentation submitted and issuing
+                         the license plate and/or decal pursuant to this
+                         subsection.
+
+       B. 1. The new owner of a motor vehicle, other than a
+commercial fleet vehicle eligible for the ninety-day temporary
+license plate, shall, within two (2) months from the date of vehicle
+purchase or acquisition, make application to record the registration
+of the vehicle with Service Oklahoma or the licensed operator and
+shall pay all taxes and fees provided by law.
+
+       2. Any person failing to register a motor vehicle by timely
+transferring the license plate as provided by this section shall pay
+the penalty levied in Section 1132 of this title.
+
+       C. A surviving spouse, desiring to operate a vehicle devolving
+from a deceased spouse, shall present an application for certificate
+of title to Service Oklahoma or the licensed operator in his or her
+name within two (2) months of obtaining ownership. Service Oklahoma
+or the licensed operator shall then transfer the license plate to
+the surviving spouse.
+
+       D. Service Oklahoma shall be authorized to promulgate such
+rules as may be required to implement the license plate transfers
+authorized by this section including, but not limited to, such rules
+as may be required for a system under which the license plate is
+registered to an individual and not a vehicle for all license plates
+issued on or after July 1, 2019.
+
+       E. Service Oklahoma, the Oklahoma Motor Vehicle Commission and
+the Oklahoma Used Motor Vehicle, Dismantler, and Manufactured
+Housing Commission are authorized to enter into contracts and
+agreements for the implementation of an electronic system to
+facilitate the entry of required vehicle purchaser information on
+new and used vehicle purchases and the issuance of temporary license
+plates. Service Oklahoma and the Oklahoma Turnpike Authority are
+authorized to enter into contracts and agreements to facilitate the
+Oklahoma Turnpike Authority's access to an owner's vehicle
+registration information used by the Oklahoma Turnpike Authority to
+
+ENR. H. B. NO. 3982  Page 12
+charge and collect tolls from owners of vehicles imaged using the
+turnpike system, and to charge the Oklahoma Turnpike Authority for
+services in connection with the Oklahoma Turnpike Authority's need
+to access owner registration information at such rates and
+miscellaneous costs as may be agreed to by Service Oklahoma and the
+Oklahoma Turnpike Authority. Service Oklahoma, in cooperation with
+the Oklahoma Turnpike Authority as provided in this subsection, and
+appropriate state agencies, commissions, and other organizations, is
+directed to develop, promote, and coordinate a public awareness
+program to be utilized in making Oklahomans aware of the
+requirements of this section.
+
+SECTION 3.  AMENDATORY  47 O.S. 2021, Section 1137.1, as
+
+last amended by Section 19, Chapter 330, O.S.L. 2025 (47 O.S. Supp.
+
+2025, Section 1137.1), is amended to read as follows:
+
+       Section 1137.1. A. Except for vehicles, travel trailers or
+commercial trailers which display a current Oklahoma license tag,
+upon the purchase or transfer of ownership of a used motor vehicle,
+travel trailer or commercial trailer, including an out-of-state
+purchase or transfer of the same, to a licensed used motor vehicle
+dealer, wholesale used motor vehicle dealer, used travel trailer
+dealer or used commercial trailer dealer, subsequently referred to
+in this section as "dealer", the dealer shall affix a used dealer's
+plate visible from the rear of the vehicle, travel trailer or
+commercial trailer. Such license plate shall expire on December 31
+of each year. When the vehicle, travel trailer or commercial
+trailer is parked on the dealer's licensed place of business, it
+shall not be required to have a license plate of any kind affixed.
+A dealer shall obtain from Service Oklahoma at a cost of Ten Dollars
+($10.00) a dealer license plate for demonstrating, transporting or
+any other normal business of a dealer including use by an individual
+holding a valid salesperson's license issued by the Oklahoma Used
+Motor Vehicle, Dismantler, and Manufactured Housing Commission. Any
+dealer who operates a wrecker or towing service licensed pursuant to
+Sections 951 through 957 of this title shall register each wrecker
+vehicle and display a wrecker license plate on each vehicle as
+required by Section 1134.3 of this title. A dealer may obtain as
+many additional license plates as may be desired upon the payment of
+Ten Dollars ($10.00) for each additional license plate. Use of the
+used dealer license plate by a licensed dealer for other than the
+purposes as set forth herein shall constitute grounds for revocation
+of the dealer's license. Service Oklahoma shall design the official
+used dealer license plate to include the used dealer's license
+number issued to him or her each year by Service Oklahoma or the
+
+ENR. H. B. NO. 3982                                    Page 13
+Oklahoma Used Motor Vehicle, Dismantler, and Manufactured Housing
+Commission.
+
+       B. Upon the purchase or transfer of ownership of an out-of-
+state used motor vehicle, travel trailer or commercial trailer to a
+licensed dealer, the dealer shall make application for an Oklahoma
+certificate of title pursuant to the Oklahoma Vehicle License and
+Registration Act, Section 1101 et seq. of this title. Upon receipt
+of the Oklahoma certificate of title, the dealer shall follow the
+procedure as set forth in subsection A of this section. Provided,
+nothing in this title shall be construed as requiring a dealer to
+register a used motor vehicle, travel trailer or commercial trailer
+purchased in another state which will not be operated or sold in
+this state.
+
+       C. Upon sale or transfer of ownership of the used motor vehicle
+or travel trailer, the dealer shall place upon the reassignment
+portion of the certificate of title a tax stamp issued by the county
+treasurer of the county in which the dealer has his or her primary
+place of business. The tax stamp shall be issued upon payment of a
+fee of Three Dollars and fifty cents ($3.50) and shall be in lieu of
+the dealer's ad valorem tax on the inventories of used motor
+vehicles or travel trailers but shall not relieve any other property
+of the dealer from ad valorem taxation.
+
+       D. Upon sale of a used motor vehicle or travel trailer to
+another licensed dealer, the selling dealer shall place the tax
+stamp required in subsection C of this section upon the certificate
+of title. The used dealer license plate or wholesale dealer license
+plate shall be removed by the selling dealer. The purchasing dealer
+shall, at time of purchase, place his or her dealer license plate on
+the used motor vehicle, travel trailer or commercial trailer as
+provided in subsection A of this section; provided, for vehicles,
+travel trailers or commercial trailers purchased by a licensed used
+dealer at an auction, in lieu of such placement of the dealer
+license plate, the auction may provide temporary documentation as
+approved by the Director of the Motor Vehicle Division of Service
+Oklahoma for the purpose of transporting such vehicle to the
+purchaser's point of destination. Such temporary documentation
+shall be valid for two (2) days following the date of sale.
+
+       E. 1. The purchaser of every used motor vehicle, travel
+trailer, or commercial trailer, except as otherwise provided by law,
+shall obtain registration and title for the vehicle or trailer
+within two (2) months from the date of purchase of same. It shall
+
+ENR. H. B. NO. 3982  Page 14
+be the responsibility of the selling dealer to place a temporary
+license plate, in size similar to the permanent Oklahoma license
+plate but of a ten-mil weatherproof plastic-impregnated paper
+approved by the Oklahoma Used Motor Vehicle, Dismantler, and
+Manufactured Housing Commission, upon a used motor vehicle, travel
+trailer or commercial trailer when a transaction is completed for
+the sale of such vehicle. Provided, upon a determination by the
+Commission that there exists a national shortage of ten-mil
+weatherproof plastic-impregnated paper, eight-mil weatherproof
+plastic-impregnated paper may be approved by the Commission until it
+has been determined by the Commission the shortage has ended. The
+temporary license plate under this subsection shall be placed at the
+location provided for the permanent motor vehicle license plate.
+The temporary license plate shall show the license number which is
+issued to the dealer each year by Service Oklahoma or the Oklahoma
+Used Motor Vehicle, Dismantler, and Manufactured Housing Commission,
+the date of expiration, and the company name of the selling dealer.
+
+       2. The Oklahoma Used Motor Vehicle, Dismantler, and
+Manufactured Housing Commission is hereby directed to develop the
+motor vehicle temporary license plate design to incorporate these
+requirements in a manner that will permit law enforcement personnel
+to readily identify the dealer license number and date of
+expiration. The Oklahoma Used Motor Vehicle, Dismantler, and
+Manufactured Housing Commission is hereby authorized to develop
+additional requirements and parameters as deemed appropriate to
+discourage or prevent illegal duplication and use of the temporary
+license plate. Such motor vehicle temporary license plate shall be
+valid for a period of ten (10) days from the date of purchase. Use
+of the motor vehicle temporary license plate by a dealer for other
+than the purposes set forth herein shall constitute grounds for
+revocation of the dealer's license to conduct business. Purchasers
+of a commercial trailer shall affix the commercial trailer temporary
+license plate to the rear of the commercial trailer. The purchaser
+of a motor vehicle shall display the motor vehicle temporary license
+plate for a period not to exceed ten (10) days or until registration
+and title are obtained as provided in this section. The purchaser
+of a commercial trailer shall display the commercial trailer
+temporary license plate for a period not to exceed two (2) months or
+until registration and title are obtained as provided in this
+section.
+
+       3. The provisions of this subsection on temporary licenses
+shall apply to nonresidents who purchase a used motor vehicle,
+travel trailer, or commercial trailer within this state that is to
+
+ENR. H. B. NO. 3982  Page 15
+be licensed in another state; provided, beginning January 1, 2027,
+if the vehicle is purchased from a licensed Oklahoma dealer seller,
+no license plate shall be issued and instead the dealer seller shall
+issue a sixty-day temporary license plate at the time of purchase.
+The nonresident purchaser shall be allowed to operate the vehicle or
+trailer within the state with a temporary license plate for a period
+not to exceed ten (10) days from date of purchase. Any nonresident
+purchaser found to be operating a used motor vehicle, travel
+trailer, or commercial trailer within this state after two (2)
+months shall be subject to the registration fees of this state upon
+the same terms and conditions applying to residents of this state.
+Additionally, within two (2) business days of the date of the sale
+or transfer of the vehicle or trailer, the parties shall submit the
+requisite documentation to Service Oklahoma or licensed operator
+identifying the vehicle or trailer subject to the sale or transfer,
+purchaser information, and any associated license plate on the
+vehicle, pursuant to the requirements of Section 1112.2 of this
+title.
+
+       F. It shall be unlawful for any dealer to procure the
+registration and licensing of any used motor vehicle, travel trailer
+or commercial trailer sold by the dealer or to act as the agent for
+the purchaser in the procurement of the registration and licensing
+of the purchaser's used vehicle, travel trailer, or commercial
+trailer. A license of any dealer violating the provision of this
+section may be revoked.
+
+       G. Dealers following the procedure set forth herein shall not
+be required to register vehicles, travel trailers, or commercial
+trailers to which this section applies, nor will the registration
+fee otherwise required be assessed. Provided, dealers shall not
+purchase or trade for a used motor vehicle, travel trailer, or
+commercial trailer on which the registration therefor has been
+expired for a period exceeding two (2) months without obtaining
+current registration therefor.
+
+       H. A nonprofit charitable organization which is exempt from
+taxation pursuant to the provisions of the Internal Revenue Code, 26
+U.S.C., Section 501(c)(3), and which accepts donations of used motor
+vehicles previously titled in Oklahoma to be subsequently
+transferred to another owner, upon the qualifying organization
+providing sufficient documentation of its tax-exempt status, may
+obtain from Service Oklahoma charitable nonprofit organization
+license plates for demonstrating, transporting, or test-driving
+donated vehicles, provided that no organization shall possess or use
+
+ENR. H. B. NO. 3982  Page 16
+at any one time more than eight such plates. Service Oklahoma shall
+design distinctive license plates for that purpose. The cost for
+such plates shall be the same as provided in subsection A of this
+section for dealer plates.
+
+       I. The transfer of ownership from the vehicle donor to the
+qualifying nonprofit organization described in subsection H of this
+section shall be made without the payment of motor vehicle excise
+tax levied pursuant to Section 2103 of Title 68 of the Oklahoma
+Statutes.
+
+SECTION 4.  AMENDATORY  47 O.S. 2021, Section 1137.3, as
+
+last amended by Section 13, Chapter 236, O.S.L. 2024 (47 O.S. Supp.
+
+2025, Section 1137.3), is amended to read as follows:
+
+       Section 1137.3. A. 1. The purchaser of every new motor
+vehicle, travel trailer, or powersports vehicle shall register or
+license the same within two (2) months from the date of purchase.
+It shall be the responsibility of the selling dealer to place a
+temporary license plate, twelve (12) inch by six (6) inch size or in
+a size similar to the permanent Oklahoma license plate but of a ten-
+mil weatherproof plastic-impregnated paper approved by the Oklahoma
+New Motor Vehicle Commission, upon a new motor vehicle, travel
+trailer, or powersports vehicle when a transaction is completed for
+the sale of such vehicle or trailer. Provided, upon a determination
+by the Commission that there exists a national shortage of ten-mil
+weatherproof plastic-impregnated paper, eight-mil weatherproof
+plastic-impregnated paper may be approved by the Commission until it
+has been determined by the Commission the shortage has ended.
+Except for cab and chassis trucks, the temporary license plate under
+this section shall be placed at the location provided for the
+permanent motor vehicle license plate. The purchaser of a new cab
+and chassis truck may place the temporary license plate under this
+section in the rear window. The temporary license plate shall show
+the dealer's license number which is issued to him or her each year
+by Service Oklahoma, the date of expiration, and the company name of
+the selling dealer. Additionally, within two (2) business days of
+the date of the sale or transfer of the motor vehicle, the selling
+dealer must submit the requisite documentation to Service Oklahoma
+or a licensed operator identifying the motor vehicle subject to the
+sale or transfer, purchaser information, and any associated license
+plate on the vehicle, pursuant to the requirements of Section 1112.2
+of this title.
+
+ENR. H. B. NO. 3982                                    Page 17
+       2. The Oklahoma New Motor Vehicle Commission is hereby directed
+to develop a temporary license plate design to incorporate these
+requirements in a manner that will permit law enforcement personnel
+to readily identify the dealer license number and date of
+expiration. The Oklahoma New Motor Vehicle Commission is further
+authorized to develop additional requirements and parameters
+designed to discourage or prevent illegal duplication and use of the
+temporary license plate. On or before ten (10) days from the date
+of purchase of a new motor vehicle, travel trailer, or powersports
+vehicle, the temporary license plate shall be removed and replaced
+with a permanent, current Oklahoma license plate, unless:
+
+                a. the vehicle is purchased from a licensed Oklahoma
+                         dealer seller, in such a case, no license plate shall
+                         be issued and instead the dealer seller shall issue a
+                         sixty-day temporary license plate at the time of
+                         purchase. This subparagraph shall become effective
+                         January 1, 2027, or
+
+                b. the purchaser attests that such commercial vehicle is
+                         to be titled or registered in a state other than
+                         Oklahoma and has a valid Manufacturer Fleet Number, in
+                         such case, no license plate shall be issued and
+                         instead a ninety-day commercial fleet temporary
+                         license plate shall be issued by the dealer seller at
+                         the time of purchase upon presentation of the valid
+                         Manufacturer Fleet Number to the dealer.
+
+       Use of such temporary license plate by a licensed dealer for
+other than the purpose of normally doing business shall constitute
+grounds for revocation of the dealer's license.
+
+       B. It shall be unlawful for any licensed dealer of new motor
+vehicles, travel trailers, or powersports vehicle to procure the
+registration and licensing of any new motor vehicle, travel trailer,
+or powersports vehicle sold by the licensed dealer or to act as the
+agent for the purchaser in the procurement of the registration and
+licensing. The license of any licensed dealer of new motor
+vehicles, travel trailers, or powersports vehicle violating the
+provisions of this section shall be revoked.
+
+       SECTION 5. This act shall become effective November 1, 2026.
+
+ENR. H. B. NO. 3982  Page 18
+       Passed the House of Representatives the 25th day of March, 2026.
+
+                                                                   Presiding Officer of the House
+                                                                                        of Representatives
+
+       Passed the Senate the 4th day of May, 2026.
+
+                                                                 Presiding Officer of the Senate
+                                          OFFICE OF THE GOVERNOR
+       Received by the Office of the Governor this ____________________
+day of ___________________, 20_______, at _______ o'clock _______ M.
+By: _________________________________
+       Approved by the Governor of the State of Oklahoma this _________
+day of ___________________, 20_______, at _______ o'clock _______ M.
+
+                                                               _________________________________
+                                                               Governor of the State of Oklahoma
+                                 OFFICE OF THE SECRETARY OF STATE
+       Received by the Office of the Secretary of State this __________
+day of ___________________, 20_______, at _______ o'clock _______ M.
+By: _________________________________
+
+ENR. H. B. NO. 3982  Page 19

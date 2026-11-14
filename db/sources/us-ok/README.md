@@ -19,11 +19,22 @@ every file here on each build, so an edit after the fact turns the build red.
 
 ## Chain of custody
 
-These were transcribed from the Service Oklahoma page and PDF and supplied by the
-project owner. They were not fetched from `oklahoma.gov` by this repository's
-tooling. They read as verbatim — press-release voice, PDF line-wrapping, direct
+**Two different custodies live in this directory, and the difference matters.**
+
+The three Service Oklahoma documents were transcribed from the page and PDF and
+supplied by the project owner. They were not fetched from `oklahoma.gov` by this
+repository's tooling. They read as verbatim — press-release voice, PDF line-wrapping, direct
 quotation of the FAQ's own questions — and agree with what an independent web
 search returned for the same documents.
+
+The two enrolled bills were retrieved from `oklegislature.gov` on 13 November
+2026 and extracted from the official enrolled PDFs, so each file is the bill's own
+text — page furniture, amendatory strike-through artefacts and all. Those
+artefacts ("without unless an inspection has been conducted") are what enrolled
+amendatory text looks like and are deliberately not tidied.
+
+The holiday file is a **transcription** of two published HTML tables rather than a
+capture of the page, which is a copy of evidence rather than the evidence.
 
 A reviewer should still open the URL on the matching `compliance.regulatory_source`
 row and confirm the published text has not changed since. The Electronic Titles
@@ -60,7 +71,11 @@ actually bears a notarisation. Both need machinery that does not exist yet.
 3. Populate `compliance.jurisdiction_holiday` for `US-OK` from a cited source.
    `OK-PREREG-001` carries a business-day deadline and the engine refuses to
    compute one without a calendar.
-4. Set `status`, `approved_at` and `approved_by` to the reviewer's name.
+4. Insert the approved reading as a **new** version row carrying `approved_at`
+   and `approved_by`. It cannot be done by updating a draft: the table has
+   `app.deny_mutation()` on UPDATE and DELETE, so no row's approval columns can
+   ever be changed after it is written. An earlier revision of this file said
+   otherwise.
 
 ## Files
 
@@ -69,6 +84,9 @@ actually bears a notarisation. Both need machinery that does not exist yet.
 | `service-ok-pre-registration-release.md` | Service Oklahoma newsroom release on the SB2035 pre-registration process | 3 September 2024 |
 | `service-ok-sb2035-dealer-faq.md` | *SB2035 FAQ for Motor Vehicle Dealers* | Updated 23 August 2024 |
 | `service-ok-electronic-titles.md` | *Electronic Titles* page and FAQ | Effective 1 July 2025 |
+| `ok-hb3982-2026-enrolled.txt` | Enrolled H.B. 3982 — temporary license plates | Effective 1 November 2026 |
+| `ok-hb3148-2026-enrolled.txt` | Enrolled H.B. 3148 — VIN inspections | Effective 1 November 2026 |
+| `ok-sos-state-holidays-2026-2027.md` | Secretary of State *State Holidays*, 2026 and 2027 | Page modified 24 September 2026 |
 
 ## Verifying a hash
 

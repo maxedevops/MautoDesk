@@ -42,8 +42,13 @@
 --   2. Populate compliance.jurisdiction_holiday for US-OK from a cited source.
 --      OK-PREREG-001 carries a business-day deadline, and until the calendar
 --      exists the engine refuses to compute one rather than guessing.
---   3. Set status, approved_at and approved_by to the reviewer's name. A
---      developer must not do this, and CI fails if a migration tries.
+--   3. Insert the approved reading as a NEW version row carrying approved_at and
+--      approved_by (the reviewer's name). It cannot be done by updating these
+--      rows: this table has app.deny_mutation() on UPDATE and DELETE, so an
+--      existing row can never be approved after the fact. An earlier revision of
+--      this header said to set the three columns, which is impossible. A
+--      developer must not perform the insert either, and CI fails if a migration
+--      tries. See V0013 and docs/14-oklahoma-review-disposition-2026-11-13.md.
 --
 -- Chain of custody: the archived files were transcribed from the Service
 -- Oklahoma page and PDF and supplied by the project owner, not fetched from
