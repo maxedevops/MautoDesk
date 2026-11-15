@@ -1,27 +1,31 @@
-# DealerOS branch — session handoff
+# DealerOS — the build record
 
-**Branch:** `claude/dealeros-architecture-eval-c07dce`, in a git worktree at
-`.claude/worktrees/dealeros-architecture-eval-c07dce`.
-**Base:** `main` @ `942f142`, which stops at `V0009` — every DealerOS migration,
-both engines and all of this document's subject matter exist only on this branch.
-**State:** 15 commits, pushed, open as
-[maxedevops/MautoDesk#1](https://github.com/maxedevops/MautoDesk/pull/1),
-`MERGEABLE`/`CLEAN`, **all 10 CI jobs green** at `9414a9b`.
-**Written:** 2026-08-22. **Revised:** 2026-11-14.
+**State: merged.** This work reached `main` in two pull requests —
+[#1](https://github.com/maxedevops/MautoDesk/pull/1) as `f7a69e3` (the schema,
+both engines, the Oklahoma packs, the repaired CI workflow) and
+[#2](https://github.com/maxedevops/MautoDesk/pull/2) as `28af9c4` (the approval
+path, the archived tax statutes, the counsel engagement). Both were green on
+every check at merge. The branch was `claude/dealeros-architecture-eval-c07dce`,
+worked in a worktree, on a `main` that stopped at `V0009`.
+**Written:** 2026-08-22. **Revised:** 2026-11-15.
+
+This document is the **record of how that work landed** — what it contains, the
+defects it fixed, and the traps it left behind. For the current state of the
+system read [`HANDOFF.md`](../HANDOFF.md) instead.
 
 Read [`docs/11-dealeros-assessment.md`](11-dealeros-assessment.md) first if you
-have not: it is the evaluation this branch acts on, and it explains *why* the
+have not: it is the evaluation this work acts on, and it explains *why* the
 stack was kept rather than rewritten. `CLAUDE.md` still governs.
 
 ---
 
-## 1. What this branch does
+## 1. What this work did
 
-It takes MautoDesk from "excellent foundation, no business domain" to "the deal
+It took MautoDesk from "excellent foundation, no business domain" to "the deal
 and regulatory engines exist, run through real endpoints, and have an Oklahoma
-rule pack waiting on counsel."
+rule pack waiting on counsel — with a path for counsel to approve it."
 
-Four increments, in order:
+The increments, in order:
 
 | Increment | What landed |
 | --- | --- |
@@ -34,8 +38,9 @@ Four increments, in order:
 | **CI repair** | The workflow had **never once executed** in this repository's history — a quoting corruption meant it did not parse. Fixed, then driven to green across eight runs (§6) |
 | **Review** | `docs/13` the counsel packet, `docs/14` the 13 November disposition: conditional, **nothing approved** |
 | **Phase 5, second pass** | `V0013` — HB 3982 and HB 3148 archived from the enrolled bills; 4 further DRAFT rules; the `US-OK` holiday calendar seeded |
+| **Phase 5, unblocked** | `V0014` — `mautodesk_rulekeeper` and the `rulekeeper` CLI, so an approval can be recorded at all; `V0015` — 68 O.S. §§ 2103–2104 archived; `docs/15`–`17` — the counsel engagement, the tax field matrix, the approval-path design |
 
-19 backend projects (was 14). 25 API paths (was 18). 13 migrations (was 9).
+20 backend projects (was 14). 25 API paths (was 18). 15 migrations (was 9).
 
 ---
 
@@ -86,25 +91,27 @@ UPDATE_CONTRACT=1 dotnet test backend/tests/MautoDesk.IntegrationTests --filter 
 ## 3. Verified state
 
 Everything below is from CI run
-[43563996207](https://github.com/maxedevops/MautoDesk/actions/runs/43563996207)
-on `9414a9b`, against a fresh database. It is no longer one machine's word for it.
+[43665386364](https://github.com/maxedevops/MautoDesk/actions/runs/43665386364)
+on `28af9c4`, the merge commit on `main`, against a fresh database. It is no
+longer one machine's word for it.
 
 | Check | Result |
 | --- | --- |
-| Migrations `V0001`–`V0013` | apply clean |
+| Migrations `V0001`–`V0015` | apply clean |
 | `app.rls_coverage_gaps()` | **0** |
 | Pre-approved rule versions in a fresh database | **0** |
 | `db/tests/isolation_probe.sql` | 14 PASS |
 | `db/tests/v0010_invariants.sql` | 23 PASS |
 | `V0007` / `V0012` / `V0013` re-applied | idempotent |
+| `db/tests/rulekeeper_grants.sql` | 12 PASS — the approval role can approve and nothing else |
 | Release build, warnings-as-errors | 0 warnings, 0 errors |
-| Architecture / unit / integration tests | **20 / 204 / 120** |
+| Architecture / unit / integration tests | **20 / 225 / 120** |
 | Frontend unit tests | **95** (74 contrast, 14 api-client, 7 web) |
-| Playwright end-to-end | **green — and this is the first time the job has ever run** |
+| Playwright end-to-end | **green** — a job that, before this work, had never executed once |
 | CodeQL | csharp, javascript-typescript and actions, each its own job |
 | Dependency advisories | 0 |
 
-**Read the e2e result carefully.** Until this branch, the workflow never parsed,
+**Read the e2e result carefully.** Until this work, the workflow never parsed,
 so no job had ever executed: the suite was not passing, it was absent. Its first
 real run found a server exception on the recovery-codes page (§6), which is what
 the suite exists for.
@@ -200,7 +207,10 @@ append-only design doing its job for the first time.
    questions `V0013` deliberately leaves open because the statute does not answer
    them: what a *dealer* sale between 1 November and 31 December 2026 requires,
    and whether `OK-PLATE-TRANSFER-001` has a successor at all.
-3. **An approval mechanism that exists.** See §7 — there isn't one.
+3. ~~An approval mechanism that exists.~~ **Built.** `V0014` adds
+   `mautodesk_rulekeeper` and the `rulekeeper` CLI records an approval as a new
+   version row with its audit event, after eleven mechanical checks. See
+   [`docs/17-approval-path.md`](17-approval-path.md).
 
 `compliance.jurisdiction_holiday` is **done**: 22 `US-OK` rows for 2026 and 2027,
 seeded by `V0013` from the archived Secretary of State calendar, each citing its
@@ -253,7 +263,7 @@ On top of `HANDOFF.md` §6.
 | **An APR is a percent, not a fraction** | `Percentage` carries the unit in the type. `FromPercent(8.99)` is 8.99%; `AsFraction` is the only route to 0.0899, and there is no implicit conversion from `decimal` |
 | **A business-day calendar with no holidays is refused** | `BusinessDayCalendar.ForJurisdiction` throws on an empty set. Use `WithNoHolidays` to say so deliberately |
 | **The rule-test harness approves rules in memory** | The evaluator ignores unapproved rules, which would make every draft's tests vacuously pass. The harness copies the rule with `IsApproved = true`; the database row is untouched |
-| **Approving a rule is currently impossible** | `compliance.regulatory_rule_version` carries `app.deny_mutation()` on UPDATE and DELETE, so `approved_at` can never be set on a row that already exists — not by a developer, an operator, or a superuser. The intent is visible in the invariant tests, which insert rows *already approved*: an approval is a **new version row**. But no endpoint, screen or store method performs that insert, and CI forbids migrations from it. `V0012`'s header, `docs/13` and the sources README all told a reviewer to "set the three columns"; all three are corrected |
+| **An approval is a new row, never an edit** | `compliance.regulatory_rule_version` carries `app.deny_mutation()` on UPDATE and DELETE, so `approved_at` can never be set on a row that already exists — not by a developer, an operator, or a superuser. `V0012`'s header, `docs/13` and the sources README all told a reviewer to "set the three columns", which was impossible; all three are corrected. The invariant tests had always done it the real way, inserting rows *already approved*. `V0014` and the `rulekeeper` CLI are what finally made that insert performable by something other than a test fixture |
 | **A missing fact reads as compliance** | Every operator except `exists`/`not_exists` returns false on an absent fact (`RuleDefinition.cs:163`), so a condition over a fact nobody captured makes the rule *not fire*, which produces no result, which reads as GREEN. Structural rather than per-rule: an incompletely entered deal is indistinguishable from a compliant one. The strongest argument for the GRAY/UNKNOWN state `docs/14` §6 asks for |
 | **The e2e suite is not idempotent against a persistent database** | A retry fails with "The E2E account is already enrolled, so its TOTP secret is unknown." Fine on CI's fresh database, a trap locally. `db/tests/reset-e2e-account.sql` is the workaround |
 
@@ -279,24 +289,32 @@ Two gaps that are easy to mistake for coverage:
   system.
 - **The tax rule set is an empty skeleton, not a draft.** `sales.rule_set` for
   OK/KS/TX carries `taxBasis: 'UNVERIFIED'`, null rates, no fees and a
-  `PLACEHOLDER` citation. Nobody has researched Oklahoma's tax basis, trade-in
-  credit policy or doc-fee cap, so the deal engine prices nothing — and counsel
+  `PLACEHOLDER` citation, so the deal engine prices nothing — and counsel
   approving the compliance rules does not change that. It is a separate approval,
-  by a CPA, against sources that do not exist yet.
+  by a CPA, against different sources. `V0015` has archived the first two of them
+  (68 O.S. §§ 2103–2104) and added no number to any rule set;
+  [`docs/16-oklahoma-tax-research.md`](16-oklahoma-tax-research.md) is the field
+  matrix — seven answered, nine open, and two of the answers unmodellable until
+  `TaxRuleSet` grows a banded rate and dollar rounding.
 
 ---
 
 ## 9. Where to pick up
 
 Dependency order from the roadmap in `docs/11-dealeros-assessment.md` §M. **Phase
-5 is still open and is the critical path** — it now needs two things that are not
-code:
+5 is still open and is the critical path** — and what it now needs is not code:
 
-0. **Finish Phase 5.** Retain an Oklahoma-licensed attorney (§5), and build an
-   approval path that can actually insert an approved rule version with an audit
-   entry (§7). Everything regulatory downstream waits on both. While that is in
-   flight, the two unanswered statutory questions in `V0013` and any Service
-   Oklahoma implementation guidance on HB 3982 are the research to chase.
+0. **Finish Phase 5.** The approval path is built (§7), so what is left is
+   **retaining an Oklahoma-licensed attorney** (§5) and, separately, a CPA or tax
+   counsel. Everything regulatory downstream waits on the first.
+   [`docs/15-counsel-engagement-brief.md`](15-counsel-engagement-brief.md) scopes
+   the engagement; [`docs/16`](16-oklahoma-tax-research.md) scopes the tax work.
+   While that is in flight, the research to chase is the nine open tax fields, the
+   two unanswered statutory questions in `V0013`, and any Service Oklahoma
+   implementation guidance on HB 3982. The engineering worth doing meanwhile is
+   the banded rate and dollar rounding in `TaxRuleSet`, the `mautodesk_app`
+   platform-chain decision ([`docs/17`](17-approval-path.md) §5), and the
+   GRAY/UNKNOWN evaluation state.
 
 Then, unchanged:
 
@@ -324,8 +342,8 @@ do not invent an API.
 
 ## 10. Honest limitations
 
-- **Committed, pushed, reviewed by CI, not reviewed by a human.** 15 commits,
-  106 files, open as PR #1 and mergeable. No person has read the diff.
+- **Merged, reviewed by CI, not reviewed by a human.** Two pull requests, green
+  on every check, squash-merged to `main`. No person has read either diff.
 - **The intermittent test is fixed, not proven.** `Two_evaluations_of_an_unchanged_deal_agree`
   failed three times across many runs. The cause was identified (§6, rows 3–4) and
   it has not recurred in ten consecutive solution runs — but it failed rarely
