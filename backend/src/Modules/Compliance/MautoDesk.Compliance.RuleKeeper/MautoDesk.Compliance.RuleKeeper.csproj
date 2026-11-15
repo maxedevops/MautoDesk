@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    The operator tool that approves a regulatory rule version.
+
+    An executable rather than an endpoint, and inside the Compliance module
+    rather than beside the API, for one reason: mautodesk_app is granted SELECT
+    and nothing else on the law tables so that a compromised API cannot rewrite
+    the law it is evaluated against (V0010). Putting the approval behind HTTP
+    would hand that privilege back. This runs as mautodesk_rulekeeper, which can
+    insert a rule version and append one kind of audit event, and nothing else.
+
+    It references the module's own Domain and Application projects, which is
+    intra-module and therefore allowed. It references no other module.
+  -->
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>rulekeeper</AssemblyName>
+    <RootNamespace>MautoDesk.Compliance.RuleKeeper</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\MautoDesk.Compliance.Application\MautoDesk.Compliance.Application.csproj" />
+    <ProjectReference Include="..\MautoDesk.Compliance.Domain\MautoDesk.Compliance.Domain.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Npgsql" />
+  </ItemGroup>
+
+</Project>

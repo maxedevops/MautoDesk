@@ -156,13 +156,15 @@ shape everything:
 
 ### Blocking for real users
 
-**No regulatory rule can be approved, and no rule is.** Two Oklahoma packs are
-drafted and nothing in either is active, so a deal reports GREEN because nothing
-has been approved rather than because it is lawful. That needs a retained
-Oklahoma-licensed attorney *and* an approval path that does not exist yet:
-`compliance.regulatory_rule_version` forbids UPDATE, so an approval must be
-inserted as a new version row, and no endpoint, screen or store method does that.
-See [`docs/14-oklahoma-review-disposition-2026-11-13.md`](docs/14-oklahoma-review-disposition-2026-11-13.md).
+**No regulatory rule is approved, and only a lawyer can change that.** Two
+Oklahoma packs are drafted and nothing in either is active, so a deal reports
+GREEN because nothing has been approved rather than because it is lawful. The
+mechanism now exists — `rulekeeper` inserts an approved version under its own
+database identity, after eleven checks, with an audit entry
+([`docs/17-approval-path.md`](docs/17-approval-path.md)). What remains is an
+Oklahoma-licensed attorney to review the readings and be named;
+[`docs/15-counsel-engagement-brief.md`](docs/15-counsel-engagement-brief.md) is
+the scoped engagement and an enquiry ready to send.
 
 **Tax rule sets are unapproved skeletons.** OK/KS/TX are seeded with
 `'UNVERIFIED'` placeholders and `approved_at IS NULL`, so the deal engine will
@@ -272,4 +274,7 @@ audit writes, and log redaction — which used to head this list — are done.
 | `docs/12-dealeros-handoff.md` | **Start here on the DealerOS branch.** What it contains, what is verified, the defects it fixed, and where to pick up |
 | `docs/13-oklahoma-counsel-review.md` | The counsel review packet: the drafted rules in English, their quoted sources, and what the approval gate enforces |
 | `docs/14-oklahoma-review-disposition-2026-11-13.md` | What the first review returned, the two 2026 statutes it surfaced, and what is still blocked on whom |
+| `docs/15-counsel-engagement-brief.md` | Engaging Oklahoma counsel: the scope, the reading pack, acceptance criteria, and an enquiry to send |
+| `docs/16-oklahoma-tax-research.md` | The tax field matrix: every rule-set field, its source, and the two engine changes this surfaced |
+| `docs/17-approval-path.md` | How an approval is recorded, what `rulekeeper` checks first, and why it is a tool rather than an endpoint |
 | `CLAUDE.md` | Working agreements and hard rules for anyone changing the code |
