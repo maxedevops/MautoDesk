@@ -17,7 +17,14 @@ engine refuses and the regulatory engine reports GREEN meaning "nothing is appro
 and it blocks phases 7, 9 and 10. The review packet is `docs/13-oklahoma-counsel-review.md`; the
 first review came back conditional with nothing approved — see
 `docs/14-oklahoma-review-disposition-2026-11-13.md`, which also records that HB 3982 and HB 3148
-(both effective 2026-11-01) post-date the drafted rules and must be reconciled before approval.
+(both effective 2026-11-01) post-dated the drafted rules; `V0013` drafts against both.
+
+**The gate is now waiting on people, not machinery.** `V0014` adds the
+`mautodesk_rulekeeper` role and the `rulekeeper` CLI, which is the only thing that can record an
+approval — as a **new version row**, never an edit, because the table is append-only. Read
+`docs/17-approval-path.md` before touching anything in that area. `docs/15` scopes the counsel
+engagement; `docs/16` is the tax field matrix, and `V0015` archives the first two tax statutes
+without putting a number in any rule set.
 
 Not built: lender matrix and titling (schema only, no C#), documents and e-signature, Deal
 Guardian, most of the frontend, deployment and observability. `RISK-SEC-001` (no managed KMS) is

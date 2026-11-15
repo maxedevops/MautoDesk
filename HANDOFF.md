@@ -3,22 +3,25 @@
 **State:** Phases 1–10 of 13 complete, plus MFA recovery codes, wired-up
 inventory writes, photo uploads, audit-ledger writes, PII log redaction, the
 DealerOS compliance/lending/titling schema, API idempotency, the outbox
-dispatcher, and the deal and regulatory engines · backend green (204 unit, 120
-integration, 20 architecture), frontend unit green (95), Playwright end-to-end
-green in CI · all 10 CI jobs green · zero known dependency vulnerabilities
+dispatcher, the deal and regulatory engines, and the regulatory approval path ·
+backend green (225 unit, 120 integration, 20 architecture), frontend unit green
+(95), Playwright end-to-end green · all CI green · zero known dependency
+vulnerabilities
 
-> **Read this first if you are looking at `main`.** `main` stops at `V0009`. The
-> DealerOS schema, both engines, the Oklahoma rule packs and the entire working
-> CI workflow live on `claude/dealeros-architecture-eval-c07dce`, open as
-> [maxedevops/MautoDesk#1](https://github.com/maxedevops/MautoDesk/pull/1) and
-> mergeable. The state line above describes that branch, not `main`. Until it
-> merges, [`docs/12-dealeros-handoff.md`](docs/12-dealeros-handoff.md) is the
-> document that is current, and this one covers the base it was built on.
->
-> Note also that CI had **never executed** before that branch — a quoting
-> corruption meant the workflow did not parse, so an unbroken row of
-> green-looking runs was the absence of any run at all. It is fixed there, and
-> the fix applies to `main` too.
+**This document describes `main`.** As of 2026-11-15 everything in it is merged:
+[#1](https://github.com/maxedevops/MautoDesk/pull/1) — the DealerOS schema, both
+engines, the Oklahoma packs and the first working CI workflow — and
+[#2](https://github.com/maxedevops/MautoDesk/pull/2) — the approval path, the
+archived tax statutes and the scoped counsel engagement — landed as `f7a69e3`
+and `28af9c4`. No branch holds work this document does not cover.
+
+> **One piece of history worth carrying.** CI had **never once executed** in this
+> repository before #1: a quoting corruption meant the workflow did not parse, so
+> an unbroken row of green-looking runs was the absence of any run at all. Any
+> run older than November 2026 did not run.
+> [`docs/12-dealeros-handoff.md`](docs/12-dealeros-handoff.md) is the record of
+> how that work landed and of the defects it fixed on the way; this document is
+> the current state.
 
 ---
 
@@ -29,7 +32,9 @@ dealers. `docs/00-constitution.md` is the governing specification; every
 subsequent phase document derives from it.
 
 The **Inventory vertical slice runs end to end**: PostgreSQL → ASP.NET Core API →
-Next.js, with real authentication. Everything else is designed, not built.
+Next.js, with real authentication. The **deal and regulatory engines** are built
+and reachable through endpoints, but compute nothing today because no rule set is
+approved. Everything else is designed, not built — §3 is the inventory.
 
 ---
 
@@ -60,6 +65,19 @@ So does the dispatcher's role, which is separate on purpose (V0011):
 docker exec mautodesk-postgres psql -U postgres -d mautodesk -c "alter role mautodesk_dispatcher with password 'devpw';"
 ```
 
+And so does the approval role (V0014), which you only need if you are running
+`rulekeeper`:
+
+```bash
+docker exec mautodesk-postgres psql -U postgres -d mautodesk -c "alter role mautodesk_rulekeeper with password 'devpw';"
+```
+
+**Three roles, no passwords in any migration.** Each is created with `login` and
+nothing else, deliberately: a credential in `db/migrations/*.sql` is a credential
+in git. `db/tests/rulekeeper_grants.sql` asserts the third one can approve a rule
+and do nothing else at all — it cannot read a deal, a vehicle or a customer, and
+it holds no UPDATE or DELETE anywhere.
+
 Then the API and the web app, each needing configuration (see `.env.example`):
 
 ```bash
@@ -85,8 +103,8 @@ more than one project's database.
 
 | Area | State |
 | --- | --- |
-| Database | 12 migrations, RLS enabled *and forced* on every tenant table, 0 coverage gaps, hash-chained audit ledger |
-| Backend | 18 projects. SharedKernel, shared Infrastructure, Inventory (4), Identity (4), Sales (Domain + Contracts), Compliance (Domain + Contracts), API host |
+| Database | 15 migrations, RLS enabled *and forced* on every tenant table, 0 coverage gaps, hash-chained audit ledger |
+| Backend | 20 projects. SharedKernel, shared Infrastructure, API host, Inventory (4), Identity (4), Sales (4), Compliance (5, including the `rulekeeper` CLI) |
 | Inventory | Vehicles, VIN decode (NHTSA), photos (quarantine-first upload, verified and re-encoded), costs schema, status lifecycle, publish rules, outbox |
 | Identity | Argon2id, mandatory TOTP MFA, single-use recovery codes, JWT, refresh rotation with reuse detection, exponential lockout |
 | Frontend | Inventory grid, vehicle detail, add-vehicle form, photo upload and gallery, status changes and publish (all wired to the API), login (3-step, plus recovery-code sign-in), recovery-code settings, BFF session, generated API client, design tokens |
@@ -95,35 +113,44 @@ more than one project's database.
 | Deals | Create, read, list, status transitions; `POST /deals/{id}/calculate` writes an append-only snapshot; `POST /deals/{id}/evaluate` writes a compliance run |
 | Idempotency | `Idempotency-Key` on `POST`: replay, 409 on key reuse, release on 5xx, 24 h retention |
 | Outbox | Dispatcher drains `app.outbox_message` as a least-privileged role; lease, backoff, dead-letter |
+| Approval path | `rulekeeper` (`V0014`), a CLI holding its own database identity; eleven mechanical checks, then one `INSERT` of an approved rule version and its audit event in a single transaction |
 | Contracts | `contracts/openapi.json` **generated** from the endpoints; drift fails the build |
-| CI | 8 jobs: secrets, database, contract, design tokens, backend, frontend, e2e, CodeQL |
+| CI | 8 jobs: secrets, database, contract, design tokens, backend, frontend, e2e, CodeQL — CodeQL is a 3-way matrix, so 10 job runs and 11 required checks |
 
 ### Not built — designed only
 
-Costs UI · CRM · the lender matrix · the Oklahoma rule pack · titles, liens,
-tags and pre-registration · documents · e-signature · Deal Guardian · OCR ·
-messaging · marketplace publishing · reporting · billing · Terraform · every
-deal and compliance screen in the frontend.
+Costs UI · CRM · the lender matrix · titles, liens, tags and pre-registration ·
+documents · e-signature · Deal Guardian · OCR · messaging · marketplace
+publishing · reporting · billing · Terraform · every deal and compliance screen
+in the frontend.
 
-**The Oklahoma rule pack is six DRAFT rules and nothing approved — but the source bar is now met.** V0012 seeds
-`OK-PREREG-001`, `OK-TEMP-TAG-001`, `OK-PLATE-TRANSFER-001`, `OK-TITLE-TYPE-001`,
-`OK-TITLE-ETBS-001` and `OK-TITLE-VIN-INSPECTION-001` with condition trees and 23
-test cases that run in CI — all `status = 'draft'` with `approved_at IS NULL`, so
-the engine evaluates none of them. **An Oklahoma deal returns GREEN because nothing
-is approved, not because it is lawful.**
+**The Oklahoma pack is 10 DRAFT rule versions across 9 rules, 0 approved, 41 test
+cases green.** `V0012` drafts six rules against 2024–25 Service Oklahoma guidance;
+`V0013` drafts four more against the enrolled HB 3982 and HB 3148, which both took
+effect on 1 November 2026 and made the first pack stale before anybody read it.
+Every version is unapproved, so the engine evaluates none of them. **An Oklahoma
+deal returns GREEN because nothing is approved, not because it is lawful.**
 
 `db/sources/us-ok/` holds the **primary text** — the Service Oklahoma press
-release, the 11-page dealer FAQ and the Electronic Titles page and FAQ, archived
-verbatim and hashed. `RegulatoryRuleTests` re-hashes every file on each build, so
-"this rule was written against this text" is checkable rather than asserted. Each
-rule's `approval_note` quotes the sentence it came from.
+release, the 11-page dealer FAQ, the Electronic Titles page and FAQ, both enrolled
+bills, the Secretary of State holiday calendar, and 68 O.S. §§ 2103–2104 — each
+archived verbatim and hashed. `RegulatoryRuleTests` re-hashes every file on each
+build, so "this rule was written against this text" is checkable rather than
+asserted. Each rule's `approval_note` quotes the sentence it came from. The README
+distinguishes three custodies: documents transcribed by the project owner, bills
+retrieved from `oklegislature.gov`, and statutes retrieved from OSCN.
 
-What remains is **review**, not sourcing. Counsel must settle the three notes
-flagged `INTERPRETATION TO CONFIRM` (whether pre-registration really excludes
-wholesale, whether a transferred plate is a block or a warning, whether an
-outstanding VIN inspection should stop contracting as well as the title request),
-`compliance.jurisdiction_holiday` needs populating for `US-OK`, and a named
-reviewer sets `approved_by`. `db/sources/us-ok/README.md` is the checklist.
+`compliance.jurisdiction_holiday` is **done** — 22 `US-OK` rows for 2026 and 2027,
+each citing its source version. 2028 is absent on purpose, so a business-day
+deadline falling there still fails closed.
+
+What remains is **review**, not sourcing or machinery. Seven readings are flagged
+for counsel — three in `V0012`, four in `V0013` — plus two questions `V0013`
+leaves open because the statute does not answer them. An approval is recorded by
+`rulekeeper` as a **new version row**; it cannot be done by editing an existing
+one, because the table is append-only.
+[`docs/15-counsel-engagement-brief.md`](docs/15-counsel-engagement-brief.md) is the
+scoped engagement, and `db/sources/us-ok/README.md` is the source checklist.
 
 The majority of remaining *risk* lives here, not in what is built.
 
@@ -166,12 +193,27 @@ Oklahoma-licensed attorney to review the readings and be named;
 [`docs/15-counsel-engagement-brief.md`](docs/15-counsel-engagement-brief.md) is
 the scoped engagement and an enquiry ready to send.
 
-**Tax rule sets are unapproved skeletons.** OK/KS/TX are seeded with
-`'UNVERIFIED'` placeholders and `approved_at IS NULL`, so the deal engine will
-refuse to price a deal. This is deliberate — shipping plausible-looking tax
-numbers sourced from nothing is how a DMS puts a wrong figure on a signed retail
-contract. They need primary sources and a CPA or dealer-compliance attorney per
-state.
+**Tax rule sets are unapproved skeletons, and research has started.** OK/KS/TX
+are seeded with `'UNVERIFIED'` placeholders and `approved_at IS NULL`, so the deal
+engine refuses to price a deal. This is deliberate — shipping plausible-looking
+tax numbers sourced from nothing is how a DMS puts a wrong figure on a signed
+retail contract.
+
+`V0015` archives 68 O.S. §§ 2103–2104 and adds no number to any rule set.
+[`docs/16-oklahoma-tax-research.md`](docs/16-oklahoma-tax-research.md) is the
+field-by-field matrix: **seven fields answered by archived primary text, nine
+still open**, each named with the source that would answer it. Two of the answers
+the engine cannot currently express, and both are code rather than data:
+
+- Oklahoma's used-vehicle excise tax is **$20 on the first $1,500 plus 3.25% of
+  the remainder**. `TaxRuleSet.StateRate` is a single `Percentage` with no concept
+  of a band, so the rate cannot be written down at all.
+- The statute rounds the excise tax **to the nearest dollar**, while the seeded
+  `roundingScale` is 2. The tax line rounds differently from the other lines.
+
+Build both before the data arrives, or the first approved rule set waits on an
+engine that cannot hold it. Approval is then a CPA's or tax counsel's, separately
+from the compliance pack and against different sources.
 
 ### Important, not urgent
 
@@ -221,7 +263,9 @@ they are the sort of thing that costs an afternoon.
 | **A `required` member on a request DTO becomes a 500, not a 400** | The JSON deserializer throws on a missing `required` member, the exception handler clears the response, and the security headers go with it. Validate in the mapping method instead and return a 422 that names the field |
 | **The deal engine refuses every jurisdiction today** | Every seeded rule set is unapproved with `'UNVERIFIED'` placeholders, so `DealEngine.Calculate` returns `deal.rule_set_unapproved` for all of them. That is the designed behaviour and there is a test on it. Do not relax it to make a demo work |
 | **An APR is a percent, not a fraction** | `Percentage` carries the unit in the type: `FromPercent(8.99)` is 8.99%, and `AsFraction` is the only way to the 0.0899 the formula needs. There is no implicit conversion from `decimal`, so a bare number cannot become a rate by accident |
-| **A business-day calendar with no holidays is refused** | `BusinessDayCalendar.ForJurisdiction` throws on an empty set, because `compliance.jurisdiction_holiday` is seeded empty and a deadline computed against it would be wrong on every holiday, silently. Use `WithNoHolidays` to say so deliberately |
+| **A business-day calendar with no holidays is refused** | `BusinessDayCalendar.ForJurisdiction` throws on an empty set, because a deadline computed against it would be wrong on every holiday, silently. `US-OK` is seeded for 2026–2027 only, and every other jurisdiction is still empty. Use `WithNoHolidays` to say so deliberately |
+| **An INSERT without a SELECT forks the audit chain in silence** | `audit.chain_event()` runs BEFORE INSERT **as the calling role** and reads the previous row to compute `prev_hash`. `audit.event` is FORCE RLS, so a role that may INSERT but cannot SELECT gets **zero rows rather than an error** — `prev_hash` is NULL, the row claims to begin the chain, and `verify_chain()` reports the ledger broken at every such row. A ledger whose links are quietly absent still looks like evidence. Fixed and asserted for `mautodesk_rulekeeper`; **`mautodesk_app` has the same defect for platform-scope events**, latent only because nothing writes one yet — [`docs/17-approval-path.md`](docs/17-approval-path.md) §5 |
+| **`rulekeeper` writes nothing without `--commit`** | The default behaviour of a tool that can write the law is to print what it would do. Its connection string comes from `RULEKEEPER_CONNECTION` and never an argument, so a credential does not land in shell history or a process list, and the sign-off arrives as a **file** rather than a string |
 | **The dispatcher needs its own database password** | `mautodesk_dispatcher` is created by V0011 without one, exactly as `mautodesk_app` is. `alter role mautodesk_dispatcher with password 'devpw';`. Without `Outbox__ConnectionString` the API starts, logs a warning, and publishes nothing |
 | **The app connection cannot drain the outbox** | `app.outbox_message` is under RLS and `mautodesk_app` has no tenant in scope in a background loop, so it sees zero rows — forever, silently. This is why there is a second role, and `OutboxDispatcherTests` asserts it |
 | **`response_body` is `json`, not `jsonb`** | `jsonb` reparses, so a replayed body comes back with different whitespace than the original. Byte-identical replay is the promise; V0011 changes the column type |
@@ -237,21 +281,38 @@ they are the sort of thing that costs an afternoon.
 
 ## 7. Where to pick up
 
-Phase 11 is performance optimisation, but **there is nothing deployed and nothing
-measured**, so it would largely be speculation. Two sensible orders:
+**Phase 5 is still the critical path, and what it now needs is not code.** Every
+mechanical precondition is built and verified; two humans are missing.
 
-- **Stand up the k6 profile against local Docker first**, get real numbers, then
-  optimise against them. Phase 1 sets explicit budgets (p95 < 200 ms, LCP < 2.0 s)
-  that nothing currently measures.
-- **Or skip to Phase 12 (deployment)** so Phase 11 has a real environment to
-  measure. This also unblocks TLS, DAST, and the `⬜` rows in the FTC Safeguards
-  table.
+1. **Retain an Oklahoma-licensed attorney.** This is procurement, and nothing
+   regulatory downstream — phases 7, 9 and 10 — moves without it.
+   [`docs/15-counsel-engagement-brief.md`](docs/15-counsel-engagement-brief.md)
+   reduces it to five deliverables, a six-document reading pack and an enquiry
+   ready to send.
+2. **Retain a CPA or tax counsel**, separately and against different sources.
+   [`docs/16-oklahoma-tax-research.md`](docs/16-oklahoma-tax-research.md) §5 lists
+   the nine open fields in the order to chase them.
 
-If the goal is a usable product rather than the next phase number, the highest
-value work is neither: it is **idempotency keys** before money-adjacent
-endpoints arrive, then the **outbox dispatcher** so the events already being
-written are consumed by something. MFA recovery codes, the inert UI, photos,
-audit writes, and log redaction — which used to head this list — are done.
+Three pieces of engineering are worth doing *while* that is in flight, because
+each of them is on the path and none of it needs a lawyer:
+
+- **The banded rate and dollar rounding** in the tax engine (§5). Oklahoma's
+  excise tax cannot be written down until these exist.
+- **Decide the `mautodesk_app` platform-scope audit chain** — a narrow SELECT
+  policy, a `SECURITY DEFINER` chain function, or a dedicated identity per writer.
+  It reverses a deliberate `V0006` choice either way, which is why a migration
+  should not decide it. [`docs/17-approval-path.md`](docs/17-approval-path.md) §5.
+- **The GRAY/UNKNOWN evaluation state.** Every operator except
+  `exists`/`not_exists` returns false on an absent fact, so a rule over a fact
+  nobody captured does not fire, produces no result, and reads as GREEN. An
+  incompletely entered deal is today indistinguishable from a compliant one, and
+  that is structural rather than per-rule.
+
+Phase 11 (performance) still has **nothing deployed and nothing measured**, so it
+would be speculation; Phase 12 (deployment) would give it an environment, and
+would unblock TLS, DAST and the `⬜` rows in the FTC Safeguards table. MFA
+recovery codes, the inert UI, photos, audit writes, log redaction and the
+approval path — which used to head this list — are done.
 
 ---
 
@@ -271,7 +332,7 @@ audit writes, and log redaction — which used to head this list — are done.
 | `docs/09-security-review.md` | Control coverage **with evidence**, 11 findings, FTC posture |
 | `docs/10-testing.md` | What each test layer buys, and what is still untested |
 | `docs/11-dealeros-assessment.md` | The DealerOS assessment: scoring, build/retain/replace matrix, cost model, roadmap |
-| `docs/12-dealeros-handoff.md` | **Start here on the DealerOS branch.** What it contains, what is verified, the defects it fixed, and where to pick up |
+| `docs/12-dealeros-handoff.md` | How the DealerOS work landed: what it contains, what CI verified, and the defects it fixed on the way. Historical now that it is merged, but the defect and gotcha tables are still worth reading |
 | `docs/13-oklahoma-counsel-review.md` | The counsel review packet: the drafted rules in English, their quoted sources, and what the approval gate enforces |
 | `docs/14-oklahoma-review-disposition-2026-11-13.md` | What the first review returned, the two 2026 statutes it surfaced, and what is still blocked on whom |
 | `docs/15-counsel-engagement-brief.md` | Engaging Oklahoma counsel: the scope, the reading pack, acceptance criteria, and an enquiry to send |
