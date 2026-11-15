@@ -13,11 +13,20 @@ documents, signatures, uploads, jobs and reports are designed in the contract an
 
 **The system computes no deal today, by design.** Every seeded rule set is unapproved, so the deal
 engine refuses and the regulatory engine reports GREEN meaning "nothing is approved" rather than
-"this deal is lawful". Phase 5 — counsel review and approval of the Oklahoma pack — is the gate,
+"this deal is lawful". Note the second meaning GREEN no longer has: as of `RuleEvaluator` 2.0.0 a
+rule that cannot be decided because a fact was never captured returns `UNKNOWN` and the run is
+`GRAY`, so GREEN means "every applicable rule was decided on complete facts". See `docs/18`. Phase 5 — counsel review and approval of the Oklahoma pack — is the gate,
 and it blocks phases 7, 9 and 10. The review packet is `docs/13-oklahoma-counsel-review.md`; the
 first review came back conditional with nothing approved — see
 `docs/14-oklahoma-review-disposition-2026-11-13.md`, which also records that HB 3982 and HB 3148
-(both effective 2026-11-01) post-date the drafted rules and must be reconciled before approval.
+(both effective 2026-11-01) post-dated the drafted rules; `V0013` drafts against both.
+
+**The gate is now waiting on people, not machinery.** `V0014` adds the
+`mautodesk_rulekeeper` role and the `rulekeeper` CLI, which is the only thing that can record an
+approval — as a **new version row**, never an edit, because the table is append-only. Read
+`docs/17-approval-path.md` before touching anything in that area. `docs/15` scopes the counsel
+engagement; `docs/16` is the tax field matrix, and `V0015` archives the first two tax statutes
+without putting a number in any rule set.
 
 Not built: lender matrix and titling (schema only, no C#), documents and e-signature, Deal
 Guardian, most of the frontend, deployment and observability. `RISK-SEC-001` (no managed KMS) is
@@ -38,6 +47,10 @@ These are enforced by CI. Breaking one produces a red build, and that is deliber
   `signatures.audit_entry` are append-only.** Triggers block mutation. A correction is a new row.
 - **AI output is a draft.** It never reaches a consumer without explicit human approval, and it is
   grounded only in decoded or dealer-entered data.
+- **An absent fact is never a pass.** Conditions are three-valued. A rule that cannot be decided
+  produces `UNKNOWN` and names the missing facts; it must not be collapsed into "did not fire".
+  `ComplianceStatus` and `DealReadiness` are pinned to their database check constraints by an
+  architecture test, so widening either means changing both.
 - **Uploads go to quarantine first.** Declared content type, size, and hash are verified against the
   actual object, never trusted.
 
@@ -75,7 +88,11 @@ docker compose run --rm migrate
   envelope-encrypted with a blind index for search.
 - Do not put tax rates, fee amounts, or statutory caps in code or in a seed file from memory. They
   are versioned, effective-dated, source-cited rows in `sales.rule_set`, and the engine ignores any
-  row without `approved_at`.
+  row without `approved_at`. `sales.rule_set` is append-only as of `V0017`: an approval is a new
+  version row written by `taxkeeper`, never an edit.
+- Do not resolve a `compliance.pending_approval` item in a migration, a seed, or a test. The
+  register is the saved place for a human's disposition; a migration that filled one in would be
+  approving its own work. CI asserts the register ships fully open.
 - Do not denormalize deal totals onto `sales.deal`. The calculation snapshot is the only source of
   truth for a number that can appear on a contract.
 - Do not use `DateTime.Now`/`UtcNow` outside the `IClock` implementation — an architecture test

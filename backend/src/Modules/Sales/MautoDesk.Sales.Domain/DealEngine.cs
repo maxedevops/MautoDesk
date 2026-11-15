@@ -146,7 +146,7 @@ public static class DealEngine
         // -- 10. Sales tax ------------------------------------------------------
         var salesTax = ComputeTax(taxable, rules, input, advisories);
         steps.Add(new CalculationStep(
-            ++order, "tax.amount", $"Sales tax at {rules.CombinedRate}%", salesTax));
+            ++order, "tax.amount", DescribeTax(rules), salesTax));
 
         // -- 11 to 14. Fees ------------------------------------------------------
         var (totalFees, stateFees) = SumFees(input, rules, steps, advisories, ref order);
@@ -245,7 +245,7 @@ public static class DealEngine
             TradePayoff = tradePayoff,
             TradeEquity = tradeEquity,
             TaxableAmount = taxable,
-            TaxRate = rules.CombinedRate,
+            TaxRate = EffectiveRate(taxable, salesTax, rules),
             SalesTax = salesTax,
             TotalFees = totalFees,
             TotalStateFees = stateFees,
@@ -271,6 +271,35 @@ public static class DealEngine
         };
     }
 
+    /// <summary>
+    /// The rate to record on the snapshot.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// For a flat jurisdiction this is just the combined rate. For a banded one
+    /// there is no single statutory rate, so the snapshot records the
+    /// <em>effective</em> rate — tax divided by base — which is what a reader
+    /// comparing two deals actually wants, and which is honest about being
+    /// derived rather than quoted.
+    /// </para>
+    /// <para>
+    /// Recording the first band's rate instead would be worse than recording
+    /// nothing: on a $20,000 Oklahoma deal it would print 0%, because the first
+    /// band is a flat twenty dollars.
+    /// </para>
+    /// </remarks>
+    private static Percentage EffectiveRate(Money taxable, Money tax, TaxRuleSet rules)
+    {
+        if (!rules.IsBanded)
+        {
+            return rules.CombinedRate;
+        }
+
+        return taxable.Amount <= 0m
+            ? Percentage.Zero
+            : Percentage.FromFraction(tax.Amount / taxable.Amount);
+    }
+
     /// <summary>The refusals, all of which are better than a plausible wrong number.</summary>
     private static Error? Validate(DealInput input, TaxRuleSet rules)
     {
@@ -282,6 +311,15 @@ public static class DealEngine
                 "The tax and fee rules for this jurisdiction have not been reviewed and approved, " +
                 "so a deal cannot be priced. A rule set must cite a primary source and carry a " +
                 "named approver before the engine will use it.");
+        }
+
+        // A malformed band set would otherwise price silently and wrongly: an
+        // unbounded middle band taxes nothing above it, a bounded top band taxes
+        // only part of an expensive car, and a rule set carrying both a flat rate
+        // and bands does not describe one tax at all.
+        if (rules.BandError is { } bandError)
+        {
+            return Error.Validation("deal.rule_set_bands_invalid", bandError);
         }
 
         if (!rules.CoversDate(input.DealDate))
@@ -402,6 +440,41 @@ public static class DealEngine
         return basis;
     }
 
+    /// <summary>Labels the tax line with how it was actually worked out.</summary>
+    /// <remarks>
+    /// A banded tax has no single rate to print, and "Sales tax at 0%" beside a
+    /// non-zero figure is the kind of detail that costs an afternoon. So a banded
+    /// jurisdiction gets its bands spelled out on the line instead.
+    /// </remarks>
+    private static string DescribeTax(TaxRuleSet rules)
+    {
+        if (!rules.IsBanded)
+        {
+            return $"Sales tax at {rules.CombinedRate}%";
+        }
+
+        var parts = new List<string>();
+        var lower = Money.Zero;
+
+        foreach (var band in rules.Bands)
+        {
+            var span = band.UpTo is { } upper
+                ? $"{lower} to {upper}"
+                : $"above {lower}";
+
+            parts.Add(band switch
+            {
+                { Flat: { } flat, Rate.IsZero: true } => $"{flat} on the first {band.UpTo}",
+                { Flat: { } flat } => $"{flat} plus {band.Rate}% on {span}",
+                _ => $"{band.Rate}% on {span}",
+            });
+
+            lower = band.UpTo ?? lower;
+        }
+
+        return "Excise tax: " + string.Join(", then ", parts);
+    }
+
     private static Money ComputeTax(
         Money taxable, TaxRuleSet rules, DealInput input, List<string> advisories)
     {
@@ -418,16 +491,80 @@ public static class DealEngine
             return over.Amount;
         }
 
-        var tax = Money.FromDecimal(taxable.Amount * rules.CombinedRate.AsFraction);
+        var tax = rules.IsBanded
+            ? Banded(taxable, rules)
+            : Money.FromDecimal(taxable.Amount * rules.CombinedRate.AsFraction);
 
         if (rules.MaximumTax is { } cap && tax > cap)
         {
             advisories.Add($"Sales tax was capped at {cap} by the jurisdiction's maximum.");
-            return cap;
+            return Round(cap, rules);
         }
 
-        return tax;
+        return Round(tax, rules);
     }
+
+    /// <summary>
+    /// Applies a graduated tax, band by band.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Oklahoma's used-vehicle excise tax is the worked example: $20 on the first
+    /// $1,500 of value, then 3.25% of the remainder (68 O.S. § 2103). A $20,000
+    /// car is therefore $20 + 3.25% × $18,500 = $621.25, which rounds to $621.
+    /// </para>
+    /// <para>
+    /// A flat amount is charged in full as soon as the base reaches the band,
+    /// because the statute says "on the first $1,500.00 <b>or less</b>" — a $900
+    /// car owes the whole twenty dollars. A rate applies only to the portion of
+    /// the base inside the band, so the bands do not overlap.
+    /// </para>
+    /// </remarks>
+    private static Money Banded(Money taxable, TaxRuleSet rules)
+    {
+        // A zero or negative base is not a sale. Charging the first band's flat
+        // amount on it would invent tax on nothing.
+        if (taxable.Amount <= 0m)
+        {
+            return Money.Zero;
+        }
+
+        var total = 0m;
+        var lower = 0m;
+
+        foreach (var band in rules.Bands)
+        {
+            if (taxable.Amount <= lower)
+            {
+                break;
+            }
+
+            var upper = band.UpTo?.Amount ?? decimal.MaxValue;
+            var portion = Math.Min(taxable.Amount, upper) - lower;
+
+            if (band.Flat is { } flat)
+            {
+                total += flat.Amount;
+            }
+
+            if (!band.Rate.IsZero && portion > 0m)
+            {
+                total += portion * band.Rate.AsFraction;
+            }
+
+            lower = upper;
+        }
+
+        return Money.FromDecimal(total);
+    }
+
+    /// <summary>Rounds the tax line the way the jurisdiction's statute rounds it.</summary>
+    private static Money Round(Money tax, TaxRuleSet rules) => rules.Rounding switch
+    {
+        TaxRounding.Dollars => Money.FromDecimal(
+            Math.Round(tax.Amount, 0, Money.RoundingMode)),
+        _ => tax,
+    };
 
     /// <summary>Adds up the fees, and notices when one is over its statutory cap.</summary>
     private static (Money Total, Money StateFees) SumFees(

@@ -26,9 +26,12 @@ change (stating the change and the sentence it comes from), or reject. The ten a
 [`docs/14-oklahoma-review-disposition-2026-11-13.md`](14-oklahoma-review-disposition-2026-11-13.md)
 §2.
 
-**Deliverable 2 — written answers to seven flagged readings.** Each is marked
-`INTERPRETATION TO CONFIRM` in the migration, with the text it was drawn from quoted beside it. Three
-are in `V0012`, four in `V0013`.
+**Deliverable 2 — written answers to seven flagged readings.** Three are in `V0012`, four in
+`V0013`, with the text each was drawn from quoted beside it. Six carry the marker
+`INTERPRETATION TO CONFIRM` in an `approval_note`; the seventh — whether an outstanding VIN
+inspection should stop contracting as well as the title request — is left open in `V0012`'s header
+instead. All seven are written out as questions in
+[`docs/13-oklahoma-counsel-review.md`](13-oklahoma-counsel-review.md).
 
 **Deliverable 3 — two statutory questions we will not answer ourselves**, because the text does not:
 

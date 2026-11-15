@@ -266,13 +266,24 @@ public sealed class RuleEvaluatorTests
     // The condition vocabulary.
     // ---------------------------------------------------------------------
 
-    /// <summary>A fact nobody supplied does not satisfy a comparison.</summary>
+    /// <summary>A fact nobody supplied is unknown, and unknown is not a pass.</summary>
     /// <remarks>
-    /// Unknown is not false. Treating it as a match is how a rule silently stops
-    /// firing the day an upstream field is renamed — and nothing would fail.
+    /// <para>
+    /// This test used to assert <c>Pass</c>, under a remark that read "Unknown is
+    /// not false. Treating it as a match is how a rule silently stops firing the
+    /// day an upstream field is renamed." The remark was right and the assertion
+    /// pinned the opposite: the rule did not fire, produced no finding, and the
+    /// deal came back GREEN. The comment was the defect report and nobody read it
+    /// as one.
+    /// </para>
+    /// <para>
+    /// RuleEvaluator 2.0.0 makes conditions three-valued. The whole truth table
+    /// and both failure directions are covered in
+    /// <see cref="GrayStateTests"/>; this is the original case, corrected.
+    /// </para>
     /// </remarks>
     [Fact]
-    public void A_missing_fact_never_matches_a_comparison()
+    public void A_missing_fact_is_unknown_rather_than_a_pass()
     {
         var rule = Rule(
             "ZZ-TEST-MISSING-001",
@@ -282,7 +293,12 @@ public sealed class RuleEvaluatorTests
 
         var run = Evaluate(RegulatoryContext.Create().Build(), rule);
 
-        run.Results[0].Status.Should().Be(ComplianceStatus.Pass, "the fact was never supplied");
+        run.Results[0].Status.Should().Be(
+            ComplianceStatus.Unknown,
+            "the fact was never supplied, so whether this rule applies is not known — and "
+            + "saying 'pass' would assert that it does not");
+        run.Results[0].MissingFacts.Should().Equal("title.status");
+        run.OverallStatus.Should().Be(DealReadiness.Gray);
     }
 
     /// <summary><c>Exists</c> and <c>NotExists</c> are how a rule asks about presence.</summary>
@@ -297,10 +313,10 @@ public sealed class RuleEvaluatorTests
 
         var trace = new List<string>();
 
-        exists.Matches(withTitle, trace).Should().BeTrue();
-        exists.Matches(without, trace).Should().BeFalse();
-        notExists.Matches(without, trace).Should().BeTrue();
-        notExists.Matches(withTitle, trace).Should().BeFalse();
+        exists.Matches(withTitle, trace).Should().Be(Match.Yes);
+        exists.Matches(without, trace).Should().Be(Match.No);
+        notExists.Matches(without, trace).Should().Be(Match.Yes);
+        notExists.Matches(withTitle, trace).Should().Be(Match.No);
     }
 
     /// <summary>Equality is numeric when both sides are numbers, so 10 and 10.00 agree.</summary>
@@ -310,7 +326,7 @@ public sealed class RuleEvaluatorTests
         var comparison = new Comparison("deal.fee", ConditionOperator.Equals, "10.00");
         var facts = RegulatoryContext.Create().With("deal.fee", 10m).Build();
 
-        comparison.Matches(facts, []).Should().BeTrue();
+        comparison.Matches(facts, []).Should().Be(Match.Yes);
     }
 
     /// <summary>String equality ignores case, because a status is not a password.</summary>
@@ -320,7 +336,7 @@ public sealed class RuleEvaluatorTests
         var comparison = new Comparison("title.type", ConditionOperator.Equals, "ELECTRONIC");
         var facts = RegulatoryContext.Create().With("title.type", "electronic").Build();
 
-        comparison.Matches(facts, []).Should().BeTrue();
+        comparison.Matches(facts, []).Should().Be(Match.Yes);
     }
 
     /// <summary><c>In</c> and <c>NotIn</c> test membership.</summary>
@@ -334,12 +350,12 @@ public sealed class RuleEvaluatorTests
 
         var facts = RegulatoryContext.Create().With("title.status", status).Build();
 
-        inList.Matches(facts, []).Should().Be(expected);
+        inList.Matches(facts, []).Should().Be(Decided(expected));
 
         var notIn = new Comparison(
             "title.status", ConditionOperator.NotIn, Values: ["held", "pending", "unknown"]);
 
-        notIn.Matches(facts, []).Should().Be(!expected);
+        notIn.Matches(facts, []).Should().Be(Decided(!expected));
     }
 
     /// <summary>Numeric comparisons are decimal, not floating point.</summary>
@@ -360,18 +376,18 @@ public sealed class RuleEvaluatorTests
         var comparison = new Comparison("deal.amount", op, threshold);
         var facts = RegulatoryContext.Create().With("deal.amount", actual).Build();
 
-        comparison.Matches(facts, []).Should().Be(expected);
+        comparison.Matches(facts, []).Should().Be(Decided(expected));
     }
 
     /// <summary>An empty <c>all</c> matches, which is how a rule says "always applies".</summary>
     [Fact]
     public void An_empty_all_of_always_matches() =>
-        new AllOf([]).Matches(Facts(), []).Should().BeTrue();
+        new AllOf([]).Matches(Facts(), []).Should().Be(Match.Yes);
 
     /// <summary>An empty <c>any</c> does not match — there is nothing to satisfy it.</summary>
     [Fact]
     public void An_empty_any_of_never_matches() =>
-        new AnyOf([]).Matches(Facts(), []).Should().BeFalse();
+        new AnyOf([]).Matches(Facts(), []).Should().Be(Match.No);
 
     /// <summary><c>all</c>, <c>any</c> and <c>not</c> compose.</summary>
     [Fact]
@@ -394,7 +410,7 @@ public sealed class RuleEvaluatorTests
             .With("deal.isWholesale", false)
             .Build();
 
-        condition.Matches(matching, []).Should().BeTrue();
+        condition.Matches(matching, []).Should().Be(Match.Yes);
 
         var wholesale = RegulatoryContext.Create()
             .With("deal.isFinanced", true)
@@ -402,7 +418,7 @@ public sealed class RuleEvaluatorTests
             .With("deal.isWholesale", true)
             .Build();
 
-        condition.Matches(wholesale, []).Should().BeFalse();
+        condition.Matches(wholesale, []).Should().Be(Match.No);
     }
 
     /// <summary>The trace records what was compared, for the evaluation detail.</summary>
@@ -607,6 +623,17 @@ public sealed class RuleEvaluatorTests
             Rules = rules,
             Calendar = calendar,
         });
+
+    /// <summary>
+    /// A decided answer, for the cases where the fact under test is present.
+    /// </summary>
+    /// <remarks>
+    /// Conditions are three-valued, so a bool expectation has to say which of the
+    /// two <em>decided</em> answers it means. Every use of this helper is a case
+    /// where the fact is supplied, so <see cref="Match.Unknown"/> would be a
+    /// failure rather than an alternative.
+    /// </remarks>
+    private static Match Decided(bool held) => held ? Match.Yes : Match.No;
 
     private static RegulatoryContext Facts(bool financed = true, string? satisfied = null)
     {

@@ -514,6 +514,7 @@ export interface components {
             deadline: string | null;
             sourceCitation: string | null;
             evaluationDetail: string[];
+            missingFacts: string[];
         };
         ComplianceRunDto: {
             /** Format: uuid */
@@ -531,6 +532,8 @@ export interface components {
             blockingCount: number;
             /** Format: int32 */
             warningCount: number;
+            /** Format: int32 */
+            unknownCount: number;
             /** Format: date-time */
             executedAt: string;
             results: components["schemas"]["ComplianceResultDto"][];

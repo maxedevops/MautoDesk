@@ -3,6 +3,11 @@
 How an approved regulatory rule gets into this system, and why it is a command-line tool rather than
 an endpoint.
 
+> **Updated 2026-11-15.** There are now two tools and a register. `rulekeeper` approves a regulatory
+> rule version, `taxkeeper` approves a tax rule set, and `compliance.pending_approval` records what
+> is waiting on whom so that engine work does not wait on procurement.
+> [`docs/18`](18-gray-state-and-tax-bands.md) covers the additions; this document remains the design.
+
 ---
 
 ## 1. The problem it solves
@@ -37,6 +42,14 @@ asserts each of those in CI rather than trusting the grant list to stay true.
 
 An endpoint remains possible later, once there is an admin screen to call it. It would be a
 deliberate widening, decided on its own merits, and it is not needed to unblock a first approval.
+
+The same reasoning produced `taxkeeper` for `sales.rule_set`, which `V0017` makes append-only.
+`mautodesk_app` holds SELECT and nothing else there (`V0006`), for the same reason it holds nothing
+on the compliance tables: a compromised API must not be able to rewrite the tax law it prices deals
+against. The two tools share one database identity and sit in different modules — each in the module
+whose law it approves, because validating a tax rule set needs the Sales module's own serializer and
+`TaxRuleSet.BandError`, and a second implementation of those checks is the one thing an approval path
+must not have.
 
 ## 3. The tool
 

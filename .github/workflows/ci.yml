@@ -91,6 +91,35 @@ jobs:
           fi
           echo "Rule pack verified: 0 pre-approved rule versions"
 
+      # The same claim for the tax side, which has its own table, its own
+      # reviewer discipline and its own way of going wrong. A tax rule set that
+      # arrived approved would price deals against figures nobody signed for.
+      - name: No tax rule set ships pre-approved
+        env:
+          PGPASSWORD: devpw
+        run: |
+          set -euo pipefail
+          approved=$(psql -h localhost -U postgres -d mautodesk -t -A -c \
+            "select count(*) from sales.rule_set where approved_at is not null;")
+          if [ "$approved" != "0" ]; then
+            echo "::error::$approved tax rule set(s) arrived approved. A migration cannot approve a tax figure."
+            psql -h localhost -U postgres -d mautodesk -c \
+              "select jurisdiction_id, version, approved_by, source_citation from sales.rule_set where approved_at is not null;"
+            exit 1
+          fi
+          echo "Tax rule sets verified: 0 pre-approved"
+
+      # The register is the saved place for a reviewer's disposition. If it ever
+      # ships with something already resolved, a migration has approved its own
+      # work.
+      - name: The approval register ships fully open
+        env:
+          PGPASSWORD: devpw
+        run: |
+          set -euo pipefail
+          psql -h localhost -U postgres -d mautodesk -v ON_ERROR_STOP=1 \
+               -f db/tests/approval_register.sql
+
       # A new tenant-owned table without an RLS policy fails here, before it can
       # ever reach an environment holding real customer data.
       - name: Assert zero RLS coverage gaps

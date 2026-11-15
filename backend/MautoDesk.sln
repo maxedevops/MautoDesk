@@ -63,6 +63,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MautoDesk.Compliance.Infras
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MautoDesk.Compliance.RuleKeeper", "src\Modules\Compliance\MautoDesk.Compliance.RuleKeeper\MautoDesk.Compliance.RuleKeeper.csproj", "{827E6068-3367-40CC-A26C-C073E2D968A8}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MautoDesk.Sales.TaxKeeper", "src\Modules\Sales\MautoDesk.Sales.TaxKeeper\MautoDesk.Sales.TaxKeeper.csproj", "{15E6A674-E025-4A3B-AC7D-AB2AA45E5675}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -349,6 +351,18 @@ Global
 		{827E6068-3367-40CC-A26C-C073E2D968A8}.Release|x64.Build.0 = Release|Any CPU
 		{827E6068-3367-40CC-A26C-C073E2D968A8}.Release|x86.ActiveCfg = Release|Any CPU
 		{827E6068-3367-40CC-A26C-C073E2D968A8}.Release|x86.Build.0 = Release|Any CPU
+		{15E6A674-E025-4A3B-AC7D-AB2AA45E5675}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{15E6A674-E025-4A3B-AC7D-AB2AA45E5675}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{15E6A674-E025-4A3B-AC7D-AB2AA45E5675}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{15E6A674-E025-4A3B-AC7D-AB2AA45E5675}.Debug|x64.Build.0 = Debug|Any CPU
+		{15E6A674-E025-4A3B-AC7D-AB2AA45E5675}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{15E6A674-E025-4A3B-AC7D-AB2AA45E5675}.Debug|x86.Build.0 = Debug|Any CPU
+		{15E6A674-E025-4A3B-AC7D-AB2AA45E5675}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{15E6A674-E025-4A3B-AC7D-AB2AA45E5675}.Release|Any CPU.Build.0 = Release|Any CPU
+		{15E6A674-E025-4A3B-AC7D-AB2AA45E5675}.Release|x64.ActiveCfg = Release|Any CPU
+		{15E6A674-E025-4A3B-AC7D-AB2AA45E5675}.Release|x64.Build.0 = Release|Any CPU
+		{15E6A674-E025-4A3B-AC7D-AB2AA45E5675}.Release|x86.ActiveCfg = Release|Any CPU
+		{15E6A674-E025-4A3B-AC7D-AB2AA45E5675}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -382,5 +396,6 @@ Global
 		{19627715-A5EF-40A6-A512-CB5F71DA3F15} = {FBD32476-7579-AC40-C2E6-FD993ACBED04}
 		{7CC449FE-4576-4DC2-87F2-09C657F55492} = {FBD32476-7579-AC40-C2E6-FD993ACBED04}
 		{827E6068-3367-40CC-A26C-C073E2D968A8} = {FBD32476-7579-AC40-C2E6-FD993ACBED04}
+		{15E6A674-E025-4A3B-AC7D-AB2AA45E5675} = {D2CAED6B-FC59-4178-6320-5EDC21A9F743}
 	EndGlobalSection
 EndGlobal
