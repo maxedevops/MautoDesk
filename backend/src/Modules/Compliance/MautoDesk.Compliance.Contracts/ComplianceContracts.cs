@@ -29,6 +29,12 @@ public static class CompliancePermissions
 }
 
 /// <summary>One rule's verdict, as the API returns it.</summary>
+/// <remarks>
+/// <see cref="Status"/> may be <c>Unknown</c>, which is not a pass: the rule
+/// asks about a fact the deal does not carry, so whether it applies could not be
+/// determined. <see cref="MissingFacts"/> names those facts, and is the only
+/// field on this record a user can act on directly.
+/// </remarks>
 public sealed record ComplianceResultDto(
     string RuleCode,
     string RuleVersion,
@@ -38,16 +44,28 @@ public sealed record ComplianceResultDto(
     string? RequirementCode,
     DateOnly? Deadline,
     string? SourceCitation,
-    IReadOnlyList<string> EvaluationDetail);
+    IReadOnlyList<string> EvaluationDetail,
+    IReadOnlyList<string> MissingFacts);
 
 /// <summary>
 /// A whole evaluation, as the Deal Guardian panel renders it.
 /// </summary>
 /// <remarks>
+/// <para>
 /// <see cref="InputHash"/> and <see cref="ResultHash"/> are hex, and they are on
 /// the wire deliberately. "This deal was evaluated against exactly these facts and
 /// produced exactly this outcome" is a claim a dealer may one day need to make to
 /// somebody who is not inclined to take their word for it.
+/// </para>
+/// <para>
+/// <see cref="OverallStatus"/> is one of <c>Green</c>, <c>Yellow</c>, <c>Gray</c>
+/// or <c>Red</c>. <b>Gray is not a shade of green.</b> It means at least one rule
+/// could not be decided because a fact was never captured, and it ranks above
+/// yellow precisely because the thing nobody knows may turn out to be a blocker.
+/// A client that treats anything other than <c>Green</c> as "fine" is wrong, and
+/// one that treats <c>Gray</c> as a failure is also wrong: it is a prompt for
+/// data entry, and <see cref="ComplianceResultDto.MissingFacts"/> says which.
+/// </para>
 /// </remarks>
 public sealed record ComplianceRunDto(
     Guid Id,
@@ -60,6 +78,7 @@ public sealed record ComplianceRunDto(
     string OverallStatus,
     int BlockingCount,
     int WarningCount,
+    int UnknownCount,
     DateTimeOffset ExecutedAt,
     IReadOnlyList<ComplianceResultDto> Results,
     string InputHash,

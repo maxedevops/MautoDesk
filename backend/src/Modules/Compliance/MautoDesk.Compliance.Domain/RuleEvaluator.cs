@@ -15,6 +15,10 @@ namespace MautoDesk.Compliance.Domain;
 /// <param name="RequirementCode">The requirement that is outstanding, where one is.</param>
 /// <param name="Deadline">The date this must be done by, where the rule sets one.</param>
 /// <param name="EvaluationDetail">Which conditions were compared, and to what.</param>
+/// <param name="MissingFacts">
+/// The facts the rule needed and did not get, for a
+/// <see cref="ComplianceStatus.Unknown"/> result. Empty otherwise.
+/// </param>
 public sealed record ComplianceResult(
     string RuleCode,
     string RuleVersion,
@@ -25,7 +29,8 @@ public sealed record ComplianceResult(
     string Message,
     string? RequirementCode = null,
     DateOnly? Deadline = null,
-    IReadOnlyList<string>? EvaluationDetail = null);
+    IReadOnlyList<string>? EvaluationDetail = null,
+    IReadOnlyList<string>? MissingFacts = null);
 
 /// <summary>Everything one evaluation produced.</summary>
 /// <param name="TriggerEvent">Which lifecycle event was evaluated.</param>
@@ -58,6 +63,28 @@ public sealed record ComplianceRun(
     /// <summary>How many rules warn or need review.</summary>
     public int WarningCount => Results.Count(result =>
         result.Status is ComplianceStatus.Warning or ComplianceStatus.Review);
+
+    /// <summary>Rules that could not be decided for want of a fact.</summary>
+    public IReadOnlyList<ComplianceResult> Undecided =>
+        [.. Results.Where(result => result.Status == ComplianceStatus.Unknown)];
+
+    /// <summary>How many rules could not be decided.</summary>
+    public int UnknownCount => Results.Count(result => result.Status == ComplianceStatus.Unknown);
+
+    /// <summary>
+    /// Every fact any rule needed and did not get, deduplicated and sorted.
+    /// </summary>
+    /// <remarks>
+    /// The actionable form of a GRAY run: this is the list of things to go and
+    /// enter. Sorted so two identical runs produce it in the same order.
+    /// </remarks>
+    public IReadOnlyList<string> MissingFacts =>
+    [
+        .. Results
+            .SelectMany(result => result.MissingFacts ?? [])
+            .Distinct(StringComparer.Ordinal)
+            .OrderBy(fact => fact, StringComparer.Ordinal),
+    ];
 }
 
 /// <summary>The user-facing readiness light.</summary>
@@ -76,6 +103,24 @@ public enum DealReadiness
 
     /// <summary>At least one blocking rule is unsatisfied.</summary>
     Red,
+
+    /// <summary>
+    /// At least one rule could not be decided, because a fact was not captured.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Ranked between <see cref="Red"/> and <see cref="Yellow"/>. A known blocker
+    /// is worse than an unknown, because it is certain; but an unknown is worse
+    /// than a warning, because the thing nobody knows may well be a blocker.
+    /// </para>
+    /// <para>
+    /// <b>GREEN now means something it did not mean before.</b> It used to mean
+    /// "no rule raised a finding", which an absent fact could produce just as
+    /// easily as a compliant deal. It now means "every applicable rule was decided
+    /// on complete facts and none raised a finding".
+    /// </para>
+    /// </remarks>
+    Gray,
 }
 
 /// <summary>
@@ -102,11 +147,20 @@ public static class RuleEvaluator
     /// The evaluator's version, stamped onto every run.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// Bump when a change alters a verdict for facts that previously produced a
     /// different one. A run records the version that produced it, so a
     /// reproduction pins the logic of the day.
+    /// </para>
+    /// <para>
+    /// <b>2.0.0</b> introduced three-valued conditions and the GRAY state. A deal
+    /// that 1.0.0 called GREEN on incomplete facts, 2.0.0 calls GRAY and names the
+    /// facts. Major, not minor: the change adds a status a consumer must handle,
+    /// and it alters the verdict in the one direction that matters — away from
+    /// false assurance.
+    /// </para>
     /// </remarks>
-    public const string Version = "1.0.0";
+    public const string Version = "2.0.0";
 
     /// <summary>Evaluates every applicable rule and produces a run.</summary>
     /// <param name="request">What to evaluate, and against what.</param>
@@ -198,7 +252,34 @@ public static class RuleEvaluator
         var trace = new List<string>();
         var fired = rule.Conditions.Matches(request.Context, trace);
 
-        if (!fired)
+        if (fired == Match.Unknown)
+        {
+            // GRAY. Whether this rule applies cannot be determined, because the
+            // deal does not carry a fact the rule asks about. Before the three
+            // valued conditions this returned "does not apply" — a pass — and a
+            // deal missing half its facts came back GREEN.
+            //
+            // The missing facts are named rather than summarised, because "this
+            // rule could not be evaluated" sends somebody hunting and "the odometer
+            // reading is missing" sends them to a field.
+            var missing = rule.Conditions.MissingFields(request.Context)
+                .OrderBy(field => field, StringComparer.Ordinal)
+                .ToList();
+
+            yield return new ComplianceResult(
+                rule.RuleCode, rule.Version, rule.Id, rule.SourceVersionId,
+                ComplianceStatus.Unknown, rule.Severity,
+                missing.Count == 0
+                    ? "Cannot be evaluated: a fact this rule depends on is missing or is not a "
+                      + "number. This is not a pass."
+                    : $"Cannot be evaluated until {Describe(missing)} recorded. Until then this "
+                      + "rule has not been checked, which is not the same as satisfied.",
+                null, null, trace, missing);
+
+            yield break;
+        }
+
+        if (fired == Match.No)
         {
             // The rule did not apply. Recorded as a pass rather than omitted,
             // because "we considered this rule and it did not apply" is a
@@ -252,6 +333,14 @@ public static class RuleEvaluator
         }
     }
 
+    /// <summary>Names the missing facts the way a person would say them aloud.</summary>
+    private static string Describe(List<string> missing) => missing.Count switch
+    {
+        1 => $"{missing[0]} is",
+        2 => $"{missing[0]} and {missing[1]} are",
+        _ => $"{string.Join(", ", missing.Take(missing.Count - 1))} and {missing[^1]} are",
+    };
+
     private static DateOnly? ResolveDeadline(RegulatoryRuleVersion rule, EvaluationRequest request)
     {
         var action = rule.Actions.OfType<DeadlineAction>().FirstOrDefault();
@@ -282,11 +371,26 @@ public static class RuleEvaluator
         _ => ComplianceStatus.Pass,
     };
 
+    /// <summary>
+    /// Reduces every verdict to one light.
+    /// </summary>
+    /// <remarks>
+    /// Red, then gray, then yellow, then green. A known blocker outranks an unknown
+    /// because it is certain; an unknown outranks a warning because the thing
+    /// nobody knows may itself be a blocker. Green is therefore the narrowest claim
+    /// of the four: every applicable rule was decided, on complete facts, and none
+    /// raised a finding.
+    /// </remarks>
     private static DealReadiness Readiness(IReadOnlyList<ComplianceResult> results)
     {
         if (results.Any(result => result.Status == ComplianceStatus.Block))
         {
             return DealReadiness.Red;
+        }
+
+        if (results.Any(result => result.Status == ComplianceStatus.Unknown))
+        {
+            return DealReadiness.Gray;
         }
 
         return results.Any(result =>

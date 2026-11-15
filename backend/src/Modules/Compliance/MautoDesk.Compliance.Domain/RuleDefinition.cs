@@ -49,6 +49,44 @@ public enum ConditionOperator
     NotExists,
 }
 
+/// <summary>
+/// Whether a condition held, did not hold, or could not be decided.
+/// </summary>
+/// <remarks>
+/// <para>
+/// <b>The third value is the point.</b> A rule engine that answers only yes or no
+/// has to answer "no" when a fact is simply absent, and "no" means the rule does
+/// not fire, which means no finding, which reads as compliance. An incompletely
+/// entered deal then becomes indistinguishable from a lawful one — the most
+/// dangerous defect this system can have, because it fails silently and in the
+/// direction of saying yes.
+/// </para>
+/// <para>
+/// So absence is its own answer, and it propagates: see <see cref="AllOf"/>,
+/// <see cref="AnyOf"/> and <see cref="Not"/>, which implement Kleene three-valued
+/// logic. A rule whose conditions are <see cref="Unknown"/> produces a GRAY result
+/// that a human has to clear.
+/// </para>
+/// </remarks>
+public enum Match
+{
+    /// <summary>The condition is decided and does not hold.</summary>
+    No,
+
+    /// <summary>The condition is decided and holds.</summary>
+    Yes,
+
+    /// <summary>
+    /// The condition cannot be decided, because a fact it needs is absent.
+    /// </summary>
+    /// <remarks>
+    /// Not an error and not a failure. It is the honest answer to a question
+    /// nobody supplied the input for, and the only safe thing to do with it is
+    /// show it to someone.
+    /// </remarks>
+    Unknown,
+}
+
 /// <summary>A node in a rule's condition tree.</summary>
 /// <remarks>
 /// Deserialized from the <c>definition</c> jsonb on
@@ -62,7 +100,24 @@ public abstract record ConditionNode
     /// <summary>Evaluates this node against the facts of a deal.</summary>
     /// <param name="context">The flattened facts.</param>
     /// <param name="trace">Collects what was compared, for the evaluation detail.</param>
-    public abstract bool Matches(RegulatoryContext context, ICollection<string> trace);
+    public abstract Match Matches(RegulatoryContext context, ICollection<string> trace);
+
+    /// <summary>
+    /// Every fact path this node reads, whether or not it is present.
+    /// </summary>
+    /// <remarks>
+    /// Used to tell a human <em>which</em> fact is missing. "Something is unknown"
+    /// is not actionable; "the odometer reading is missing" is.
+    /// </remarks>
+    public abstract IEnumerable<string> Fields();
+
+    /// <summary>The fact paths this node needs and the context does not have.</summary>
+    public IEnumerable<string> MissingFields(RegulatoryContext context)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+
+        return Fields().Where(field => context.Get(field) is null).Distinct(StringComparer.Ordinal);
+    }
 }
 
 /// <summary>Every child must match.</summary>
@@ -71,25 +126,46 @@ public abstract record ConditionNode
 public sealed record AllOf(IReadOnlyList<ConditionNode> Children) : ConditionNode
 {
     /// <inheritdoc />
-    public override bool Matches(RegulatoryContext context, ICollection<string> trace)
+    /// <remarks>
+    /// A decided <see cref="Match.No"/> wins over an <see cref="Match.Unknown"/>:
+    /// if one child definitely does not hold, the conjunction definitely does not
+    /// hold, and no missing fact elsewhere can change that. This matters — without
+    /// it, every rule scoped to retail deals would go GRAY on a wholesale deal
+    /// merely because some retail-only fact was absent.
+    /// </remarks>
+    public override Match Matches(RegulatoryContext context, ICollection<string> trace)
     {
         ArgumentNullException.ThrowIfNull(trace);
 
         // Deliberately not short-circuiting. The trace is the evidence a compliance
         // officer reads, and "we stopped looking after the first failure" makes it
         // impossible to tell which of three conditions actually held.
-        var matched = true;
+        var unknown = false;
+        var decidedNo = false;
 
         foreach (var child in Children)
         {
-            if (!child.Matches(context, trace))
+            switch (child.Matches(context, trace))
             {
-                matched = false;
+                case Match.No:
+                    decidedNo = true;
+                    break;
+                case Match.Unknown:
+                    unknown = true;
+                    break;
             }
         }
 
-        return matched;
+        if (decidedNo)
+        {
+            return Match.No;
+        }
+
+        return unknown ? Match.Unknown : Match.Yes;
     }
+
+    /// <inheritdoc />
+    public override IEnumerable<string> Fields() => Children.SelectMany(child => child.Fields());
 }
 
 /// <summary>At least one child must match.</summary>
@@ -98,22 +174,41 @@ public sealed record AllOf(IReadOnlyList<ConditionNode> Children) : ConditionNod
 public sealed record AnyOf(IReadOnlyList<ConditionNode> Children) : ConditionNode
 {
     /// <inheritdoc />
-    public override bool Matches(RegulatoryContext context, ICollection<string> trace)
+    /// <remarks>
+    /// The mirror of <see cref="AllOf"/>: a decided <see cref="Match.Yes"/> wins
+    /// over an <see cref="Match.Unknown"/>, because one child that definitely holds
+    /// satisfies the disjunction whatever is missing elsewhere.
+    /// </remarks>
+    public override Match Matches(RegulatoryContext context, ICollection<string> trace)
     {
         ArgumentNullException.ThrowIfNull(trace);
 
-        var matched = false;
+        var unknown = false;
+        var decidedYes = false;
 
         foreach (var child in Children)
         {
-            if (child.Matches(context, trace))
+            switch (child.Matches(context, trace))
             {
-                matched = true;
+                case Match.Yes:
+                    decidedYes = true;
+                    break;
+                case Match.Unknown:
+                    unknown = true;
+                    break;
             }
         }
 
-        return matched;
+        if (decidedYes)
+        {
+            return Match.Yes;
+        }
+
+        return unknown ? Match.Unknown : Match.No;
     }
+
+    /// <inheritdoc />
+    public override IEnumerable<string> Fields() => Children.SelectMany(child => child.Fields());
 }
 
 /// <summary>Inverts a child condition.</summary>
@@ -121,8 +216,20 @@ public sealed record AnyOf(IReadOnlyList<ConditionNode> Children) : ConditionNod
 public sealed record Not(ConditionNode Child) : ConditionNode
 {
     /// <inheritdoc />
-    public override bool Matches(RegulatoryContext context, ICollection<string> trace) =>
-        !Child.Matches(context, trace);
+    /// <remarks>
+    /// Negating an unknown leaves it unknown. "We do not know whether X" negates to
+    /// "we do not know whether not-X", not to "not-X".
+    /// </remarks>
+    public override Match Matches(RegulatoryContext context, ICollection<string> trace) =>
+        Child.Matches(context, trace) switch
+        {
+            Match.Yes => Match.No,
+            Match.No => Match.Yes,
+            _ => Match.Unknown,
+        };
+
+    /// <inheritdoc />
+    public override IEnumerable<string> Fields() => Child.Fields();
 }
 
 /// <summary>Compares one fact against one value.</summary>
@@ -137,7 +244,7 @@ public sealed record Comparison(
     IReadOnlyList<string>? Values = null) : ConditionNode
 {
     /// <inheritdoc />
-    public override bool Matches(RegulatoryContext context, ICollection<string> trace)
+    public override Match Matches(RegulatoryContext context, ICollection<string> trace)
     {
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(trace);
@@ -151,44 +258,68 @@ public sealed record Comparison(
         return result;
     }
 
-    private bool Evaluate(string? actual) => Operator switch
+    /// <inheritdoc />
+    /// <remarks>
+    /// <see cref="ConditionOperator.Exists"/> and its negation are excluded: they
+    /// are the two operators whose entire purpose is to ask about absence, so for
+    /// them an absent fact is the answer rather than a gap in the input.
+    /// </remarks>
+    public override IEnumerable<string> Fields() =>
+        Operator is ConditionOperator.Exists or ConditionOperator.NotExists
+            ? []
+            : [Field];
+
+    private Match Evaluate(string? actual) => Operator switch
     {
-        ConditionOperator.Exists => actual is not null,
-        ConditionOperator.NotExists => actual is null,
+        ConditionOperator.Exists => Decided(actual is not null),
+        ConditionOperator.NotExists => Decided(actual is null),
 
-        // A missing fact does not satisfy a comparison. It is not false in the
-        // sense of "we checked and it was not so" — it is "we do not know" — and
-        // treating unknown as a match is how a rule silently stops firing when an
-        // upstream field is renamed.
-        _ when actual is null => false,
+        // A missing fact does not satisfy a comparison, and it does not fail one
+        // either. It is not false in the sense of "we checked and it was not so" —
+        // it is "we do not know", and the two must not collapse into one answer.
+        // Returning false here is what made a rule over an uncaptured fact stop
+        // firing, produce no finding, and read as compliance.
+        _ when actual is null => Match.Unknown,
 
-        ConditionOperator.Equals => Same(actual, Value),
-        ConditionOperator.NotEquals => !Same(actual, Value),
-        ConditionOperator.In => Values?.Any(candidate => Same(actual, candidate)) == true,
-        ConditionOperator.NotIn => Values?.Any(candidate => Same(actual, candidate)) != true,
+        ConditionOperator.Equals => Decided(Same(actual, Value)),
+        ConditionOperator.NotEquals => Negate(Same(actual, Value)),
+        ConditionOperator.In => Decided(Values?.Any(candidate => Same(actual, candidate)) == true),
+        ConditionOperator.NotIn => Negate(Values?.Any(candidate => Same(actual, candidate)) == true),
         _ => CompareNumeric(actual),
     };
 
-    private bool CompareNumeric(string actual)
+    private Match CompareNumeric(string actual)
     {
         // decimal, not double. These comparisons decide whether a deal is blocked,
         // and several of them are against money — a fee cap, a down payment
         // minimum. Binary floating point has no business here.
-        if (!decimal.TryParse(actual, NumberStyles.Number, CultureInfo.InvariantCulture, out var left) ||
-            !decimal.TryParse(Value, NumberStyles.Number, CultureInfo.InvariantCulture, out var right))
+        var actualIsNumeric = decimal.TryParse(
+            actual, NumberStyles.Number, CultureInfo.InvariantCulture, out var left);
+        var expectedIsNumeric = decimal.TryParse(
+            Value, NumberStyles.Number, CultureInfo.InvariantCulture, out var right);
+
+        // A fact that is present but not a number is a different problem from an
+        // absent one, and still not something to answer "no" to. Something upstream
+        // is putting "n/a" or "" where a figure belongs, and a human needs to see
+        // that rather than have the rule quietly decline to fire.
+        if (!actualIsNumeric || !expectedIsNumeric)
         {
-            return false;
+            return Match.Unknown;
         }
 
         return Operator switch
         {
-            ConditionOperator.GreaterThan => left > right,
-            ConditionOperator.GreaterThanOrEqual => left >= right,
-            ConditionOperator.LessThan => left < right,
-            ConditionOperator.LessThanOrEqual => left <= right,
-            _ => false,
+            ConditionOperator.GreaterThan => Decided(left > right),
+            ConditionOperator.GreaterThanOrEqual => Decided(left >= right),
+            ConditionOperator.LessThan => Decided(left < right),
+            ConditionOperator.LessThanOrEqual => Decided(left <= right),
+            _ => Match.Unknown,
         };
     }
+
+    private static Match Decided(bool held) => held ? Match.Yes : Match.No;
+
+    private static Match Negate(bool held) => held ? Match.No : Match.Yes;
 
     /// <summary>
     /// Compares two facts as equal.

@@ -3,10 +3,9 @@
 **State:** Phases 1–10 of 13 complete, plus MFA recovery codes, wired-up
 inventory writes, photo uploads, audit-ledger writes, PII log redaction, the
 DealerOS compliance/lending/titling schema, API idempotency, the outbox
-dispatcher, the deal and regulatory engines, and the regulatory approval path ·
-backend green (225 unit, 120 integration, 20 architecture), frontend unit green
-(95), Playwright end-to-end green · all CI green · zero known dependency
-vulnerabilities
+dispatcher, the deal and regulatory engines, the GRAY state, banded tax rates,
+and both approval paths · backend green (278 unit, 21 architecture), frontend
+unit green (95) · zero known dependency vulnerabilities
 
 **This document describes `main`.** As of 2026-11-15 everything in it is merged:
 [#1](https://github.com/maxedevops/MautoDesk/pull/1) — the DealerOS schema, both
@@ -103,17 +102,18 @@ more than one project's database.
 
 | Area | State |
 | --- | --- |
-| Database | 15 migrations, RLS enabled *and forced* on every tenant table, 0 coverage gaps, hash-chained audit ledger |
-| Backend | 20 projects. SharedKernel, shared Infrastructure, API host, Inventory (4), Identity (4), Sales (4), Compliance (5, including the `rulekeeper` CLI) |
+| Database | 17 migrations, RLS enabled *and forced* on every tenant table, 0 coverage gaps, hash-chained audit ledger |
+| Backend | 21 projects. SharedKernel, shared Infrastructure, API host, Inventory (4), Identity (4), Sales (5, including the `taxkeeper` CLI), Compliance (5, including `rulekeeper`) |
 | Inventory | Vehicles, VIN decode (NHTSA), photos (quarantine-first upload, verified and re-encoded), costs schema, status lifecycle, publish rules, outbox |
 | Identity | Argon2id, mandatory TOTP MFA, single-use recovery codes, JWT, refresh rotation with reuse detection, exponential lockout |
 | Frontend | Inventory grid, vehicle detail, add-vehicle form, photo upload and gallery, status changes and publish (all wired to the API), login (3-step, plus recovery-code sign-in), recovery-code settings, BFF session, generated API client, design tokens |
-| Deal engine | Pure, deterministic, 25-step pipeline; three lender payment methods; refuses an unapproved rule set |
-| Regulatory engine | Pure rule resolver and evaluator; PASS/WARNING/BLOCK/REVIEW; reproducible input and result hashes |
+| Deal engine | Pure, deterministic, 25-step pipeline; three lender payment methods; banded and flat tax rates; refuses an unapproved rule set |
+| Regulatory engine | Pure rule resolver and three-valued evaluator; PASS/WARNING/BLOCK/REVIEW/**UNKNOWN**; GREEN/YELLOW/**GRAY**/RED; reproducible input and result hashes |
 | Deals | Create, read, list, status transitions; `POST /deals/{id}/calculate` writes an append-only snapshot; `POST /deals/{id}/evaluate` writes a compliance run |
 | Idempotency | `Idempotency-Key` on `POST`: replay, 409 on key reuse, release on 5xx, 24 h retention |
 | Outbox | Dispatcher drains `app.outbox_message` as a least-privileged role; lease, backoff, dead-letter |
-| Approval path | `rulekeeper` (`V0014`), a CLI holding its own database identity; eleven mechanical checks, then one `INSERT` of an approved rule version and its audit event in a single transaction |
+| Approval path | `rulekeeper` (`V0014`) for a rule version, `taxkeeper` (`V0017`) for a tax rule set. Each holds its own database identity, runs ten or eleven mechanical checks, then writes one `INSERT` plus its audit event in a single transaction |
+| Approval register | `compliance.pending_approval` (`V0017`): 30 items awaiting a named reviewer, with the question stated and an empty slot for the answer. `rulekeeper --register` is the work list |
 | Contracts | `contracts/openapi.json` **generated** from the endpoints; drift fails the build |
 | CI | 8 jobs: secrets, database, contract, design tokens, backend, frontend, e2e, CodeQL — CodeQL is a 3-way matrix, so 10 job runs and 11 required checks |
 
@@ -199,21 +199,24 @@ engine refuses to price a deal. This is deliberate — shipping plausible-lookin
 tax numbers sourced from nothing is how a DMS puts a wrong figure on a signed
 retail contract.
 
-`V0015` archives 68 O.S. §§ 2103–2104 and adds no number to any rule set.
-[`docs/16-oklahoma-tax-research.md`](docs/16-oklahoma-tax-research.md) is the
+`V0015` archives 68 O.S. §§ 2103–2104; `V0016` drafts the excise tax from them and
+adds no number of its own. [`docs/16`](docs/16-oklahoma-tax-research.md) is the
 field-by-field matrix: **seven fields answered by archived primary text, nine
-still open**, each named with the source that would answer it. Two of the answers
-the engine cannot currently express, and both are code rather than data:
+still open**, each named with the source that would answer it, and each its own
+register item so it can be closed independently.
 
-- Oklahoma's used-vehicle excise tax is **$20 on the first $1,500 plus 3.25% of
-  the remainder**. `TaxRuleSet.StateRate` is a single `Percentage` with no concept
-  of a band, so the rate cannot be written down at all.
-- The statute rounds the excise tax **to the nearest dollar**, while the seeded
-  `roundingScale` is 2. The tax line rounds differently from the other lines.
+The two engine changes that matrix asked for are **built** — banded rates and
+dollar rounding, so Oklahoma's $20-plus-3.25% is expressible and a $20,000 car
+prices at $621. A third surfaced while building them and is **not** done: the same
+statute levies a flat 3.25% on *new* vehicles, and one rule set row per
+jurisdiction-and-date cannot hold both. The drafted row covers used vehicles,
+which is this product's market; how new vehicles are expressed is an open design
+question recorded on the register item.
 
-Build both before the data arrives, or the first approved rule set waits on an
-engine that cannot hold it. Approval is then a CPA's or tax counsel's, separately
-from the compliance pack and against different sources.
+`taxkeeper` can record a reviewer's approval, and refuses a row whose
+engine-read fields are still `UNVERIFIED` — so the drafted row is correctly
+unapprovable until the nine fields land. Approval is a CPA's or tax counsel's,
+separately from the compliance pack and against different sources.
 
 ### Important, not urgent
 
@@ -263,6 +266,9 @@ they are the sort of thing that costs an afternoon.
 | **A `required` member on a request DTO becomes a 500, not a 400** | The JSON deserializer throws on a missing `required` member, the exception handler clears the response, and the security headers go with it. Validate in the mapping method instead and return a 422 that names the field |
 | **The deal engine refuses every jurisdiction today** | Every seeded rule set is unapproved with `'UNVERIFIED'` placeholders, so `DealEngine.Calculate` returns `deal.rule_set_unapproved` for all of them. That is the designed behaviour and there is a test on it. Do not relax it to make a demo work |
 | **An APR is a percent, not a fraction** | `Percentage` carries the unit in the type: `FromPercent(8.99)` is 8.99%, and `AsFraction` is the only way to the 0.0899 the formula needs. There is no implicit conversion from `decimal`, so a bare number cannot become a rate by accident |
+| **A missing fact is GRAY, not a pass** | Every operator except `exists`/`not_exists` used to return false on an absent fact, so a rule over a field nobody captured did not fire, produced no finding, and the deal came back GREEN — a half-filled deal was indistinguishable from a lawful one. Conditions are three-valued as of `RuleEvaluator` 2.0.0: an undecidable rule is `Unknown`, the run is `Gray`, and `missingFacts` names the fields. **GREEN now means "decided on complete facts", which is a narrower claim than it was.** `docs/18` |
+| **A banded tax rate is not a percentage** | Oklahoma levies $20 on the first $1,500 of value plus 3.25% of the remainder, and rounds the tax to the nearest dollar while every other line rounds to the cent. `TaxRuleSet.StateRate` could not express it at all, so `schema_version` 2 adds `bands` and `taxRounding`. A flat band amount is charged in full the moment the base reaches the band — "or less" means a $900 car owes the whole twenty dollars, not a prorated twelve |
+| **A rule set carrying bands *and* a flat rate is refused** | That is two taxes, and picking one would be a guess about money on a contract. `TaxRuleSet.BandError` holds the one definition of a coherent band set; the engine and `taxkeeper` both consult it rather than each implementing it |
 | **A business-day calendar with no holidays is refused** | `BusinessDayCalendar.ForJurisdiction` throws on an empty set, because a deadline computed against it would be wrong on every holiday, silently. `US-OK` is seeded for 2026–2027 only, and every other jurisdiction is still empty. Use `WithNoHolidays` to say so deliberately |
 | **An INSERT without a SELECT forks the audit chain in silence** | `audit.chain_event()` runs BEFORE INSERT **as the calling role** and reads the previous row to compute `prev_hash`. `audit.event` is FORCE RLS, so a role that may INSERT but cannot SELECT gets **zero rows rather than an error** — `prev_hash` is NULL, the row claims to begin the chain, and `verify_chain()` reports the ledger broken at every such row. A ledger whose links are quietly absent still looks like evidence. Fixed and asserted for `mautodesk_rulekeeper`; **`mautodesk_app` has the same defect for platform-scope events**, latent only because nothing writes one yet — [`docs/17-approval-path.md`](docs/17-approval-path.md) §5 |
 | **`rulekeeper` writes nothing without `--commit`** | The default behaviour of a tool that can write the law is to print what it would do. Its connection string comes from `RULEKEEPER_CONNECTION` and never an argument, so a credential does not land in shell history or a process list, and the sign-off arrives as a **file** rather than a string |
@@ -338,4 +344,5 @@ approval path — which used to head this list — are done.
 | `docs/15-counsel-engagement-brief.md` | Engaging Oklahoma counsel: the scope, the reading pack, acceptance criteria, and an enquiry to send |
 | `docs/16-oklahoma-tax-research.md` | The tax field matrix: every rule-set field, its source, and the two engine changes this surfaced |
 | `docs/17-approval-path.md` | How an approval is recorded, what `rulekeeper` checks first, and why it is a tool rather than an endpoint |
+| `docs/18-gray-state-and-tax-bands.md` | The GRAY state, banded tax rates, the approval register and `taxkeeper`: what each fixed, and what each deliberately did not |
 | `CLAUDE.md` | Working agreements and hard rules for anyone changing the code |

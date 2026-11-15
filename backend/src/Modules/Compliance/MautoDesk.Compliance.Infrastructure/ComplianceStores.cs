@@ -271,11 +271,11 @@ public sealed class ComplianceRunStore : IComplianceRunStore
             insert into compliance.compliance_run
               (id, tenant_id, deal_id, jurisdiction_code, trigger_event, engine_version,
                rule_pack_version, evaluated_on, executed_at, executed_by, overall_status,
-               blocking_count, warning_count, input_hash, result_hash, input)
+               blocking_count, warning_count, unknown_count, input_hash, result_hash, input)
             values
               (@id, @tenant_id, @deal_id, @jurisdiction, @trigger, @engine_version,
                @pack_version, @evaluated_on, @executed_at, @executed_by, @overall_status,
-               @blocking, @warning, @input_hash, @result_hash, @input)
+               @blocking, @warning, @unknown, @input_hash, @result_hash, @input)
             """;
 
         await using (var command = connection.CreateCommand())
@@ -325,6 +325,14 @@ public sealed class ComplianceRunStore : IComplianceRunStore
             {
                 Value = run.WarningCount,
             });
+
+            // compliance_run_gray_ck ties this to overall_status, so a run that
+            // forgot to carry it would be rejected by the database rather than
+            // stored as a green run with undecided rules inside it.
+            command.Parameters.Add(new NpgsqlParameter("unknown", NpgsqlDbType.Integer)
+            {
+                Value = run.UnknownCount,
+            });
             command.Parameters.Add(new NpgsqlParameter("input_hash", NpgsqlDbType.Bytea)
             {
                 Value = run.InputHash,
@@ -348,10 +356,10 @@ public sealed class ComplianceRunStore : IComplianceRunStore
         const string ResultSql = """
             insert into compliance.compliance_result
               (tenant_id, run_id, rule_code, rule_version, rule_version_id, source_version_id,
-               status, severity, message, evaluation_detail, sort_order)
+               status, severity, message, evaluation_detail, missing_facts, sort_order)
             values
               (@tenant_id, @run_id, @rule_code, @rule_version, @rule_version_id, @source_version_id,
-               @status, @severity, @message, @detail, @sort_order)
+               @status, @severity, @message, @detail, @missing_facts, @sort_order)
             """;
 
         var order = 0;
@@ -386,6 +394,17 @@ public sealed class ComplianceRunStore : IComplianceRunStore
             command.Parameters.Add(new NpgsqlParameter("severity", NpgsqlDbType.Text)
             {
                 Value = result.Severity.ToString().ToLowerInvariant(),
+            });
+
+            // A text[] rather than a key inside evaluation_detail, because this is
+            // the one part of a GRAY verdict somebody has to act on: it wants to be
+            // queryable ("which fields do our deals keep missing?") without
+            // unpicking a jsonb blob.
+            command.Parameters.Add(new NpgsqlParameter("missing_facts", NpgsqlDbType.Array | NpgsqlDbType.Text)
+            {
+                Value = result.MissingFacts is { Count: > 0 } missing
+                    ? missing.ToArray()
+                    : (object)DBNull.Value,
             });
             command.Parameters.Add(new NpgsqlParameter("message", NpgsqlDbType.Text)
             {
@@ -422,8 +441,8 @@ public sealed class ComplianceRunStore : IComplianceRunStore
         ReadRunAsync(
             """
             select id, deal_id, trigger_event, jurisdiction_code, evaluated_on, engine_version,
-                   rule_pack_version, overall_status, blocking_count, warning_count, executed_at,
-                   input_hash, result_hash
+                   rule_pack_version, overall_status, blocking_count, warning_count,
+                   unknown_count, executed_at, input_hash, result_hash
               from compliance.compliance_run
              where id = @key
             """,
@@ -441,8 +460,8 @@ public sealed class ComplianceRunStore : IComplianceRunStore
         ReadRunAsync(
             """
             select id, deal_id, trigger_event, jurisdiction_code, evaluated_on, engine_version,
-                   rule_pack_version, overall_status, blocking_count, warning_count, executed_at,
-                   input_hash, result_hash
+                   rule_pack_version, overall_status, blocking_count, warning_count,
+                   unknown_count, executed_at, input_hash, result_hash
               from compliance.compliance_run
              where deal_id = @key
              order by executed_at desc, id desc
@@ -495,10 +514,11 @@ public sealed class ComplianceRunStore : IComplianceRunStore
                 reader.GetString(7),
                 reader.GetInt32(8),
                 reader.GetInt32(9),
-                reader.GetFieldValue<DateTimeOffset>(10),
+                reader.GetInt32(10),
+                reader.GetFieldValue<DateTimeOffset>(11),
                 [],
-                Convert.ToHexString((byte[])reader[11]),
-                Convert.ToHexString((byte[])reader[12]));
+                Convert.ToHexString((byte[])reader[12]),
+                Convert.ToHexString((byte[])reader[13]));
         }
 
         var results = await ReadResultsAsync(connection, runId, cancellationToken).ConfigureAwait(false);
@@ -515,7 +535,8 @@ public sealed class ComplianceRunStore : IComplianceRunStore
             select rule_code, rule_version, status, severity, message,
                    evaluation_detail->>'requirementCode',
                    evaluation_detail->>'deadline',
-                   evaluation_detail->'conditions'
+                   evaluation_detail->'conditions',
+                   missing_facts
               from compliance.compliance_result
              where run_id = @run_id
              order by sort_order
@@ -539,6 +560,14 @@ public sealed class ComplianceRunStore : IComplianceRunStore
                 ? []
                 : System.Text.Json.JsonSerializer.Deserialize<List<string>>(reader.GetString(7)) ?? [];
 
+            // text[] rather than another key inside evaluation_detail: this is the
+            // one part of a GRAY verdict somebody has to act on, so it is kept
+            // queryable. "Which fields do our deals keep missing?" is then one
+            // statement rather than a jsonb unpick.
+            var missing = await reader.IsDBNullAsync(8, cancellationToken).ConfigureAwait(false)
+                ? Array.Empty<string>()
+                : reader.GetFieldValue<string[]>(8);
+
             results.Add(new ComplianceResultDto(
                 reader.GetString(0),
                 reader.GetString(1),
@@ -550,7 +579,8 @@ public sealed class ComplianceRunStore : IComplianceRunStore
                     : reader.GetString(5),
                 deadline,
                 null,
-                conditions));
+                conditions,
+                missing));
         }
 
         return results;

@@ -292,6 +292,11 @@ public sealed class ComplianceEvaluationHandler
                 Status = run.OverallStatus.ToString(),
                 run.BlockingCount,
                 run.WarningCount,
+
+                // On the audit entry as well as the run, because "we evaluated
+                // this deal and two rules could not be decided" is a materially
+                // different record from "we evaluated this deal and it passed".
+                run.UnknownCount,
                 run.EngineVersion,
                 run.RulePackVersion,
             },
