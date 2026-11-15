@@ -12,7 +12,9 @@ using MautoDesk.Compliance.RuleKeeper;
 // -----------------------------------------------------------------------------
 
 const string Usage = """
-    rulekeeper — approve a regulatory rule version
+    rulekeeper — approve a regulatory rule version, or read the approval register
+
+      rulekeeper --register [--for attorney|cpa_or_tax_counsel]
 
       rulekeeper --draft <uuid> --version <semver> --reviewed-by "<name>"
                  --operator "<name>" --effective-from <yyyy-mm-dd>
@@ -20,6 +22,9 @@ const string Usage = """
                  [--repo-root <path>] [--commit]
 
     Options
+      --register        List what is waiting on a human and stop. Reads
+                        compliance.pending_approval; writes nothing.
+      --for             Limit --register to one profession.
       --draft           The draft rule version to approve.
       --version         The version the approved row will carry, e.g. 1.0.0.
                         It must differ from the draft's: an approval is a new row.
@@ -38,6 +43,11 @@ const string Usage = """
       0  every check passed (and the approval was written, with --commit)
       1  a check failed, or the write was refused
       2  the command line or the environment is wrong
+
+    A tax rule set is approved by taxkeeper, not by this tool. Validating one
+    means deserializing it with the Sales module's own serializer, which a tool
+    in the Compliance module cannot reference — and a second implementation of
+    those checks is exactly what an approval path must not have.
     """;
 
 if (args.Length == 0 || args.Contains("--help") || args.Contains("-h"))
@@ -46,9 +56,15 @@ if (args.Length == 0 || args.Contains("--help") || args.Contains("-h"))
     return 0;
 }
 
-var (request, parseError) = ApprovalRequest.Parse(args);
+// --register is a read. It needs none of the approval arguments, so it has to be
+// recognised before they are parsed.
+var listRegister = args.Contains("--register");
 
-if (parseError is not null || request is null)
+var (request, parseError) = listRegister
+    ? (null, null)
+    : ApprovalRequest.Parse(args);
+
+if (!listRegister && (parseError is not null || request is null))
 {
     Console.Error.WriteLine($"rulekeeper: {parseError}");
     Console.Error.WriteLine();
@@ -79,6 +95,18 @@ var store = new ApprovalStore(connectionString);
 try
 {
     await using var connection = await store.OpenAsync(cancellation.Token);
+
+    if (listRegister)
+    {
+        var items = await Register.LoadOpenAsync(connection, Discipline(args), cancellation.Token);
+
+        Register.Print(items, Console.Out);
+        return 0;
+    }
+
+    // Narrowed by the guard above. The compiler cannot see it through the
+    // conditional parse, and an assertion is honest about that.
+    ArgumentNullException.ThrowIfNull(request);
 
     var draft = await ApprovalStore.LoadDraftAsync(connection, request.DraftVersionId, cancellation.Token);
 
@@ -156,6 +184,15 @@ catch (OperationCanceledException)
     Console.Error.WriteLine("rulekeeper: cancelled. Nothing was written.");
     return 1;
 }
+catch (Npgsql.PostgresException exception) when (exception.SqlState == "42P01" && listRegister)
+{
+    // The register arrived in V0017. Saying so beats "relation does not exist",
+    // which sends somebody hunting a bug rather than running a migration.
+    Console.Error.WriteLine(
+        "rulekeeper: compliance.pending_approval does not exist. The approval register is "
+        + "created by V0017 — run the migrations.");
+    return 1;
+}
 catch (Npgsql.PostgresException exception)
 {
     // The database has guards this tool deliberately does not duplicate — the
@@ -177,4 +214,15 @@ catch (Npgsql.PostgresException exception)
     }
 
     return 1;
+}
+
+// -----------------------------------------------------------------------------
+// --for, read only for --register. Hand-parsed like the rest: a tool that writes
+// the law does not pull in a command-line framework and its dependency tree.
+// -----------------------------------------------------------------------------
+static string? Discipline(string[] args)
+{
+    var index = Array.IndexOf(args, "--for");
+
+    return index >= 0 && index + 1 < args.Length ? args[index + 1] : null;
 }

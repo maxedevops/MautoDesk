@@ -215,18 +215,42 @@ public sealed class EngineArchitectureTests
     }
 
     /// <summary>Severities and statuses match their own check constraints.</summary>
+    /// <remarks>
+    /// The constraints are transcribed, so widening one means changing both. That
+    /// is the point: this test is what stands between adding an enum value and
+    /// discovering at runtime that the database will not store it. The GRAY state
+    /// added <c>unknown</c> here and in V0016, and until both moved the only
+    /// symptom would have been a failed insert on the first undecidable deal.
+    /// </remarks>
     [Fact]
     public void Compliance_vocabularies_match_the_database()
     {
         Enum.GetValues<RuleSeverity>().Select(SnakeCase)
             .Should().BeEquivalentTo(["blocking", "warning", "review", "informational"]);
 
+        // compliance.compliance_result.status, as V0016 widened it.
         Enum.GetValues<ComplianceStatus>().Select(SnakeCase)
-            .Should().BeEquivalentTo(["pass", "warning", "block", "review"]);
+            .Should().BeEquivalentTo(["pass", "warning", "block", "review", "unknown"]);
 
         Enum.GetValues<RuleStatus>().Select(SnakeCase)
             .Should().BeEquivalentTo(["draft", "review", "approved", "scheduled", "active", "retired"]);
     }
+
+    /// <summary>
+    /// The readiness light matches <c>compliance_run.overall_status</c>.
+    /// </summary>
+    /// <remarks>
+    /// Its own test because it is the value a user actually sees, and because
+    /// <c>Gray</c> is the one that was missing: a run whose rules could not be
+    /// decided used to be stored as green, which is the difference between "we
+    /// checked and it is fine" and "we could not check".
+    /// </remarks>
+    [Fact]
+    public void Deal_readiness_matches_the_database_check_constraint() =>
+        Enum.GetValues<DealReadiness>().Select(SnakeCase)
+            .Should().BeEquivalentTo(
+                ["green", "yellow", "gray", "red"],
+                "the enum and compliance_run's overall_status constraint must name the same set");
 
     private static bool IsFloatingPoint(Type type)
     {

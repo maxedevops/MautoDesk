@@ -1,8 +1,14 @@
 # Oklahoma tax research — the field matrix
 
-**Status: two statutes archived, no number in any rule set, the engine still prices nothing.**
+**Status: two statutes archived, the excise tax drafted from them, nine fields still open, and the
+engine still prices nothing because nothing is approved.**
 
-`sales.rule_set` for Oklahoma has been a skeleton since `V0007`: `taxBasis: 'UNVERIFIED'`, null
+> **Updated 2026-11-15.** The two engine changes this document asked for are built: `TaxRuleSet`
+> holds banded rates and dollar rounding, and `V0016` drafts Oklahoma's excise tax from the archived
+> text. `taxkeeper` can record a CPA's approval. What is left is the nine fields below and a
+> reviewer — see [`docs/18`](18-gray-state-and-tax-bands.md).
+
+`sales.rule_set` for Oklahoma was a skeleton from `V0007` until `V0016`: `taxBasis: 'UNVERIFIED'`, null
 rates, no fees, and the citation `PLACEHOLDER — must cite the governing statute or DMV publication
 before approval`. The deal engine loads only approved rows, so it refuses every jurisdiction. That is
 correct behaviour, and it will stay that way until each field below has a primary source and a named
@@ -98,36 +104,47 @@ text*, not by a guide.
 
 Seven answered, nine open, two of the answered ones unmodellable as the engine stands.
 
-## 4. Engine changes this research has already surfaced
+## 4. Engine changes this research surfaced — both now built
 
-Both are code, not data, and both would otherwise have been found by a CPA wondering why the number
-was wrong:
+Both were code rather than data, and both would otherwise have been found by a CPA wondering why the
+number was wrong:
 
-1. **A banded rate.** `TaxRuleSet.StateRate` is one `Percentage`. Oklahoma's used-vehicle excise tax
-   is a fixed $20 on a first band plus a percentage on the remainder. The rule-set schema and the
-   engine both need a band concept, with a schema version bump — `sales.rule_set.schema_version`
-   exists for exactly this.
-2. **Rounding to the dollar.** § 2103 says the excise tax is rounded to the nearest dollar, while the
-   seeded `roundingScale` is 2. Money is `numeric(14,2)` throughout and that does not change, but the
-   *tax* line rounds differently from the other lines, and the engine rounds once at a boundary. Which
-   boundary is now a question with a statutory answer.
+1. ~~A banded rate.~~ **Built.** `sales.rule_set.schema_version` 2 carries an ordered `bands` array;
+   `TaxRuleSet.Bands` and `TaxRuleSet.BandError` hold the shape and its validity. Oklahoma's $20 on
+   the first $1,500 plus 3.25% of the remainder is expressible, and a $20,000 car prices at $621
+   through the real engine.
+2. ~~Rounding to the dollar.~~ **Built.** `taxRounding` is per rule set. The ledger stays
+   `numeric(14,2)`; only the tax line rounds to the dollar, which is what § 2103 requires.
 
-Neither is urgent — nothing can be priced until a reviewer approves a rule set — but both should be
-built before the data arrives, so the first approved Oklahoma rule set is not held up waiting for an
-engine that can express it.
+A third change surfaced while building them, and is **not** done: the same section levies a flat
+3.25% on *new* vehicles, and one `sales.rule_set` row per jurisdiction-and-date cannot hold both a
+flat new-vehicle rate and a banded used-vehicle one. The drafted row covers used vehicles, which is
+this product's market; how new vehicles are expressed is an open design question, recorded on the
+register item for the reviewer to see.
+
+Two refusals were also added, because a band set can be quietly wrong in ways a flat rate cannot.
+The one worth knowing: **a bounded top band** taxes a $70,000 truck on $50,000 of its value and
+reports a confident figure, with nothing in the output saying twenty thousand dollars went
+untaxed.
 
 ## 5. What to do next, in order
 
 1. **Retrieve the remaining primary sources** for the nine open fields. Title 68's sales-tax article
    and Title 47's fee schedules are both on OSCN; dealer documentation fees may be commission rules
    rather than statute. Archive each one the way `V0015` does: hashed, cited, with its amendment
-   history.
-2. **Make the engine able to express a banded rate and dollar rounding** (§4).
-3. **Draft the rule set**, every field citing its archived source, `approved_at` null.
-4. **Have a CPA or Oklahoma tax counsel review and approve it.** A different reviewer from the
+   history. Each is a row in `compliance.pending_approval` and can be closed on its own, rather than
+   holding up the whole rule set — `rulekeeper --register --for cpa_or_tax_counsel` is the list.
+2. ~~Make the engine able to express a banded rate and dollar rounding.~~ Done (§4).
+3. ~~Draft the rule set.~~ Done by `V0016`, from the two archived statutes and nothing else. The nine
+   fields above are still `UNVERIFIED`, and `taxkeeper` refuses to approve a row whose
+   engine-read fields are unverified — so the draft is correctly unapprovable until step 1 lands.
+4. **Decide how new vehicles are expressed** (§4). A second rule set, a condition on a band, or a
+   vehicle-type dimension. Not a question for the engine to answer by default.
+5. **Have a CPA or Oklahoma tax counsel review and approve it.** A different reviewer from the
    compliance pack, against different sources — see
    [`docs/15-counsel-engagement-brief.md`](15-counsel-engagement-brief.md) §3, which puts tax
-   expressly out of scope for the compliance engagement.
+   expressly out of scope for the compliance engagement. The approval is recorded by `taxkeeper` as
+   a new version row; `sales.rule_set` is append-only, so it cannot be edited afterwards.
 
-Until step 4, the engine refuses to price a deal, and
+Until step 5, the engine refuses to price a deal, and
 `The_seeded_oklahoma_rule_set_refuses_to_price_a_deal` going red is the system working.

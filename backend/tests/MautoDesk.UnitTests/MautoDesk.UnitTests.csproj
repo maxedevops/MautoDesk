@@ -20,6 +20,10 @@
          worth testing in it is a pure function of a draft, its corpus and the
          dates being requested — no database, no console. -->
     <ProjectReference Include="..\..\src\Modules\Compliance\MautoDesk.Compliance.RuleKeeper\MautoDesk.Compliance.RuleKeeper.csproj" />
+    <!-- The same, for a tax rule set. Its checks run the real DealEngine over a
+         $20,000 deal, so what is under test is whether the rule set would
+         actually price one - not whether it looks plausible. -->
+    <ProjectReference Include="..\..\src\Modules\Sales\MautoDesk.Sales.TaxKeeper\MautoDesk.Sales.TaxKeeper.csproj" />
   </ItemGroup>
 
   <ItemGroup>

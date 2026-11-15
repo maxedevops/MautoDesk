@@ -1,0 +1,40 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    The operator tool that approves a tax rule set.
+
+    The sibling of MautoDesk.Compliance.RuleKeeper, and separate from it for a
+    reason that is about code boundaries rather than about privilege: validating
+    a tax rule set means deserializing it with TaxRuleSetSerializer and asking
+    TaxRuleSet.BandError whether its bands are coherent, and those live in the
+    Sales module. A tool in the Compliance module cannot reference them, and
+    reimplementing them would give the approval tool a second, drifting
+    definition of a valid rule set - which is the one thing an approval tool must
+    not have.
+
+    So each tool sits in the module whose law it approves, references only that
+    module's own projects, and they share one database identity:
+    mautodesk_rulekeeper, which V0017 grants INSERT on sales.rule_set.
+
+    An executable rather than an endpoint, for the same reason as its sibling:
+    mautodesk_app holds SELECT and nothing else on sales.rule_set (V0006), so a
+    compromised API cannot rewrite the tax law it prices deals against. Putting
+    the approval behind HTTP would hand that privilege straight back.
+  -->
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>taxkeeper</AssemblyName>
+    <RootNamespace>MautoDesk.Sales.TaxKeeper</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\MautoDesk.Sales.Application\MautoDesk.Sales.Application.csproj" />
+    <ProjectReference Include="..\MautoDesk.Sales.Domain\MautoDesk.Sales.Domain.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Npgsql" />
+  </ItemGroup>
+
+</Project>

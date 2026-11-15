@@ -2008,7 +2008,8 @@
           "requirementCode",
           "deadline",
           "sourceCitation",
-          "evaluationDetail"
+          "evaluationDetail",
+          "missingFacts"
         ],
         "type": "object",
         "properties": {
@@ -2045,6 +2046,12 @@
             "items": {
               "type": "string"
             }
+          },
+          "missingFacts": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           }
         }
       },
@@ -2060,6 +2067,7 @@
           "overallStatus",
           "blockingCount",
           "warningCount",
+          "unknownCount",
           "executedAt",
           "results",
           "inputHash",
@@ -2099,6 +2107,10 @@
             "format": "int32"
           },
           "warningCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "unknownCount": {
             "type": "integer",
             "format": "int32"
           },

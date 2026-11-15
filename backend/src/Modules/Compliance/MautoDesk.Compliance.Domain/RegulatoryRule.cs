@@ -32,6 +32,24 @@ public enum ComplianceStatus
 
     /// <summary>Applied, and needs a human decision.</summary>
     Review,
+
+    /// <summary>
+    /// Could not be decided, because a fact the rule needs was not captured.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The GRAY state. It is not a pass, and the distinction is the whole reason it
+    /// exists: before it, a rule over a fact nobody entered returned false, did not
+    /// fire, produced no finding, and the deal came back GREEN. A half-filled deal
+    /// was indistinguishable from a compliant one.
+    /// </para>
+    /// <para>
+    /// A GRAY result names the missing facts, so clearing it is data entry rather
+    /// than detective work. It cannot be waived by an override — there is nothing
+    /// to waive yet, only something to find out.
+    /// </para>
+    /// </remarks>
+    Unknown,
 }
 
 /// <summary>The lifecycle state of a rule version.</summary>

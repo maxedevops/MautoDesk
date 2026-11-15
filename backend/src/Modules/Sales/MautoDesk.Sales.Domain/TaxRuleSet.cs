@@ -31,6 +31,48 @@ public enum RebateTaxTreatment
     NotTaxable,
 }
 
+/// <summary>How the tax line itself is rounded.</summary>
+/// <remarks>
+/// Separate from <c>roundingScale</c>, which governs the deal's money generally.
+/// Oklahoma is the reason this exists: 68 O.S. § 2103 says the excise tax
+/// "shall be rounded to the nearest dollar", while every other line on the same
+/// contract is to the cent. One jurisdiction rounding one line differently is a
+/// fact about that jurisdiction, so it is data.
+/// </remarks>
+public enum TaxRounding
+{
+    /// <summary>To the cent, like every other figure on the deal.</summary>
+    Cents,
+
+    /// <summary>To the nearest whole dollar, as some excise statutes require.</summary>
+    Dollars,
+}
+
+/// <summary>
+/// One band of a graduated tax.
+/// </summary>
+/// <param name="UpTo">
+/// The upper bound of this band, exclusive of the next one. Null means
+/// unbounded, which only the last band may be.
+/// </param>
+/// <param name="Rate">The rate on the portion of the base falling inside this band.</param>
+/// <param name="Flat">
+/// A fixed charge for this band, levied in full the moment the base reaches the
+/// band at all. Oklahoma's "$20.00 on the first $1,500.00 <b>or less</b>" is
+/// exactly this: a nine-hundred-dollar car still pays the full twenty.
+/// </param>
+/// <param name="Note">The sentence of the statute this band came from.</param>
+/// <remarks>
+/// A band may carry a flat amount, a rate, or both. Both is well defined — the
+/// flat charge plus the rate on the portion — and no launch jurisdiction needs
+/// it, but forbidding it would be a guess about the next statute.
+/// </remarks>
+public sealed record TaxBand(
+    Money? UpTo,
+    Percentage Rate,
+    Money? Flat = null,
+    string? Note = null);
+
 /// <summary>A fee the jurisdiction recognises, with whatever limits apply to it.</summary>
 /// <param name="Code">The fee code, matching <c>sales.fee_definition.code</c>.</param>
 /// <param name="IsTaxable">Whether the fee enters the taxable base.</param>
@@ -120,8 +162,91 @@ public sealed record TaxRuleSet
     /// <summary>Fee rules, keyed by code.</summary>
     public IReadOnlyList<FeeRule> Fees { get; init; } = [];
 
+    /// <summary>
+    /// A graduated tax, lowest band first, where the jurisdiction levies one.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Empty for the ordinary case of a flat percentage. Non-empty for a
+    /// jurisdiction whose tax is not expressible as one rate — Oklahoma levies
+    /// $20 on the first $1,500 of value plus 3.25% of the remainder
+    /// (68 O.S. § 2103), which no single <see cref="Percentage"/> can represent.
+    /// </para>
+    /// <para>
+    /// Bands and <see cref="StateRate"/> are mutually exclusive. A rule set
+    /// carrying both does not describe one tax, and the engine refuses it rather
+    /// than picking — see <see cref="BandError"/>.
+    /// </para>
+    /// </remarks>
+    public IReadOnlyList<TaxBand> Bands { get; init; } = [];
+
+    /// <summary>Whether the tax line rounds to the cent or to the dollar.</summary>
+    public TaxRounding Rounding { get; init; } = TaxRounding.Cents;
+
+    /// <summary>True when this jurisdiction's tax is graduated rather than flat.</summary>
+    public bool IsBanded => Bands.Count > 0;
+
     /// <summary>The combined rate applied to the taxable amount.</summary>
+    /// <remarks>
+    /// Meaningless for a banded jurisdiction, where there is no single rate. Read
+    /// <see cref="IsBanded"/> first; the engine does.
+    /// </remarks>
     public Percentage CombinedRate => StateRate + LocalRate;
+
+    /// <summary>
+    /// Why these bands cannot be used, if they cannot.
+    /// </summary>
+    /// <remarks>
+    /// Checked by the engine before it prices anything, and by the approval tool
+    /// before a reviewer can sign. Every one of these would otherwise produce a
+    /// confident, wrong number rather than a failure.
+    /// </remarks>
+    public string? BandError
+    {
+        get
+        {
+            if (!IsBanded)
+            {
+                return null;
+            }
+
+            if (!StateRate.IsZero || !LocalRate.IsZero)
+            {
+                return "This rule set carries both a flat rate and a banded rate. That does not "
+                    + "describe one tax, and choosing between them would be a guess about money "
+                    + "on a contract.";
+            }
+
+            for (var index = 0; index < Bands.Count - 1; index++)
+            {
+                if (Bands[index].UpTo is null)
+                {
+                    return $"Band {index + 1} of {Bands.Count} is unbounded but is not the last "
+                        + "band, so the bands above it can never be reached.";
+                }
+            }
+
+            if (Bands[^1].UpTo is not null)
+            {
+                return "The last band has an upper bound, so a vehicle valued above it would be "
+                    + "taxed on only part of its value. The top band must be unbounded.";
+            }
+
+            for (var index = 1; index < Bands.Count; index++)
+            {
+                var previous = Bands[index - 1].UpTo;
+                var current = Bands[index].UpTo;
+
+                if (previous is not null && current is not null && current.Value <= previous.Value)
+                {
+                    return $"Band {index + 1} ends at {current} but band {index} already ends at "
+                        + $"{previous}. Bands must ascend.";
+                }
+            }
+
+            return null;
+        }
+    }
 
     /// <summary>True when <paramref name="date"/> falls inside this rule set's window.</summary>
     public bool CoversDate(DateOnly date) =>
